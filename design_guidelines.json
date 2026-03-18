@@ -1,0 +1,237 @@
+{
+  "metadata": {
+    "app_name": "ConstructConnect",
+    "version": "1.0.0",
+    "framework": "React Native Expo",
+    "styling_engine": "StyleSheet.create()",
+    "theme_mode": "Light",
+    "description": "A professional contractor finder app with live location and AI contract generation."
+  },
+  "design_system": {
+    "palette": {
+      "primary": {
+        "main": "#FF9500",
+        "light": "#FFB700",
+        "dark": "#E08600",
+        "contrast_text": "#1C1C1E"
+      },
+      "secondary": {
+        "main": "#1C1C1E",
+        "light": "#2C2C2E",
+        "dark": "#000000",
+        "contrast_text": "#FFFFFF"
+      },
+      "background": {
+        "default": "#F2F2F7",
+        "paper": "#FFFFFF",
+        "overlay": "rgba(0, 0, 0, 0.5)"
+      },
+      "text": {
+        "primary": "#000000",
+        "secondary": "#636366",
+        "disabled": "#AEAEB2",
+        "placeholder": "#C7C7CC"
+      },
+      "status": {
+        "success": "#34C759",
+        "error": "#FF3B30",
+        "warning": "#FFCC00",
+        "info": "#007AFF"
+      },
+      "border": {
+        "default": "#E5E5EA",
+        "focus": "#FF9500"
+      }
+    },
+    "typography": {
+      "font_family": {
+        "headers": "System", 
+        "body": "System"
+      },
+      "scales": {
+        "h1": {
+          "fontSize": 34,
+          "fontWeight": "700",
+          "lineHeight": 41,
+          "letterSpacing": 0.37
+        },
+        "h2": {
+          "fontSize": 28,
+          "fontWeight": "700",
+          "lineHeight": 34,
+          "letterSpacing": 0.36
+        },
+        "h3": {
+          "fontSize": 22,
+          "fontWeight": "600",
+          "lineHeight": 28,
+          "letterSpacing": 0.35
+        },
+        "body_large": {
+          "fontSize": 17,
+          "fontWeight": "400",
+          "lineHeight": 22,
+          "letterSpacing": -0.41
+        },
+        "body_regular": {
+          "fontSize": 15,
+          "fontWeight": "400",
+          "lineHeight": 20,
+          "letterSpacing": -0.24
+        },
+        "caption": {
+          "fontSize": 12,
+          "fontWeight": "500",
+          "lineHeight": 16,
+          "letterSpacing": 0
+        },
+        "button": {
+          "fontSize": 17,
+          "fontWeight": "600",
+          "lineHeight": 22,
+          "letterSpacing": -0.41
+        }
+      }
+    },
+    "spacing": {
+      "xs": 4,
+      "s": 8,
+      "m": 16,
+      "l": 24,
+      "xl": 32,
+      "xxl": 48
+    },
+    "layout": {
+      "radius": {
+        "s": 8,
+        "m": 12,
+        "l": 16,
+        "round": 9999
+      },
+      "screen_padding": 16,
+      "min_touch_target": 44
+    },
+    "shadows": {
+      "light": {
+        "shadowColor": "#000",
+        "shadowOffset": { "width": 0, "height": 1 },
+        "shadowOpacity": 0.1,
+        "shadowRadius": 2,
+        "elevation": 2
+      },
+      "medium": {
+        "shadowColor": "#000",
+        "shadowOffset": { "width": 0, "height": 2 },
+        "shadowOpacity": 0.15,
+        "shadowRadius": 4,
+        "elevation": 4
+      },
+      "heavy": {
+        "shadowColor": "#000",
+        "shadowOffset": { "width": 0, "height": 4 },
+        "shadowOpacity": 0.2,
+        "shadowRadius": 8,
+        "elevation": 8
+      }
+    }
+  },
+  "component_guidelines": {
+    "Buttons": {
+      "Primary": {
+        "backgroundColor": "primary.main",
+        "borderRadius": "layout.radius.l",
+        "paddingVertical": 14,
+        "alignItems": "center",
+        "justifyContent": "center",
+        "width": "100%",
+        "textStyle": {
+          "color": "primary.contrast_text",
+          "fontSize": 17,
+          "fontWeight": "600"
+        }
+      },
+      "Secondary": {
+        "backgroundColor": "transparent",
+        "borderWidth": 2,
+        "borderColor": "primary.main",
+        "borderRadius": "layout.radius.l",
+        "paddingVertical": 12,
+        "alignItems": "center",
+        "width": "100%",
+        "textStyle": {
+          "color": "primary.main",
+          "fontSize": 17,
+          "fontWeight": "600"
+        }
+      }
+    },
+    "Cards": {
+      "ContractorProfile": {
+        "backgroundColor": "background.paper",
+        "borderRadius": "layout.radius.m",
+        "padding": "spacing.m",
+        "marginBottom": "spacing.m",
+        "shadow": "shadows.light"
+      }
+    },
+    "Inputs": {
+      "default": {
+        "backgroundColor": "#F2F2F7",
+        "borderRadius": "layout.radius.s",
+        "paddingHorizontal": "spacing.m",
+        "paddingVertical": 12,
+        "fontSize": 17,
+        "color": "text.primary",
+        "borderWidth": 1,
+        "borderColor": "transparent"
+      },
+      "focus": {
+        "borderColor": "primary.main",
+        "backgroundColor": "#FFFFFF"
+      }
+    }
+  },
+  "assets": {
+    "images": {
+      "contractor_avatars": [
+        "https://images.unsplash.com/photo-1612006767176-225f7f9af5d2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzd8MHwxfHNlYXJjaHwyfHxjb25zdHJ1Y3Rpb24lMjB3b3JrZXIlMjBwb3J0cmFpdCUyMHByb2Zlc3Npb25hbHxlbnwwfHx8fDE3NzM4NDQzOTd8MA&ixlib=rb-4.1.0&q=85",
+        "https://images.pexels.com/photos/16552855/pexels-photo-16552855.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "https://images.pexels.com/photos/8960995/pexels-photo-8960995.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+      ],
+      "work_portfolio": [
+        "https://images.unsplash.com/photo-1772475329901-58f77a9625ab?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBob3VzZSUyMGludGVyaW9yJTIwcmVub3ZhdGlvbnxlbnwwfHx8fDE3NzM4NDQzOTh8MA&ixlib=rb-4.1.0&q=85",
+        "https://images.unsplash.com/photo-1769738204142-35ce7b6ea0e9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBob3VzZSUyMGludGVyaW9yJTIwcmVub3ZhdGlvbnxlbnwwfHx8fDE3NzM4NDQzOTh8MA&ixlib=rb-4.1.0&q=85",
+        "https://images.unsplash.com/photo-1773101883573-2afcb4c4ff4b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBob3VzZSUyMGludGVyaW9yJTIwcmVub3ZhdGlvbnxlbnwwfHx8fDE3NzM4NDQzOTh8MA&ixlib=rb-4.1.0&q=85"
+      ],
+      "trade_specific": {
+        "plumbing": "https://images.pexels.com/photos/7220892/pexels-photo-7220892.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "electrical": "https://images.unsplash.com/photo-1758101755915-462eddc23f57?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwzfHxlbGVjdHJpY2lhbiUyMHdvcmtpbmclMjBvbiUyMHBhbmVsfGVufDB8fHx8MTc3Mzg0NDM5OXww&ixlib=rb-4.1.0&q=85",
+        "blueprints": "https://images.unsplash.com/photo-1772442198624-4fc4d7281e89?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODR8MHwxfHNlYXJjaHwxfHxjb25zdHJ1Y3Rpb24lMjBibHVlcHJpbnQlMjBwbGFuc3xlbnwwfHx8fDE3NzM4NDQ0MDB8MA&ixlib=rb-4.1.0&q=85"
+      }
+    }
+  },
+  "implementation_rules": {
+    "styling": {
+      "method": "StyleSheet.create",
+      "forbidden": ["inline styles (except dynamic values)", "Tailwind CSS classes"],
+      "safe_area": "Must use SafeAreaView from react-native-safe-area-context",
+      "keyboard": "Must use KeyboardAvoidingView for all forms"
+    },
+    "layout": {
+      "flex": "Use Flexbox for all layouts",
+      "absolute": "Avoid absolute positioning unless for overlays/markers",
+      "lists": "Use FlatList for any list > 5 items"
+    },
+    "accessibility": {
+      "touch_targets": "Ensure minimum 44x44px for all interactive elements",
+      "contrast": "Ensure text contrast meets WCAG AA standards"
+    }
+  },
+  "universal_guidelines": [
+    "Do not use generic 'Inter' font if possible; rely on System font or custom industrial fonts.",
+    "Use yellow/orange for Primary Actions only. Secondary actions should be grey/black.",
+    "Map View must be the central experience for finding contractors.",
+    "Contract generation should be a simple step-by-step wizard.",
+    "All interactive elements MUST include a `data-testid` attribute."
+  ]
+}
