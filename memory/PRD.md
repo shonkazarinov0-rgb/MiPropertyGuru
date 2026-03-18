@@ -1,7 +1,7 @@
-# ConstructConnect - Product Requirements Document
+# MiPropertyGuru - Product Requirements Document
 
 ## Overview
-ConstructConnect is a contractor finder mobile app built with Expo (React Native) and FastAPI. Clients find trusted contractors nearby, communicate via real-time chat, and generate AI-powered service contracts.
+MiPropertyGuru is a contractor finder mobile app built with Expo (React Native) and FastAPI. Clients find trusted contractors nearby, communicate via real-time chat, and generate AI-powered service contracts. The app branding matches the MiPropertyGuru van wrap: vibrant orange + dark charcoal split design with house-leaf logo.
 
 ## Tech Stack
 - **Frontend**: Expo SDK 54, React Native, Expo Router (file-based routing), Socket.IO Client
@@ -84,8 +84,9 @@ ConstructConnect is a contractor finder mobile app built with Expo (React Native
 - `typing` / `user_typing` — Typing indicator
 
 ## Design
-- Light theme with Safety Orange (#FF9500) + Slate (#1C1C1E)
-- Professional construction aesthetic
+- Light theme with MiPropertyGuru brand orange (#FF7F00) + Charcoal (#2C2C2C)
+- Van wrap-inspired design: orange/charcoal split, house-leaf logo
+- Tagline: "Let Clients Find You On The Map In Real Time!"
 - 8pt grid spacing system
 - StyleSheet.create() for all styles
 - SafeAreaView + KeyboardAvoidingView

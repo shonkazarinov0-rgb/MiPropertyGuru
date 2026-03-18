@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Modal, FlatList, Alert,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Modal, FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect } from 'expo-router';
@@ -20,6 +20,29 @@ const CONTRACTOR_TYPES = [
   "Garage Door Specialist", "Septic System Specialist",
   "Waterproofing Specialist", "Foundation Specialist"
 ];
+
+function Logo({ size = 'large' }: { size?: 'large' | 'small' }) {
+  const isLarge = size === 'large';
+  const textColor = isLarge ? colors.paper : colors.secondary;
+  const borderColor = isLarge ? colors.paper : colors.primary;
+  const iconColor = isLarge ? colors.paper : colors.primary;
+  const miColor = isLarge ? colors.logoYellow : colors.primary;
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <View style={[s.logoHouse, isLarge ? s.logoHouseLg : s.logoHouseSm, { borderColor }]}>
+        <Ionicons name="home" size={isLarge ? 32 : 20} color={iconColor} />
+        <View style={[s.logoLeaf, isLarge ? s.logoLeafLg : s.logoLeafSm]}>
+          <Ionicons name="leaf" size={isLarge ? 14 : 10} color={colors.logoGreen} />
+        </View>
+      </View>
+      <View style={s.logoTextRow}>
+        <Text style={[s.logoMi, isLarge && s.logoMiLg, { color: miColor }]}>mi</Text>
+        <Text style={[s.logoProperty, isLarge && s.logoPropertyLg, { color: textColor }]}>Property</Text>
+      </View>
+      <Text style={[s.logoGuru, isLarge && s.logoGuruLg, { color: textColor }]}>GURU.</Text>
+    </View>
+  );
+}
 
 export default function AuthScreen() {
   const { user, loading, login, register } = useAuth();
@@ -73,41 +96,44 @@ export default function AuthScreen() {
     t.toLowerCase().includes(typeSearch.toLowerCase())
   );
 
+  // ─── WELCOME SCREEN (Van-inspired design) ───
   if (mode === 'welcome') {
     return (
-      <SafeAreaView style={s.container}>
-        <View style={s.welcomeContent}>
-          <View style={s.logoContainer}>
-            <View style={s.logoIcon}>
-              <Ionicons name="construct" size={48} color={colors.paper} />
+      <View style={s.welcomeContainer}>
+        <View style={s.welcomeOrange}>
+          <SafeAreaView style={s.welcomeOrangeInner}>
+            <Text style={s.registerNow}>REGISTER NOW!</Text>
+            <Logo size="large" />
+            <View style={s.taglineBox}>
+              <Ionicons name="map" size={20} color={colors.paper} />
+              <Text style={s.taglineText}>
+                Let Clients Find You{'\n'}On The Map In Real Time!
+              </Text>
             </View>
-            <Text style={s.appName}>ConstructConnect</Text>
-            <Text style={s.tagline}>Find trusted contractors near you</Text>
-          </View>
-          <View style={s.featureList}>
-            {[
-              { icon: 'location', text: 'Find contractors on a live map' },
-              { icon: 'star', text: 'Read reviews & view portfolios' },
-              { icon: 'chatbubbles', text: 'Message contractors directly' },
-              { icon: 'document-text', text: 'Generate AI-powered contracts' },
-            ].map((f, i) => (
-              <View key={i} style={s.featureRow}>
-                <Ionicons name={f.icon as any} size={22} color={colors.primary} />
-                <Text style={s.featureText}>{f.text}</Text>
-              </View>
-            ))}
-          </View>
-          <TouchableOpacity testID="get-started-btn" style={s.primaryBtn} onPress={() => setMode('register')}>
-            <Text style={s.primaryBtnText}>Get Started</Text>
+          </SafeAreaView>
+        </View>
+
+        <View style={s.welcomeDark}>
+          <Text style={s.servicesText}>
+            PLUMBING, HEATING & COOLING,{'\n'}ELECTRICAL, HANDY MAN and more...
+          </Text>
+
+          <TouchableOpacity testID="get-started-btn" style={s.welcomeBtn} onPress={() => setMode('register')}>
+            <Text style={s.welcomeBtnText}>Get Started</Text>
+            <Ionicons name="arrow-forward" size={20} color={colors.secondary} />
           </TouchableOpacity>
-          <TouchableOpacity testID="go-login-btn" style={s.linkBtn} onPress={() => setMode('login')}>
-            <Text style={s.linkText}>Already have an account? <Text style={s.linkBold}>Log In</Text></Text>
+
+          <TouchableOpacity testID="go-login-btn" style={s.welcomeLoginBtn} onPress={() => setMode('login')}>
+            <Text style={s.welcomeLoginText}>
+              Already registered? <Text style={s.welcomeLoginBold}>Log In</Text>
+            </Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
+  // ─── LOGIN SCREEN ───
   if (mode === 'login') {
     return (
       <SafeAreaView style={s.container}>
@@ -116,9 +142,15 @@ export default function AuthScreen() {
             <TouchableOpacity testID="back-to-welcome" style={s.backBtn} onPress={() => setMode('welcome')}>
               <Ionicons name="arrow-back" size={24} color={colors.secondary} />
             </TouchableOpacity>
+
+            <View style={s.formLogoRow}>
+              <Logo size="small" />
+            </View>
+
             <Text style={s.formTitle}>Welcome Back</Text>
             <Text style={s.formSubtitle}>Log in to your account</Text>
             {error ? <Text style={s.errorText}>{error}</Text> : null}
+
             <View style={s.inputGroup}>
               <Text style={s.label}>Email</Text>
               <TextInput testID="login-email" style={s.input} placeholder="your@email.com"
@@ -131,12 +163,15 @@ export default function AuthScreen() {
                 placeholderTextColor={colors.placeholder} value={password} onChangeText={setPassword}
                 secureTextEntry />
             </View>
+
             <TouchableOpacity testID="login-submit-btn" style={s.primaryBtn} onPress={handleLogin} disabled={submitting}>
-              {submitting ? <ActivityIndicator color={colors.secondary} /> : <Text style={s.primaryBtnText}>Log In</Text>}
+              {submitting ? <ActivityIndicator color={colors.paper} /> : <Text style={s.primaryBtnText}>Log In</Text>}
             </TouchableOpacity>
+
             <TouchableOpacity testID="go-register-btn" style={s.linkBtn} onPress={() => { setMode('register'); setError(''); }}>
               <Text style={s.linkText}>Don't have an account? <Text style={s.linkBold}>Sign Up</Text></Text>
             </TouchableOpacity>
+
             <View style={s.demoHint}>
               <Text style={s.demoText}>Demo: client@demo.com / demo123</Text>
             </View>
@@ -146,6 +181,7 @@ export default function AuthScreen() {
     );
   }
 
+  // ─── REGISTER SCREEN ───
   return (
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.flex}>
@@ -153,8 +189,13 @@ export default function AuthScreen() {
           <TouchableOpacity testID="back-to-welcome-reg" style={s.backBtn} onPress={() => setMode('welcome')}>
             <Ionicons name="arrow-back" size={24} color={colors.secondary} />
           </TouchableOpacity>
+
+          <View style={s.formLogoRow}>
+            <Logo size="small" />
+          </View>
+
           <Text style={s.formTitle}>Create Account</Text>
-          <Text style={s.formSubtitle}>Join ConstructConnect today</Text>
+          <Text style={s.formSubtitle}>Join MiPropertyGuru today</Text>
           {error ? <Text style={s.errorText}>{error}</Text> : null}
 
           <Text style={s.sectionLabel}>I am a...</Text>
@@ -231,7 +272,7 @@ export default function AuthScreen() {
           )}
 
           <TouchableOpacity testID="register-submit-btn" style={s.primaryBtn} onPress={handleRegister} disabled={submitting}>
-            {submitting ? <ActivityIndicator color={colors.secondary} /> :
+            {submitting ? <ActivityIndicator color={colors.paper} /> :
               <Text style={s.primaryBtnText}>{role === 'contractor' ? 'Register ($25/mo)' : 'Create Account'}</Text>}
           </TouchableOpacity>
           <TouchableOpacity testID="go-login-from-register" style={s.linkBtn} onPress={() => { setMode('login'); setError(''); }}>
@@ -274,33 +315,70 @@ const s = StyleSheet.create({
   flex: { flex: 1 },
   container: { flex: 1, backgroundColor: colors.paper },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.paper },
-  welcomeContent: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing.l },
-  logoContainer: { alignItems: 'center', marginBottom: spacing.xl },
-  logoIcon: {
-    width: 88, height: 88, borderRadius: 22, backgroundColor: colors.primary,
-    justifyContent: 'center', alignItems: 'center', marginBottom: spacing.m,
+
+  // ── Welcome Screen (Van-inspired) ──
+  welcomeContainer: { flex: 1 },
+  welcomeOrange: {
+    flex: 1.1, backgroundColor: colors.primary,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  welcomeOrangeInner: { alignItems: 'center', paddingHorizontal: spacing.l },
+  registerNow: {
+    fontSize: 16, fontWeight: '800', color: colors.paper, letterSpacing: 2,
+    marginBottom: spacing.m, opacity: 0.9,
+  },
+  taglineBox: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.s,
+    marginTop: spacing.l, backgroundColor: 'rgba(0,0,0,0.12)',
+    paddingHorizontal: spacing.m, paddingVertical: spacing.s + 2, borderRadius: radius.m,
+  },
+  taglineText: {
+    fontSize: 16, fontWeight: '600', color: colors.paper, textAlign: 'center', lineHeight: 22,
+  },
+  welcomeDark: {
+    flex: 0.7, backgroundColor: colors.secondary,
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.l,
+  },
+  servicesText: {
+    fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.7)', textAlign: 'center',
+    letterSpacing: 0.8, lineHeight: 20, marginBottom: spacing.l,
+  },
+  welcomeBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.s,
+    backgroundColor: colors.primary, borderRadius: radius.l,
+    paddingVertical: 16, paddingHorizontal: 40,
     shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 8,
+    shadowOpacity: 0.4, shadowRadius: 8, elevation: 6,
   },
-  appName: { fontSize: 34, fontWeight: '700', color: colors.secondary, letterSpacing: 0.37 },
-  tagline: { fontSize: 17, color: colors.textSecondary, marginTop: spacing.xs },
-  featureList: { marginBottom: spacing.xl },
-  featureRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.s + 2 },
-  featureText: { fontSize: 16, color: colors.secondary, marginLeft: spacing.m },
-  primaryBtn: {
-    backgroundColor: colors.primary, borderRadius: radius.l, paddingVertical: 16,
-    alignItems: 'center', marginTop: spacing.m,
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25, shadowRadius: 4, elevation: 4,
+  welcomeBtnText: { fontSize: 18, fontWeight: '700', color: colors.secondary },
+  welcomeLoginBtn: { marginTop: spacing.m, paddingVertical: spacing.s },
+  welcomeLoginText: { fontSize: 14, color: 'rgba(255,255,255,0.6)' },
+  welcomeLoginBold: { fontWeight: '600', color: colors.primary },
+
+  // ── Logo ──
+  logoHouse: {
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 3, borderRadius: 18,
   },
-  primaryBtnText: { fontSize: 17, fontWeight: '600', color: colors.secondary },
-  linkBtn: { alignItems: 'center', paddingVertical: spacing.m },
-  linkText: { fontSize: 15, color: colors.textSecondary },
-  linkBold: { fontWeight: '600', color: colors.primary },
+  logoHouseLg: { width: 68, height: 68 },
+  logoHouseSm: { width: 44, height: 44, borderWidth: 2, borderRadius: 12 },
+  logoLeaf: { position: 'absolute' },
+  logoLeafLg: { top: -10, right: -8 },
+  logoLeafSm: { top: -7, right: -5 },
+  logoTextRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: spacing.xs },
+  logoMi: { fontSize: 20, fontWeight: '300', color: colors.logoYellow },
+  logoMiLg: { fontSize: 28 },
+  logoProperty: { fontSize: 20, fontWeight: '300', color: colors.paper },
+  logoPropertyLg: { fontSize: 28 },
+  logoGuru: { fontSize: 28, fontWeight: '800', color: colors.paper, letterSpacing: 2 },
+  logoGuruLg: { fontSize: 38 },
+
+  // ── Forms ──
+  formLogoRow: { alignItems: 'center', marginBottom: spacing.m },
   backBtn: { marginBottom: spacing.m, width: 44, height: 44, justifyContent: 'center' },
   formScroll: { paddingHorizontal: spacing.l, paddingTop: spacing.m, paddingBottom: spacing.xxl },
-  formTitle: { fontSize: 34, fontWeight: '700', color: colors.secondary, marginBottom: spacing.xs },
-  formSubtitle: { fontSize: 17, color: colors.textSecondary, marginBottom: spacing.l },
+  formTitle: { fontSize: 30, fontWeight: '700', color: colors.secondary, marginBottom: spacing.xs },
+  formSubtitle: { fontSize: 16, color: colors.textSecondary, marginBottom: spacing.l },
   errorText: {
     fontSize: 14, color: colors.error, backgroundColor: '#FFF0F0',
     paddingHorizontal: spacing.m, paddingVertical: spacing.s, borderRadius: radius.s, marginBottom: spacing.m,
@@ -312,6 +390,16 @@ const s = StyleSheet.create({
     paddingVertical: 14, fontSize: 17, color: colors.textPrimary, borderWidth: 1, borderColor: 'transparent',
   },
   bioInput: { height: 80, paddingTop: 14 },
+  primaryBtn: {
+    backgroundColor: colors.primary, borderRadius: radius.l, paddingVertical: 16,
+    alignItems: 'center', marginTop: spacing.m,
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
+  },
+  primaryBtnText: { fontSize: 17, fontWeight: '700', color: colors.paper },
+  linkBtn: { alignItems: 'center', paddingVertical: spacing.m },
+  linkText: { fontSize: 15, color: colors.textSecondary },
+  linkBold: { fontWeight: '600', color: colors.primary },
   sectionLabel: { fontSize: 16, fontWeight: '600', color: colors.secondary, marginBottom: spacing.s, marginTop: spacing.s },
   roleRow: { flexDirection: 'row', gap: spacing.m, marginBottom: spacing.m },
   roleBtn: {
@@ -324,8 +412,9 @@ const s = StyleSheet.create({
   roleDesc: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   roleDescActive: { color: 'rgba(255,255,255,0.8)' },
   feeNotice: {
-    flexDirection: 'row', backgroundColor: '#FFF8EC', borderRadius: radius.s,
+    flexDirection: 'row', backgroundColor: '#FFF4E6', borderRadius: radius.s,
     padding: spacing.m, marginBottom: spacing.m, gap: spacing.s, alignItems: 'flex-start',
+    borderLeftWidth: 3, borderLeftColor: colors.primary,
   },
   feeText: { flex: 1, fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
   pickerBtn: {
@@ -353,7 +442,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 14, paddingHorizontal: spacing.m, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  typeItemActive: { backgroundColor: '#FFF8EC' },
+  typeItemActive: { backgroundColor: '#FFF4E6' },
   typeText: { fontSize: 16, color: colors.secondary },
   typeTextActive: { fontWeight: '600', color: colors.primary },
   demoHint: { alignItems: 'center', marginTop: spacing.s },

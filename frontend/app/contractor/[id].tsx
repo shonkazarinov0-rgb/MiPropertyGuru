@@ -178,7 +178,7 @@ const s = StyleSheet.create({
   errorText: { fontSize: 16, color: colors.error },
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.m, paddingVertical: spacing.s, backgroundColor: colors.secondary,
+    paddingHorizontal: spacing.m, paddingVertical: spacing.s, backgroundColor: colors.primary,
   },
   backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
   topTitle: { fontSize: 17, fontWeight: '600', color: colors.paper },

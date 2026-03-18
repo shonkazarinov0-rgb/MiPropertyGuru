@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet,
-  ActivityIndicator, ScrollView, RefreshControl,
+  ActivityIndicator, ScrollView, RefreshControl, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -141,8 +141,8 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
         <View>
-          <Text style={s.greeting}>Hello, {user?.name?.split(' ')[0]}</Text>
-          <Text style={s.headerSub}>Find contractors near you</Text>
+          <Text style={s.greeting}>miPropertyGuru</Text>
+          <Text style={s.headerSub}>Find contractors near you in real time</Text>
         </View>
         <TouchableOpacity testID="toggle-map-btn" style={s.mapToggle} onPress={() => setShowMap(!showMap)}>
           <Ionicons name={showMap ? 'list' : 'map'} size={22} color={colors.paper} />
@@ -166,10 +166,16 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
         ))}
       </ScrollView>
 
-      {showMap && userLoc && filtered.length > 0 && (
+      {showMap && userLoc && filtered.length > 0 && Platform.OS !== 'web' && (
         <View style={s.mapContainer}>
           <WebView source={{ html: getMapHTML() }} style={s.mapView}
             onMessage={handleMapMessage} scrollEnabled={false} />
+        </View>
+      )}
+      {showMap && Platform.OS === 'web' && (
+        <View style={s.mapPlaceholder}>
+          <Ionicons name="map" size={28} color={colors.primary} />
+          <Text style={s.mapPlaceholderText}>Map view available on mobile app</Text>
         </View>
       )}
 
@@ -196,10 +202,10 @@ const s = StyleSheet.create({
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: spacing.m, paddingVertical: spacing.m,
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.primary,
   },
   greeting: { fontSize: 22, fontWeight: '700', color: colors.paper },
-  headerSub: { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+  headerSub: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
   mapToggle: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center', alignItems: 'center',
@@ -227,6 +233,13 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3,
   },
   mapView: { flex: 1 },
+  mapPlaceholder: {
+    height: 80, marginHorizontal: spacing.m, marginTop: spacing.m,
+    borderRadius: radius.m, backgroundColor: colors.paper,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.s,
+    borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed',
+  },
+  mapPlaceholderText: { fontSize: 14, color: colors.textSecondary },
   listContent: { padding: spacing.m, paddingBottom: 100 },
   card: {
     backgroundColor: colors.paper, borderRadius: radius.m, padding: spacing.m,

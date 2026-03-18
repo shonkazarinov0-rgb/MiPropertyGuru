@@ -1,9 +1,9 @@
 export const colors = {
-  primary: '#FF9500',
-  primaryLight: '#FFB700',
-  primaryDark: '#E08600',
-  secondary: '#1C1C1E',
-  secondaryLight: '#2C2C2E',
+  primary: '#FF7F00',
+  primaryLight: '#FF9500',
+  primaryDark: '#E06800',
+  secondary: '#2C2C2C',
+  secondaryLight: '#3C3C3C',
   background: '#F2F2F7',
   paper: '#FFFFFF',
   textPrimary: '#000000',
@@ -15,7 +15,9 @@ export const colors = {
   warning: '#FFCC00',
   info: '#007AFF',
   border: '#E5E5EA',
-  borderFocus: '#FF9500',
+  borderFocus: '#FF7F00',
+  logoYellow: '#FFDA00',
+  logoGreen: '#4CAF50',
 };
 
 export const spacing = { xs: 4, s: 8, m: 16, l: 24, xl: 32, xxl: 48 };

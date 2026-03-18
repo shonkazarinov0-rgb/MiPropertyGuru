@@ -148,7 +148,7 @@ const s = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.m, paddingVertical: spacing.s, backgroundColor: colors.secondary,
+    paddingHorizontal: spacing.m, paddingVertical: spacing.s, backgroundColor: colors.primary,
   },
   backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
   topInfo: { flex: 1, alignItems: 'center' },

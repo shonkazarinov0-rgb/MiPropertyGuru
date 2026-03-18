@@ -180,7 +180,7 @@ async def typing(sid, data):
 
 # ── FastAPI ──
 
-fastapi_app = FastAPI(title="ConstructConnect API")
+fastapi_app = FastAPI(title="MiPropertyGuru API")
 fastapi_app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 api_router = APIRouter(prefix="/api")
 
