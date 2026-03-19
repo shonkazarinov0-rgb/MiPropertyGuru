@@ -58,6 +58,7 @@ export default function AuthScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [typeSearch, setTypeSearch] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   if (loading) {
     return (
@@ -79,12 +80,14 @@ export default function AuthScreen() {
   const handleRegister = async () => {
     if (!name || !email || !phone || !password) { setError('Please fill in all fields'); return; }
     if (role === 'contractor' && !contractorType) { setError('Please select your trade'); return; }
+    if (role === 'contractor' && !acceptedTerms) { setError('You must accept the Terms of Service and Privacy Policy'); return; }
     setSubmitting(true); setError('');
     try {
       await register({
         name, email, phone, password, role,
         contractor_type: role === 'contractor' ? contractorType : undefined,
         bio,
+        accepted_terms: acceptedTerms,
       });
     } catch (e: any) { setError(e.message || 'Registration failed'); }
     finally { setSubmitting(false); }
@@ -168,6 +171,10 @@ export default function AuthScreen() {
 
             <TouchableOpacity testID="go-register-btn" style={s.linkBtn} onPress={() => { setMode('register'); setError(''); }}>
               <Text style={s.linkText}>Don't have an account? <Text style={s.linkBold}>Sign Up</Text></Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={s.forgotBtn} onPress={() => router.push('/forgot-password')}>
+              <Text style={s.forgotText}>Forgot your password?</Text>
             </TouchableOpacity>
 
             <View style={s.demoHint}>
@@ -259,6 +266,28 @@ export default function AuthScreen() {
                 <TextInput testID="register-bio" style={[s.input, s.bioInput]} placeholder="Describe your experience..."
                   placeholderTextColor={colors.placeholder} value={bio} onChangeText={setBio}
                   multiline numberOfLines={3} textAlignVertical="top" />
+              </View>
+              
+              {/* Terms and Privacy Agreement */}
+              <View style={s.termsContainer}>
+                <TouchableOpacity 
+                  style={s.checkboxRow} 
+                  onPress={() => setAcceptedTerms(!acceptedTerms)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[s.checkbox, acceptedTerms && s.checkboxChecked]}>
+                    {acceptedTerms && <Ionicons name="checkmark" size={16} color="#fff" />}
+                  </View>
+                  <Text style={s.termsText}>
+                    I agree to the{' '}
+                    <Text style={s.termsLink} onPress={() => router.push('/terms')}>Terms of Service</Text>
+                    {' '}and{' '}
+                    <Text style={s.termsLink} onPress={() => router.push('/privacy')}>Privacy Policy</Text>
+                  </Text>
+                </TouchableOpacity>
+                <Text style={s.termsDisclaimer}>
+                  I understand that MiPropertyGuru connects clients with contractors only. All work, payments, and responsibilities are between the client and contractor. MiPropertyGuru is not liable for any work performed or disputes.
+                </Text>
               </View>
             </>
           )}
@@ -439,4 +468,23 @@ const s = StyleSheet.create({
   typeTextActive: { fontWeight: '600', color: colors.primary },
   demoHint: { alignItems: 'center', marginTop: spacing.s },
   demoText: { fontSize: 12, color: colors.textDisabled },
+  
+  // Terms and checkbox styles
+  termsContainer: { marginTop: spacing.m, marginBottom: spacing.s },
+  checkboxRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.s },
+  checkbox: { 
+    width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: colors.border,
+    justifyContent: 'center', alignItems: 'center', marginTop: 2,
+  },
+  checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
+  termsText: { flex: 1, fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  termsLink: { color: colors.primary, fontWeight: '600', textDecorationLine: 'underline' },
+  termsDisclaimer: { 
+    fontSize: 12, color: colors.textDisabled, lineHeight: 18, marginTop: spacing.s, 
+    marginLeft: 32, fontStyle: 'italic',
+  },
+  
+  // Forgot password
+  forgotBtn: { alignItems: 'center', paddingVertical: spacing.s },
+  forgotText: { fontSize: 14, color: colors.primary, fontWeight: '500' },
 });

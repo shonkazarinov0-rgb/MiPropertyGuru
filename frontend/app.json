@@ -1,26 +1,40 @@
 {
   "expo": {
     "name": "MiPropertyGuru",
-    "slug": "frontend",
+    "slug": "mipropertyguru",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "mipropertyguru",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.mipropertyguru.app",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Find contractors near your location"
+        "NSLocationWhenInUseUsageDescription": "Find contractors near your location",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Share your location with clients to get more jobs",
+        "NSCameraUsageDescription": "Take photos of your completed work",
+        "NSPhotoLibraryUsageDescription": "Upload photos to your portfolio"
       }
     },
     "android": {
+      "package": "com.mipropertyguru.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FF9500"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -41,12 +55,25 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Find contractors near your location"
+          "locationWhenInUsePermission": "Find contractors near your location",
+          "locationAlwaysAndWhenInUsePermission": "Share your location with clients to get more jobs"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#FF9500"
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "mipropertyguru"
+      }
     }
   }
 }

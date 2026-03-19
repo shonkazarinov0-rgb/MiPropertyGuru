@@ -17,6 +17,7 @@ from fastapi import Request
 import math
 import random
 import stripe
+import httpx
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -184,6 +185,26 @@ async def send_message(sid, data):
         {"$set": {"last_message": text, "last_message_at": msg["created_at"]}}
     )
     await sio.emit("new_message", msg, room=conv_id)
+    
+    # Send push notification to the other participant
+    try:
+        conv = await db.conversations.find_one({"id": conv_id})
+        if conv:
+            participants = conv.get("participants", [])
+            recipient_id = next((p for p in participants if p != sender_id), None)
+            if recipient_id:
+                recipient = await db.users.find_one({"id": recipient_id})
+                sender = await db.users.find_one({"id": sender_id})
+                if recipient and recipient.get("push_token"):
+                    sender_name = sender.get("name", "Someone") if sender else "Someone"
+                    await send_push_notification(
+                        to_token=recipient["push_token"],
+                        title=f"New message from {sender_name}",
+                        body=text[:100] + ("..." if len(text) > 100 else ""),
+                        data={"conversation_id": conv_id, "type": "message"}
+                    )
+    except Exception as e:
+        logger.error(f"Push notification error in send_message: {e}")
 
 @sio.event
 async def typing(sid, data):
@@ -546,6 +567,53 @@ async def admin_deactivate(uid: str, req: AdminActionReq, user=Depends(get_curre
         raise HTTPException(403, "Invalid admin code")
     await db.users.update_one({"id": uid}, {"$set": {"subscription_status": "pending"}})
     return {"message": "Deactivated"}
+
+# ── Push Notifications ──
+
+class PushTokenReq(BaseModel):
+    push_token: str
+
+async def send_push_notification(to_token: str, title: str, body: str, data: dict = None):
+    """Send push notification via Expo Push Notification Service"""
+    if not to_token:
+        return False
+    try:
+        message = {
+            "to": to_token,
+            "sound": "default",
+            "title": title,
+            "body": body,
+            "data": data or {}
+        }
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                "https://exp.host/--/api/v2/push/send",
+                json=message,
+                headers={"Content-Type": "application/json"}
+            )
+            logger.info(f"Push notification sent: {resp.status_code}")
+            return resp.status_code == 200
+    except Exception as e:
+        logger.error(f"Push notification error: {e}")
+        return False
+
+@api_router.post("/push-token")
+async def save_push_token(req: PushTokenReq, user=Depends(get_current_user)):
+    """Save user's push notification token"""
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {"push_token": req.push_token}}
+    )
+    return {"message": "Push token saved"}
+
+@api_router.delete("/push-token")
+async def delete_push_token(user=Depends(get_current_user)):
+    """Remove user's push notification token (logout)"""
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$unset": {"push_token": ""}}
+    )
+    return {"message": "Push token removed"}
 
 # ── Seed Data ──
 
