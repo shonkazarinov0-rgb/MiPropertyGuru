@@ -215,7 +215,7 @@ export default function AuthScreen() {
           {role === 'contractor' && (
             <View style={s.feeNotice}>
               <Ionicons name="information-circle" size={20} color={colors.primary} />
-              <Text style={s.feeText}>Contractor accounts require a $25/month subscription fee. Payment integration coming soon.</Text>
+              <Text style={s.feeText}>Contractor accounts require a $24.99 CAD/month subscription to be visible to clients.</Text>
             </View>
           )}
 
@@ -265,7 +265,7 @@ export default function AuthScreen() {
 
           <TouchableOpacity testID="register-submit-btn" style={s.primaryBtn} onPress={handleRegister} disabled={submitting}>
             {submitting ? <ActivityIndicator color={colors.paper} /> :
-              <Text style={s.primaryBtnText}>{role === 'contractor' ? 'Register ($25/mo)' : 'Create Account'}</Text>}
+              <Text style={s.primaryBtnText}>{role === 'contractor' ? 'Register ($24.99 CAD/mo)' : 'Create Account'}</Text>}
           </TouchableOpacity>
           <TouchableOpacity testID="go-login-from-register" style={s.linkBtn} onPress={() => { setMode('login'); setError(''); }}>
             <Text style={s.linkText}>Already have an account? <Text style={s.linkBold}>Log In</Text></Text>

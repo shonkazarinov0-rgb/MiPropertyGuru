@@ -64,8 +64,8 @@ export default function PaymentScreen() {
 
         <View style={styles.card}>
           <View style={styles.priceRow}>
-            <Text style={styles.price}>$25</Text>
-            <Text style={styles.perMonth}>/month</Text>
+            <Text style={styles.price}>$24.99</Text>
+            <Text style={styles.perMonth}>CAD/month</Text>
           </View>
           <Text style={styles.planName}>Professional Contractor Plan</Text>
           

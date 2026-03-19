@@ -13,10 +13,10 @@ from datetime import datetime, timezone
 from passlib.context import CryptContext
 import jwt as pyjwt
 from emergentintegrations.llm.chat import LlmChat, UserMessage
-from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
 from fastapi import Request
 import math
 import random
+import stripe
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -30,7 +30,11 @@ ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
+STRIPE_PRICE_ID = os.environ.get('STRIPE_PRICE_ID', '')
 ADMIN_SECRET = os.environ.get('ADMIN_SECRET', 'mipg-admin-2024')
+
+# Initialize Stripe
+stripe.api_key = STRIPE_API_KEY
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -414,62 +418,99 @@ async def list_contracts(user=Depends(get_current_user)):
 async def create_subscription(req: SubscriptionReq, request: Request, user=Depends(get_current_user)):
     if user["role"] != "contractor":
         raise HTTPException(403, "Only contractors need subscriptions")
-    host_url = str(request.base_url).rstrip('/')
-    webhook_url = f"{host_url}api/webhook/stripe"
-    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    
     success_url = f"{req.origin_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{req.origin_url}/payment"
-    checkout_req = CheckoutSessionRequest(
-        amount=25.00, currency="usd",
-        success_url=success_url, cancel_url=cancel_url,
-        metadata={"user_id": user["id"], "user_email": user["email"], "type": "contractor_subscription"}
-    )
-    session = await stripe_checkout.create_checkout_session(checkout_req)
-    tx = {
-        "id": str(uuid.uuid4()), "session_id": session.session_id,
-        "user_id": user["id"], "user_email": user["email"],
-        "amount": 25.00, "currency": "usd",
-        "payment_status": "pending", "status": "initiated",
-        "metadata": {"type": "contractor_subscription"},
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-    await db.payment_transactions.insert_one(tx.copy())
-    return {"url": session.url, "session_id": session.session_id}
+    
+    try:
+        # Create Stripe Checkout Session using your Price ID with all your configured settings
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            success_url=success_url,
+            cancel_url=cancel_url,
+            line_items=[
+                {
+                    "price": STRIPE_PRICE_ID,  # Your $24.99 CAD recurring price with phone collection
+                    "quantity": 1,
+                }
+            ],
+            metadata={
+                "user_id": user["id"],
+                "user_email": user["email"],
+                "type": "contractor_subscription"
+            },
+            customer_email=user["email"],  # Pre-fill their email
+        )
+        
+        tx = {
+            "id": str(uuid.uuid4()), 
+            "session_id": session.id,
+            "user_id": user["id"], 
+            "user_email": user["email"],
+            "payment_status": "pending", 
+            "status": "initiated",
+            "metadata": {"type": "contractor_subscription"},
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.payment_transactions.insert_one(tx.copy())
+        return {"url": session.url, "session_id": session.id}
+    except stripe.StripeError as e:
+        logger.error(f"Stripe error: {e}")
+        raise HTTPException(500, f"Payment setup failed: {str(e)}")
 
 @api_router.get("/payments/status/{session_id}")
 async def check_payment_status(session_id: str, request: Request, user=Depends(get_current_user)):
-    host_url = str(request.base_url).rstrip('/')
-    webhook_url = f"{host_url}api/webhook/stripe"
-    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
-    status = await stripe_checkout.get_checkout_status(session_id)
-    await db.payment_transactions.update_one(
-        {"session_id": session_id},
-        {"$set": {"payment_status": status.payment_status, "status": status.status}}
-    )
-    if status.payment_status == "paid":
-        tx = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
-        if tx and tx.get("status") != "completed":
-            await db.payment_transactions.update_one({"session_id": session_id}, {"$set": {"status": "completed"}})
-            await db.users.update_one({"id": user["id"]}, {"$set": {"subscription_status": "active"}})
-    return {"status": status.status, "payment_status": status.payment_status, "amount_total": status.amount_total, "currency": status.currency}
+    try:
+        # Use native Stripe SDK to check session status
+        session = stripe.checkout.Session.retrieve(session_id)
+        payment_status = session.payment_status  # 'paid', 'unpaid', 'no_payment_required'
+        status = session.status  # 'open', 'complete', 'expired'
+        
+        await db.payment_transactions.update_one(
+            {"session_id": session_id},
+            {"$set": {"payment_status": payment_status, "status": status}}
+        )
+        
+        if payment_status == "paid" or status == "complete":
+            tx = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
+            if tx and tx.get("status") != "completed":
+                await db.payment_transactions.update_one({"session_id": session_id}, {"$set": {"status": "completed"}})
+                await db.users.update_one({"id": user["id"]}, {"$set": {"subscription_status": "active"}})
+        
+        return {
+            "status": status, 
+            "payment_status": payment_status, 
+            "amount_total": session.amount_total,
+            "currency": session.currency
+        }
+    except stripe.StripeError as e:
+        logger.error(f"Stripe status check error: {e}")
+        raise HTTPException(500, f"Failed to check payment status: {str(e)}")
 
 @api_router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
     body = await request.body()
     sig = request.headers.get("Stripe-Signature", "")
+    
     try:
-        host_url = str(request.base_url).rstrip('/')
-        webhook_url = f"{host_url}api/webhook/stripe"
-        stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
-        resp = await stripe_checkout.handle_webhook(body, sig)
-        if resp.payment_status == "paid":
-            uid = resp.metadata.get("user_id")
-            if uid:
-                await db.users.update_one({"id": uid}, {"$set": {"subscription_status": "active"}})
+        # Parse the webhook event
+        event = stripe.Event.construct_from(
+            stripe.util.convert_to_stripe_object(await request.json()),
+            stripe.api_key
+        )
+        
+        # Handle checkout.session.completed event
+        if event.type == "checkout.session.completed":
+            session = event.data.object
+            user_id = session.metadata.get("user_id")
+            if user_id:
+                await db.users.update_one({"id": user_id}, {"$set": {"subscription_status": "active"}})
                 await db.payment_transactions.update_one(
-                    {"session_id": resp.session_id},
+                    {"session_id": session.id},
                     {"$set": {"payment_status": "paid", "status": "completed"}}
                 )
+                logger.info(f"Activated subscription for user {user_id}")
+        
         return {"status": "ok"}
     except Exception as e:
         logger.error(f"Webhook error: {e}")
