@@ -134,7 +134,7 @@ export default function ProfileScreen() {
                 </View>
                 <View style={s.subRow}>
                   <Text style={s.subLabel}>Monthly Fee</Text>
-                  <Text style={s.subAmount}>$25.00/mo</Text>
+                  <Text style={s.subAmount}>$24.99 CAD/mo</Text>
                 </View>
                 <Text style={s.subNote}>Stripe payment integration coming soon</Text>
               </View>
