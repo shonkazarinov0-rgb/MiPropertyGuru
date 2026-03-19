@@ -126,7 +126,6 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 <Text style={s.ratingText}>{item.rating || 0}</Text>
                 <Text style={s.reviewCount}>({item.review_count || 0})</Text>
               </View>
-              <Text style={s.rateText}>${item.hourly_rate}/hr</Text>
               {item.distance && item.distance < 999 && (
                 <Text style={s.distText}>{item.distance} mi</Text>
               )}

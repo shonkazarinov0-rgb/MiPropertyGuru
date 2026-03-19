@@ -53,7 +53,6 @@ export default function AuthScreen() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [contractorType, setContractorType] = useState('');
-  const [hourlyRate, setHourlyRate] = useState('');
   const [bio, setBio] = useState('');
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -85,7 +84,6 @@ export default function AuthScreen() {
       await register({
         name, email, phone, password, role,
         contractor_type: role === 'contractor' ? contractorType : undefined,
-        hourly_rate: hourlyRate ? parseFloat(hourlyRate) : 0,
         bio,
       });
     } catch (e: any) { setError(e.message || 'Registration failed'); }
@@ -255,12 +253,6 @@ export default function AuthScreen() {
                   </Text>
                   <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
-              </View>
-              <View style={s.inputGroup}>
-                <Text style={s.label}>Hourly Rate ($)</Text>
-                <TextInput testID="register-rate" style={s.input} placeholder="e.g. 75"
-                  placeholderTextColor={colors.placeholder} value={hourlyRate} onChangeText={setHourlyRate}
-                  keyboardType="numeric" />
               </View>
               <View style={s.inputGroup}>
                 <Text style={s.label}>Short Bio</Text>

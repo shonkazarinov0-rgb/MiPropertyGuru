@@ -117,11 +117,6 @@ export default function ProfileScreen() {
                 <Text style={s.statValue}>{user?.review_count || 0}</Text>
                 <Text style={s.statLabel}>Reviews</Text>
               </View>
-              <View style={s.statDivider} />
-              <View style={s.stat}>
-                <Text style={s.statValue}>${user?.hourly_rate || 0}</Text>
-                <Text style={s.statLabel}>Per Hour</Text>
-              </View>
             </View>
           )}
         </View>

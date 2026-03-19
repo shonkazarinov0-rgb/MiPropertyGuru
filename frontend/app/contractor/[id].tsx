@@ -96,7 +96,6 @@ export default function ContractorDetailScreen() {
             <Text style={s.ratingNum}>{contractor.rating || 0}</Text>
             <Text style={s.reviewCount}>({contractor.review_count || 0} reviews)</Text>
           </View>
-          <Text style={s.rate}>${contractor.hourly_rate}/hr</Text>
           <View style={s.locationInfo}>
             <Ionicons name="location" size={16} color={contractor.live_location_enabled ? colors.success : colors.primary} />
             <Text style={s.locationText}>
