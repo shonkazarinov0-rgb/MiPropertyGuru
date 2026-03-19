@@ -6,7 +6,14 @@ import { useAuth } from '../src/auth-context';
 import { api } from '../src/api';
 import { colors } from '../src/theme';
 import { router, useLocalSearchParams } from 'expo-router';
-import Logo from '../src/components/Logo';
+
+function AppLogo({ size = 60 }: { size?: number }) {
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }}>
+      <Ionicons name="construct" size={size * 0.5} color="#fff" />
+    </View>
+  );
+}
 
 export default function PaymentSuccessScreen() {
   const { refreshUser } = useAuth();
@@ -81,7 +88,7 @@ export default function PaymentSuccessScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Logo size={60} />
+        <AppLogo size={60} />
         <Ionicons name="time-outline" size={60} color={colors.warning} style={{ marginTop: 20 }} />
         <Text style={styles.title}>Payment Pending</Text>
         <Text style={styles.subtitle}>

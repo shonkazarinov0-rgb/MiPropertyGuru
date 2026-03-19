@@ -6,7 +6,14 @@ import { useAuth } from '../src/auth-context';
 import { api } from '../src/api';
 import { colors } from '../src/theme';
 import { router } from 'expo-router';
-import Logo from '../src/components/Logo';
+
+function AppLogo({ size = 80 }: { size?: number }) {
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' }}>
+      <Ionicons name="construct" size={size * 0.5} color="#fff" />
+    </View>
+  );
+}
 
 export default function PaymentScreen() {
   const { user, logout, refreshUser } = useAuth();
@@ -49,7 +56,7 @@ export default function PaymentScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Logo size={80} />
+        <AppLogo size={80} />
         <Text style={styles.title}>Activate Your Profile</Text>
         <Text style={styles.subtitle}>
           Welcome, {user?.name}! To start receiving clients, please activate your contractor subscription.
