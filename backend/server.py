@@ -13,6 +13,8 @@ from datetime import datetime, timezone
 from passlib.context import CryptContext
 import jwt as pyjwt
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+from fastapi import Request
 import math
 import random
 
@@ -27,6 +29,8 @@ SECRET_KEY = os.environ.get('JWT_SECRET', 'constructconnect-jwt-secret-2024-secu
 ALGORITHM = "HS256"
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
+ADMIN_SECRET = os.environ.get('ADMIN_SECRET', 'mipg-admin-2024')
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -94,6 +98,12 @@ class ProfileUpdate(BaseModel):
     bio: Optional[str] = None
     hourly_rate: Optional[float] = None
     contractor_type: Optional[str] = None
+
+class SubscriptionReq(BaseModel):
+    origin_url: str
+
+class AdminActionReq(BaseModel):
+    admin_secret: str
 
 # ── Auth Helpers ──
 
@@ -230,7 +240,7 @@ async def get_types():
 
 @api_router.get("/contractors")
 async def list_contractors(category: Optional[str] = None, lat: Optional[float] = None, lng: Optional[float] = None):
-    q = {"role": "contractor"}
+    q = {"role": "contractor", "subscription_status": "active"}
     if category and category != "All":
         q["contractor_type"] = category
     contractors = await db.users.find(q, {"_id": 0, "password_hash": 0}).to_list(100)
@@ -397,6 +407,104 @@ Payment Terms: {req.payment_terms}"""
 @api_router.get("/contracts")
 async def list_contracts(user=Depends(get_current_user)):
     return {"contracts": await db.contracts.find({"creator_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)}
+
+# ── Payments ──
+
+@api_router.post("/payments/create-subscription")
+async def create_subscription(req: SubscriptionReq, request: Request, user=Depends(get_current_user)):
+    if user["role"] != "contractor":
+        raise HTTPException(403, "Only contractors need subscriptions")
+    host_url = str(request.base_url).rstrip('/')
+    webhook_url = f"{host_url}api/webhook/stripe"
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    success_url = f"{req.origin_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{req.origin_url}/payment"
+    checkout_req = CheckoutSessionRequest(
+        amount=25.00, currency="usd",
+        success_url=success_url, cancel_url=cancel_url,
+        metadata={"user_id": user["id"], "user_email": user["email"], "type": "contractor_subscription"}
+    )
+    session = await stripe_checkout.create_checkout_session(checkout_req)
+    tx = {
+        "id": str(uuid.uuid4()), "session_id": session.session_id,
+        "user_id": user["id"], "user_email": user["email"],
+        "amount": 25.00, "currency": "usd",
+        "payment_status": "pending", "status": "initiated",
+        "metadata": {"type": "contractor_subscription"},
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.payment_transactions.insert_one(tx.copy())
+    return {"url": session.url, "session_id": session.session_id}
+
+@api_router.get("/payments/status/{session_id}")
+async def check_payment_status(session_id: str, request: Request, user=Depends(get_current_user)):
+    host_url = str(request.base_url).rstrip('/')
+    webhook_url = f"{host_url}api/webhook/stripe"
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    status = await stripe_checkout.get_checkout_status(session_id)
+    await db.payment_transactions.update_one(
+        {"session_id": session_id},
+        {"$set": {"payment_status": status.payment_status, "status": status.status}}
+    )
+    if status.payment_status == "paid":
+        tx = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
+        if tx and tx.get("status") != "completed":
+            await db.payment_transactions.update_one({"session_id": session_id}, {"$set": {"status": "completed"}})
+            await db.users.update_one({"id": user["id"]}, {"$set": {"subscription_status": "active"}})
+    return {"status": status.status, "payment_status": status.payment_status, "amount_total": status.amount_total, "currency": status.currency}
+
+@api_router.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    body = await request.body()
+    sig = request.headers.get("Stripe-Signature", "")
+    try:
+        host_url = str(request.base_url).rstrip('/')
+        webhook_url = f"{host_url}api/webhook/stripe"
+        stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+        resp = await stripe_checkout.handle_webhook(body, sig)
+        if resp.payment_status == "paid":
+            uid = resp.metadata.get("user_id")
+            if uid:
+                await db.users.update_one({"id": uid}, {"$set": {"subscription_status": "active"}})
+                await db.payment_transactions.update_one(
+                    {"session_id": resp.session_id},
+                    {"$set": {"payment_status": "paid", "status": "completed"}}
+                )
+        return {"status": "ok"}
+    except Exception as e:
+        logger.error(f"Webhook error: {e}")
+        return {"status": "error"}
+
+# ── Admin ──
+
+@api_router.post("/admin/verify")
+async def verify_admin(req: AdminActionReq, user=Depends(get_current_user)):
+    if req.admin_secret != ADMIN_SECRET:
+        raise HTTPException(403, "Invalid admin code")
+    return {"verified": True}
+
+@api_router.get("/admin/contractors")
+async def admin_list_contractors(admin_secret: str = "", user=Depends(get_current_user)):
+    if admin_secret != ADMIN_SECRET:
+        raise HTTPException(403, "Admin access required")
+    return {"contractors": await db.users.find({"role": "contractor"}, {"_id": 0, "password_hash": 0}).to_list(200)}
+
+@api_router.post("/admin/activate/{uid}")
+async def admin_activate(uid: str, req: AdminActionReq, user=Depends(get_current_user)):
+    if req.admin_secret != ADMIN_SECRET:
+        raise HTTPException(403, "Invalid admin code")
+    target = await db.users.find_one({"id": uid}, {"_id": 0})
+    if not target:
+        raise HTTPException(404, "User not found")
+    await db.users.update_one({"id": uid}, {"$set": {"subscription_status": "active", "subscription_fee": 0}})
+    return {"message": f"Activated {target['name']} for free"}
+
+@api_router.post("/admin/deactivate/{uid}")
+async def admin_deactivate(uid: str, req: AdminActionReq, user=Depends(get_current_user)):
+    if req.admin_secret != ADMIN_SECRET:
+        raise HTTPException(403, "Invalid admin code")
+    await db.users.update_one({"id": uid}, {"$set": {"subscription_status": "pending"}})
+    return {"message": "Deactivated"}
 
 # ── Seed Data ──
 

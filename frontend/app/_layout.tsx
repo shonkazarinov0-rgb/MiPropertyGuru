@@ -9,6 +9,9 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="payment" />
+        <Stack.Screen name="payment-success" />
+        <Stack.Screen name="admin-secret" />
         <Stack.Screen name="contractor/[id]" />
         <Stack.Screen name="chat/[id]" />
         <Stack.Screen name="contract/generate" options={{ presentation: 'modal' }} />

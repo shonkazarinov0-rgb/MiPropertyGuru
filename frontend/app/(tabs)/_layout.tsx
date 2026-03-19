@@ -9,6 +9,11 @@ export default function TabLayout() {
 
   if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={colors.primary} /></View>;
   if (!user) return <Redirect href="/" />;
+  
+  // Paywall: Contractors must have active subscription to access the app
+  if (user.role === 'contractor' && user.subscription_status !== 'active') {
+    return <Redirect href="/payment" />;
+  }
 
   return (
     <Tabs screenOptions={{
