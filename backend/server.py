@@ -325,9 +325,15 @@ async def create_review(req: ReviewCreate, user=Depends(get_current_user)):
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.reviews.insert_one(review.copy())
-    all_r = await db.reviews.find({"contractor_id": req.contractor_id}, {"_id": 0}).to_list(1000)
-    avg = sum(r["rating"] for r in all_r) / len(all_r) if all_r else 0
-    await db.users.update_one({"id": req.contractor_id}, {"$set": {"rating": round(avg, 1), "review_count": len(all_r)}})
+    # Use aggregation to calculate avg rating efficiently
+    pipeline = [
+        {"$match": {"contractor_id": req.contractor_id}},
+        {"$group": {"_id": None, "avg_rating": {"$avg": "$rating"}, "count": {"$sum": 1}}}
+    ]
+    result = await db.reviews.aggregate(pipeline).to_list(1)
+    avg = result[0]["avg_rating"] if result else 0
+    count = result[0]["count"] if result else 0
+    await db.users.update_one({"id": req.contractor_id}, {"$set": {"rating": round(avg, 1), "review_count": count}})
     return review
 
 @api_router.get("/reviews/{cid}")
