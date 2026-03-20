@@ -24,9 +24,11 @@ export default function PaymentScreen() {
     setLoading(true);
     setError('');
     try {
-      const origin = Platform.OS === 'web' 
-        ? window.location.origin 
-        : process.env.EXPO_PUBLIC_BACKEND_URL || '';
+      // For web, use current origin. For mobile, let the backend handle it
+      let origin = '';
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        origin = window.location.origin;
+      }
       
       const res = await api.post('/payments/create-subscription', { origin_url: origin });
       
