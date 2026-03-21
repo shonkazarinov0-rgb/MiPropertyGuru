@@ -546,19 +546,19 @@ async def stripe_webhook(request: Request):
 # ── Admin ──
 
 @api_router.post("/admin/verify")
-async def verify_admin(req: AdminActionReq, user=Depends(get_current_user)):
+async def verify_admin(req: AdminActionReq):
     if req.admin_secret != ADMIN_SECRET:
         raise HTTPException(403, "Invalid admin code")
     return {"verified": True}
 
 @api_router.get("/admin/contractors")
-async def admin_list_contractors(admin_secret: str = "", user=Depends(get_current_user)):
+async def admin_list_contractors(admin_secret: str = ""):
     if admin_secret != ADMIN_SECRET:
         raise HTTPException(403, "Admin access required")
     return {"contractors": await db.users.find({"role": "contractor"}, {"_id": 0, "password_hash": 0}).to_list(200)}
 
 @api_router.post("/admin/activate/{uid}")
-async def admin_activate(uid: str, req: AdminActionReq, user=Depends(get_current_user)):
+async def admin_activate(uid: str, req: AdminActionReq):
     if req.admin_secret != ADMIN_SECRET:
         raise HTTPException(403, "Invalid admin code")
     target = await db.users.find_one({"id": uid}, {"_id": 0})
@@ -568,7 +568,7 @@ async def admin_activate(uid: str, req: AdminActionReq, user=Depends(get_current
     return {"message": f"Activated {target['name']} for free"}
 
 @api_router.post("/admin/deactivate/{uid}")
-async def admin_deactivate(uid: str, req: AdminActionReq, user=Depends(get_current_user)):
+async def admin_deactivate(uid: str, req: AdminActionReq):
     if req.admin_secret != ADMIN_SECRET:
         raise HTTPException(403, "Invalid admin code")
     await db.users.update_one({"id": uid}, {"$set": {"subscription_status": "pending"}})
