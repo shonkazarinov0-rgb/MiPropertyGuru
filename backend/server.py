@@ -1,5 +1,6 @@
 import socketio
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -713,6 +714,23 @@ async def startup():
 @fastapi_app.on_event("shutdown")
 async def shutdown():
     mongo_client.close()
+
+
+# ── Download endpoints for Google Play assets ──
+
+@api_router.get("/download/feature-graphic")
+async def download_feature_graphic():
+    file_path = ROOT_DIR / "feature-graphic.png"
+    if file_path.exists():
+        return FileResponse(file_path, media_type="image/png", filename="feature-graphic.png")
+    raise HTTPException(404, "File not found")
+
+@api_router.get("/download/icon-512")
+async def download_icon():
+    file_path = ROOT_DIR / "icon-512.png"
+    if file_path.exists():
+        return FileResponse(file_path, media_type="image/png", filename="icon-512.png")
+    raise HTTPException(404, "File not found")
 
 fastapi_app.include_router(api_router)
 app = socketio.ASGIApp(sio, other_asgi_app=fastapi_app, socketio_path='/api/socket.io')
