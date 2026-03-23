@@ -306,18 +306,6 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
           </View>
         </View>
 
-        {/* Main Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.primaryBtn} onPress={handleFindHelpNow}>
-            <Ionicons name="search" size={22} color={colors.paper} />
-            <Text style={styles.primaryBtnText}>Find Help Now</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryBtn} onPress={handleGetQuotes}>
-            <Ionicons name="document-text-outline" size={22} color={colors.primary} />
-            <Text style={styles.secondaryBtnText}>Get Multiple Quotes</Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Mini Map */}
         {userLoc && contractors.length > 0 && Platform.OS !== 'web' && (
           <TouchableOpacity style={styles.mapPreview} onPress={() => setShowFullMap(true)}>
@@ -388,10 +376,10 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
         </View>
       </ScrollView>
 
-      {/* Sticky Post Job Button */}
+      {/* Sticky Find Help Button */}
       <TouchableOpacity style={styles.postJobBtn} onPress={handlePostJob}>
-        <Ionicons name="add" size={24} color={colors.paper} />
-        <Text style={styles.postJobText}>Post a Job</Text>
+        <Ionicons name="search" size={24} color={colors.paper} />
+        <Text style={styles.postJobText}>Get Help Now</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
