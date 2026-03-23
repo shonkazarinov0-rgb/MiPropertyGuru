@@ -209,10 +209,10 @@ export default function AuthScreen() {
               onPress={() => setRole('client')}>
               <Ionicons name="person" size={24} color={role === 'client' ? colors.paper : colors.secondary} />
               <Text style={[s.roleBtnText, role === 'client' && s.roleBtnTextActive]}>Client</Text>
-              <Text style={[s.roleDesc, role === 'client' && s.roleDescActive]}>Looking for work</Text>
+              <Text style={[s.roleDesc, role === 'client' && s.roleDescActive]}>Looking for help</Text>
             </TouchableOpacity>
             <TouchableOpacity testID="role-contractor-btn" style={[s.roleBtn, role === 'contractor' && s.roleBtnActive]}
-              onPress={() => setRole('contractor')}>
+              onPress={() => router.push('/contractor-register')}>
               <Ionicons name="construct" size={24} color={role === 'contractor' ? colors.paper : colors.secondary} />
               <Text style={[s.roleBtnText, role === 'contractor' && s.roleBtnTextActive]}>Contractor</Text>
               <Text style={[s.roleDesc, role === 'contractor' && s.roleDescActive]}>Offering services</Text>

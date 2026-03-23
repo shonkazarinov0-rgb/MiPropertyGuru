@@ -15,6 +15,8 @@ export default function TabLayout() {
     return <Redirect href="/payment" />;
   }
 
+  const isContractor = user.role === 'contractor';
+
   return (
     <Tabs screenOptions={{
       tabBarActiveTintColor: colors.primary,
@@ -29,9 +31,15 @@ export default function TabLayout() {
       tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
     }}>
       <Tabs.Screen name="home" options={{
-        title: 'Explore',
+        title: isContractor ? 'Find Work' : 'Explore',
         tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
       }} />
+      {isContractor && (
+        <Tabs.Screen name="dashboard" options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ color, size }) => <Ionicons name="grid" size={size} color={color} />,
+        }} />
+      )}
       <Tabs.Screen name="messages" options={{
         title: 'Messages',
         tabBarIcon: ({ color, size }) => <Ionicons name="chatbubbles" size={size} color={color} />,
