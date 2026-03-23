@@ -87,3 +87,7 @@ android-sdk/
 *.apk
 *.aab
 *.ipa
+-e 
+# Environment files
+*.env
+*.env.*
