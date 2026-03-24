@@ -24,7 +24,7 @@ const colors = {
 
 const TRADES = [
   { name: 'Electrician', icon: '⚡' },
-  { name: 'Plumber', icon: '💧' },
+  { name: 'Plumber', icon: '🔧' },
   { name: 'Handyman', icon: '🔨' },
   { name: 'HVAC Technician', icon: '❄️' },
   { name: 'Carpenter', icon: '🪚' },
@@ -33,11 +33,23 @@ const TRADES = [
   { name: 'General Contractor', icon: '👷' },
   { name: 'Tiler', icon: '🔲' },
   { name: 'Landscaper', icon: '🌳' },
-  { name: 'Flooring Specialist', icon: '🪵' },
   { name: 'Mason', icon: '🧱' },
   { name: 'Welder', icon: '🔥' },
   { name: 'Glazier', icon: '🪟' },
-  { name: 'Drywall Installer', icon: '🏗️' },
+  { name: 'Demolition', icon: '💥' },
+  { name: 'Drywall', icon: '🏗️' },
+  { name: 'Flooring', icon: '🪵' },
+  { name: 'Insulation', icon: '🧤' },
+  { name: 'Concrete', icon: '🪨' },
+  { name: 'Fence', icon: '🚧' },
+  { name: 'Deck Builder', icon: '🌲' },
+  { name: 'Cabinet Maker', icon: '🪑' },
+  { name: 'Window Installer', icon: '🖼️' },
+  { name: 'Siding', icon: '🏘️' },
+  { name: 'Garage Door', icon: '🚗' },
+  { name: 'Pool Service', icon: '🏊' },
+  { name: 'Locksmith', icon: '🔐' },
+  { name: 'Appliance Repair', icon: '🔌' },
 ];
 
 export default function ContractorRegisterScreen() {
@@ -366,7 +378,7 @@ export default function ContractorRegisterScreen() {
 
       <View style={styles.pricingBox}>
         <Text style={styles.pricingTitle}>💎 Subscription Required</Text>
-        <Text style={styles.pricingPrice}>$24.99 CAD/month</Text>
+        <Text style={styles.pricingPrice}>FREE (Limited Time!)</Text>
         <Text style={styles.pricingDesc}>
           Get unlimited access to leads, appear on the map, and connect with clients directly.
         </Text>
