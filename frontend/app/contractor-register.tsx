@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Linking,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import Slider from '@react-native-community/slider';
 import { api } from '../src/api';
 import { useAuth } from '../src/auth-context';
@@ -20,6 +22,7 @@ const colors = {
   textSecondary: '#6B7280',
   green: '#22C55E',
   border: '#E5E7EB',
+  red: '#EF4444',
 };
 
 const TRADES = [
@@ -75,9 +78,13 @@ export default function ContractorRegisterScreen() {
   // Step 4: Profile
   const [bio, setBio] = useState('');
   const [experienceYears, setExperienceYears] = useState('');
+  const [workPhotos, setWorkPhotos] = useState<string[]>([]);
 
   // Step 5: Terms
   const [acceptTerms, setAcceptTerms] = useState(false);
+  
+  // Field validation tracking
+  const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     if (step === 3) {
@@ -163,7 +170,8 @@ export default function ContractorRegisterScreen() {
 
       if (res.token && res.user) {
         await login(res.token, res.user);
-        router.replace('/payment');
+        // Go directly to dashboard since registration is free
+        router.replace('/(tabs)/dashboard');
       }
     } catch (e: any) {
       Alert.alert('Registration Failed', e.message || 'Please try again');
@@ -172,61 +180,73 @@ export default function ContractorRegisterScreen() {
     }
   };
 
-  const renderStep1 = () => (
-    <View style={styles.stepContent}>
-      <Text style={styles.stepTitle}>Let's get started</Text>
-      <Text style={styles.stepSubtitle}>Enter your basic information</Text>
+  const renderStep1 = () => {
+    const showPhoneError = touched.email && email.trim() && !phone.trim();
+    
+    return (
+      <View style={styles.stepContent}>
+        <Text style={styles.stepTitle}>Let's get started</Text>
+        <Text style={styles.stepSubtitle}>Enter your basic information</Text>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Full Name</Text>
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-          placeholder="John Smith"
-          placeholderTextColor={colors.textSecondary}
-          autoCapitalize="words"
-        />
-      </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Full Name</Text>
+          <TextInput
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+            placeholder="John Smith"
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="words"
+          />
+        </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Phone Number</Text>
-        <TextInput
-          style={styles.input}
-          value={phone}
-          onChangeText={setPhone}
-          placeholder="+1 (555) 123-4567"
-          placeholderTextColor={colors.textSecondary}
-          keyboardType="phone-pad"
-        />
-      </View>
+        <View style={styles.inputGroup}>
+          <Text style={[styles.inputLabel, showPhoneError && styles.inputLabelError]}>
+            Phone Number {showPhoneError && <Text style={styles.requiredText}>*Required</Text>}
+          </Text>
+          <TextInput
+            style={[styles.input, showPhoneError && styles.inputError]}
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="+1 (555) 123-4567"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="phone-pad"
+          />
+          {showPhoneError && (
+            <Text style={styles.errorText}>Please enter your phone number</Text>
+          )}
+        </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Email</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="you@example.com"
-          placeholderTextColor={colors.textSecondary}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-      </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Email</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={(text) => {
+              setEmail(text);
+              setTouched({ ...touched, email: true });
+            }}
+            placeholder="you@example.com"
+            placeholderTextColor={colors.textSecondary}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+        </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Password</Text>
-        <TextInput
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-          placeholder="At least 6 characters"
-          placeholderTextColor={colors.textSecondary}
-          secureTextEntry
-        />
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Password</Text>
+          <TextInput
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            placeholder="At least 6 characters"
+            placeholderTextColor={colors.textSecondary}
+            secureTextEntry
+          />
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderStep2 = () => (
     <View style={styles.stepContent}>
@@ -301,6 +321,34 @@ export default function ContractorRegisterScreen() {
     </View>
   );
 
+  const pickWorkPhoto = async () => {
+    if (workPhotos.length >= 6) {
+      Alert.alert('Limit reached', 'You can upload up to 6 photos');
+      return;
+    }
+    
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        const photoUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        setWorkPhotos([...workPhotos, photoUri]);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+    }
+  };
+
+  const removeWorkPhoto = (index: number) => {
+    setWorkPhotos(workPhotos.filter((_, i) => i !== index));
+  };
+
   const renderStep4 = () => (
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>Tell clients about yourself</Text>
@@ -333,6 +381,31 @@ export default function ContractorRegisterScreen() {
           maxLength={500}
         />
         <Text style={styles.charCount}>{bio.length}/500</Text>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <Text style={styles.inputLabel}>Photos of Your Work (Optional)</Text>
+        <Text style={styles.inputHint}>Show off your best projects - up to 6 photos</Text>
+        
+        <View style={styles.photoGrid}>
+          {workPhotos.map((photo, index) => (
+            <View key={index} style={styles.photoItem}>
+              <Image source={{ uri: photo }} style={styles.workPhoto} />
+              <TouchableOpacity 
+                style={styles.removePhotoBtn}
+                onPress={() => removeWorkPhoto(index)}
+              >
+                <Ionicons name="close-circle" size={24} color={colors.red} />
+              </TouchableOpacity>
+            </View>
+          ))}
+          {workPhotos.length < 6 && (
+            <TouchableOpacity style={styles.addPhotoBtn} onPress={pickWorkPhoto}>
+              <Ionicons name="camera-outline" size={32} color={colors.textSecondary} />
+              <Text style={styles.addPhotoText}>Add Photo</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -530,6 +603,67 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'right',
     marginTop: 8,
+  },
+  inputLabelError: {
+    color: colors.red,
+  },
+  inputError: {
+    borderColor: colors.red,
+    borderWidth: 2,
+  },
+  requiredText: {
+    color: colors.red,
+    fontWeight: '400',
+    fontSize: 12,
+  },
+  errorText: {
+    color: colors.red,
+    fontSize: 12,
+    marginTop: 6,
+  },
+  inputHint: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 12,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  photoItem: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  workPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  removePhotoBtn: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+  },
+  addPhotoBtn: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.paper,
+  },
+  addPhotoText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
   },
   tradesGrid: {
     flexDirection: 'row',
