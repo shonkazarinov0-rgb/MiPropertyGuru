@@ -331,8 +331,8 @@ async def register(req: RegisterReq):
         "jobs_received": 0,
         "jobs_completed": 0,
         "profile_views": 0,
-        "subscription_status": "pending" if req.role == "contractor" else "free",
-        "subscription_fee": 25.0 if req.role == "contractor" else 0,
+        "subscription_status": "active",  # Free for testing - remove payment requirement
+        "subscription_fee": 0,  # Free for now
         "terms_accepted": True,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
