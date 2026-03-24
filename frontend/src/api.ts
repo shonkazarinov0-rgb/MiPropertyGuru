@@ -1,6 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-const getBaseUrl = () => process.env.EXPO_PUBLIC_BACKEND_URL || '';
+const getBaseUrl = () => {
+  // Use environment variable or fallback to production Railway URL
+  return process.env.EXPO_PUBLIC_BACKEND_URL || 
+         Constants.expoConfig?.extra?.backendUrl || 
+         'https://mipropertyguru-production.up.railway.app';
+};
 
 const request = async (method: string, path: string, body?: any) => {
   const token = await AsyncStorage.getItem('auth_token');

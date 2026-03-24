@@ -73,7 +73,8 @@
     "extra": {
       "eas": {
         "projectId": "mipropertyguru"
-      }
+      },
+      "backendUrl": "https://mipropertyguru-production.up.railway.app"
     }
   }
 }

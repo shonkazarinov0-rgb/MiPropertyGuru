@@ -7,11 +7,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { io, Socket } from 'socket.io-client';
+import Constants from 'expo-constants';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
 import { colors, spacing, radius } from '../../src/theme';
 
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 
+                    Constants.expoConfig?.extra?.backendUrl || 
+                    'https://mipropertyguru-production.up.railway.app';
 
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
