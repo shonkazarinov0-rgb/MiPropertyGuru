@@ -434,7 +434,7 @@ export default function ContractorRegisterScreen() {
                 <ActivityIndicator color={colors.paper} />
               ) : (
                 <>
-                  <Text style={styles.submitBtnText}>Create Account & Continue to Payment</Text>
+                  <Text style={styles.submitBtnText}>Create Account</Text>
                 </>
               )}
             </TouchableOpacity>
