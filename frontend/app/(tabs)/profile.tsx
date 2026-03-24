@@ -237,6 +237,22 @@ export default function ProfileScreen() {
               </View>
             </View>
           )}
+          
+          {/* Languages Spoken - show for contractors */}
+          {isContractor && isContractorMode && user?.languages && user.languages.length > 0 && (
+            <View style={s.languagesRow}>
+              <Ionicons name="globe-outline" size={16} color={colors.primary} />
+              <Text style={s.languagesLabel}>Languages: </Text>
+              <Text style={s.languagesText}>{user.languages.join(', ')}</Text>
+            </View>
+          )}
+          
+          {/* License Badge - show for contractors with license */}
+          {isContractor && isContractorMode && user?.has_license && (
+            <View style={s.licenseBadgeProfile}>
+              <Text style={s.licenseBadgeProfileText}>🪪 License on file</Text>
+            </View>
+          )}
         </View>
 
         {/* Contractor-only sections - only show in contractor mode */}
@@ -899,5 +915,38 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.paper,
+  },
+  // Languages display
+  languagesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  languagesLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginLeft: 6,
+  },
+  languagesText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  // License badge on profile
+  licenseBadgeProfile: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginTop: 12,
+  },
+  licenseBadgeProfileText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#166534',
   },
 });
