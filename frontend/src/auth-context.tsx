@@ -37,9 +37,11 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   switchMode: (mode: 'client' | 'contractor') => Promise<void>;
+  setGuestMode: () => Promise<void>;
   isClientMode: boolean;
   isContractorMode: boolean;
   sessionExpired: boolean;
+  isGuest: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -48,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
 
   useEffect(() => { checkAuth(); }, []);
 
@@ -74,6 +77,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
+      // Check for guest mode first
+      const guestMode = await AsyncStorage.getItem('guest_mode');
+      if (guestMode === 'true') {
+        setIsGuest(true);
+        setLoading(false);
+        return;
+      }
+      
       const token = await AsyncStorage.getItem('auth_token');
       const keepLoggedIn = await AsyncStorage.getItem('keep_logged_in');
       
@@ -229,6 +240,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem('user_mode', mode);
   };
 
+  const setGuestMode = async () => {
+    await AsyncStorage.setItem('guest_mode', 'true');
+    setIsGuest(true);
+  };
+
   // Computed properties for easy mode checking
   const isClientMode = user?.role === 'client' || (user?.role === 'contractor' && user?.currentMode === 'client');
   const isContractorMode = user?.role === 'contractor' && user?.currentMode !== 'client';
@@ -242,9 +258,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout, 
       refreshUser, 
       switchMode,
+      setGuestMode,
       isClientMode,
       isContractorMode,
-      sessionExpired
+      sessionExpired,
+      isGuest
     }}>
       {children}
     </AuthContext.Provider>

@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../src/auth-context';
 import { colors, spacing, radius } from '../src/theme';
 
@@ -45,8 +46,8 @@ function Logo({ size = 'large' }: { size?: 'large' | 'small' }) {
 }
 
 export default function AuthScreen() {
-  const { user, loading, login, register } = useAuth();
-  const [mode, setMode] = useState<'welcome' | 'login' | 'register'>('welcome');
+  const { user, loading, login, register, setGuestMode } = useAuth();
+  const [mode, setMode] = useState<'welcome' | 'login' | 'register' | 'choose'>('welcome');
   const [role, setRole] = useState<'client' | 'contractor'>('client');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -76,6 +77,12 @@ export default function AuthScreen() {
     try { await login(email, password, keepLoggedIn); }
     catch (e: any) { setError(e.message || 'Login failed'); }
     finally { setSubmitting(false); }
+  };
+
+  const handleGuestBrowse = async () => {
+    // Set guest mode via context and navigate to home
+    await setGuestMode();
+    router.replace('/(tabs)/home');
   };
 
   const handleRegister = async () => {
@@ -120,7 +127,7 @@ export default function AuthScreen() {
             PLUMBING, HEATING & COOLING,{'\n'}ELECTRICAL, HANDY MAN and more...
           </Text>
 
-          <TouchableOpacity testID="get-started-btn" style={s.welcomeBtn} onPress={() => setMode('register')}>
+          <TouchableOpacity testID="get-started-btn" style={s.welcomeBtn} onPress={() => setMode('choose')}>
             <Text style={s.welcomeBtnText}>Get Started</Text>
             <Ionicons name="arrow-forward" size={20} color={colors.secondary} />
           </TouchableOpacity>
@@ -194,6 +201,52 @@ export default function AuthScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
+
+  // ─── CHOOSE ROLE SCREEN (Client or Contractor) ───
+  if (mode === 'choose') {
+    return (
+      <SafeAreaView style={s.container}>
+        <View style={s.chooseContainer}>
+          <TouchableOpacity style={s.backBtn} onPress={() => setMode('welcome')}>
+            <Ionicons name="arrow-back" size={24} color={colors.secondary} />
+          </TouchableOpacity>
+
+          <View style={s.chooseLogoRow}>
+            <Logo size="small" />
+          </View>
+
+          <Text style={s.chooseTitle}>I am a...</Text>
+          <Text style={s.chooseSubtitle}>Choose how you want to use the app</Text>
+
+          <View style={s.chooseButtonsContainer}>
+            <TouchableOpacity 
+              style={s.chooseClientBtn} 
+              onPress={handleGuestBrowse}
+            >
+              <Ionicons name="home" size={32} color={colors.paper} />
+              <Text style={s.chooseClientBtnText}>Client</Text>
+              <Text style={s.chooseClientBtnSubtext}>Looking for help</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={s.chooseContractorBtn} 
+              onPress={() => router.push('/contractor-register')}
+            >
+              <Ionicons name="construct" size={32} color={colors.paper} />
+              <Text style={s.chooseContractorBtnText}>Contractor</Text>
+              <Text style={s.chooseContractorBtnSubtext}>Offering services</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={s.chooseLoginLink} onPress={() => setMode('login')}>
+            <Text style={s.chooseLoginText}>
+              Already have an account? <Text style={s.chooseLoginBold}>Log In</Text>
+            </Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -514,4 +567,76 @@ const s = StyleSheet.create({
   },
   keepLoggedInCheckboxActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   keepLoggedInText: { fontSize: 14, color: colors.textSecondary },
+  
+  // Choose Role Screen
+  chooseContainer: {
+    flex: 1,
+    padding: spacing.l,
+    backgroundColor: colors.background,
+  },
+  chooseLogoRow: {
+    alignItems: 'center',
+    marginTop: spacing.xl,
+    marginBottom: spacing.xl,
+  },
+  chooseTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.secondary,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
+  },
+  chooseSubtitle: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+  },
+  chooseButtonsContainer: {
+    gap: spacing.m,
+  },
+  chooseClientBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    padding: spacing.l,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  chooseClientBtnText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  chooseClientBtnSubtext: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  chooseContractorBtn: {
+    backgroundColor: '#C45500', // Darker orange
+    borderRadius: 16,
+    padding: spacing.l,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  chooseContractorBtnText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  chooseContractorBtnSubtext: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+  },
+  chooseLoginLink: {
+    alignItems: 'center',
+    marginTop: spacing.xl,
+  },
+  chooseLoginText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  chooseLoginBold: {
+    fontWeight: '700',
+    color: colors.primary,
+  },
 });

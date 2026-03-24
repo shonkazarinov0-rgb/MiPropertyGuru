@@ -5,18 +5,23 @@ import { colors } from '../../src/theme';
 import { ActivityIndicator, View } from 'react-native';
 
 export default function TabLayout() {
-  const { user, loading, isClientMode, isContractorMode } = useAuth();
+  const { user, loading, isClientMode, isContractorMode, isGuest } = useAuth();
 
   if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={colors.primary} /></View>;
-  if (!user) return <Redirect href="/" />;
+  
+  // Allow guest users OR logged in users
+  if (!user && !isGuest) return <Redirect href="/" />;
   
   // Paywall: Contractors must have active subscription to access the app
-  if (user.role === 'contractor' && user.subscription_status !== 'active') {
+  if (user?.role === 'contractor' && user?.subscription_status !== 'active') {
     return <Redirect href="/payment" />;
   }
 
-  // Hide Dashboard tab when user is in client mode (including contractors who switched to client mode)
-  const showDashboard = user.role === 'contractor' && isContractorMode;
+  // Hide Dashboard tab when user is in client mode or is a guest
+  const showDashboard = user?.role === 'contractor' && isContractorMode;
+  
+  // Hide Messages and Profile for guests
+  const showMessagesAndProfile = !isGuest;
 
   return (
     <Tabs screenOptions={{
@@ -43,14 +48,22 @@ export default function TabLayout() {
           href: showDashboard ? undefined : null, // Hide when not in contractor mode
         }} 
       />
-      <Tabs.Screen name="messages" options={{
-        title: 'Messages',
-        tabBarIcon: ({ color, size }) => <Ionicons name="chatbubbles" size={size} color={color} />,
-      }} />
-      <Tabs.Screen name="profile" options={{
-        title: 'Profile',
-        tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
-      }} />
+      <Tabs.Screen 
+        name="messages" 
+        options={{
+          title: 'Messages',
+          tabBarIcon: ({ color, size }) => <Ionicons name="chatbubbles" size={size} color={color} />,
+          href: showMessagesAndProfile ? undefined : null, // Hide for guests
+        }} 
+      />
+      <Tabs.Screen 
+        name="profile" 
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
+          href: showMessagesAndProfile ? undefined : null, // Hide for guests
+        }} 
+      />
     </Tabs>
   );
 }
