@@ -13,7 +13,8 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from passlib.context import CryptContext
 import jwt as pyjwt
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+# Temporarily disabled for deployment - emergentintegrations not available on public PyPI
+# from emergentintegrations.llm.chat import LlmChat, UserMessage
 from fastapi import Request
 import math
 import random
@@ -965,28 +966,42 @@ async def get_messages(conv_id: str):
 
 @api_router.post("/contracts/generate")
 async def generate_contract(req: ContractReq, user=Depends(get_current_user)):
-    if not EMERGENT_LLM_KEY:
-        raise HTTPException(500, "AI not configured")
-    try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=str(uuid.uuid4()),
-            system_message="You are a professional contract lawyer. Generate a clear, legally formatted contractor-client service agreement."
-        )
-        chat.with_model("openai", "gpt-5.2")
-        prompt = f"""Generate a professional service contract:
-Contractor: {req.contractor_name}
-Client: {req.client_name}
-Job: {req.job_description}
-Location: {req.job_location}
-Start: {req.start_date}
-Duration: {req.estimated_duration}
-Amount: ${req.total_amount}
-Payment: {req.payment_terms}"""
-        response = await chat.send_message(UserMessage(text=prompt))
-    except Exception as e:
-        logger.error(f"AI contract error: {e}")
-        raise HTTPException(500, f"Contract generation failed: {str(e)}")
+    # AI Contract Generation is temporarily disabled
+    # Generate a basic template contract instead
+    response = f"""
+SERVICE AGREEMENT
+
+This Service Agreement ("Agreement") is entered into between:
+
+CONTRACTOR: {req.contractor_name}
+CLIENT: {req.client_name}
+
+1. SCOPE OF WORK
+{req.job_description}
+
+2. LOCATION
+{req.job_location}
+
+3. TIMELINE
+Start Date: {req.start_date}
+Estimated Duration: {req.estimated_duration}
+
+4. PAYMENT TERMS
+Total Amount: ${req.total_amount}
+Payment Schedule: {req.payment_terms}
+
+5. TERMS AND CONDITIONS
+- Contractor agrees to perform work in a professional manner
+- Client agrees to provide access to the work site
+- Any changes to scope must be agreed upon in writing
+- This agreement is binding upon signing by both parties
+
+Date: {datetime.now(timezone.utc).strftime('%Y-%m-%d')}
+
+_______________________          _______________________
+{req.contractor_name}            {req.client_name}
+(Contractor Signature)           (Client Signature)
+"""
 
     contract = {
         "id": str(uuid.uuid4()), 
