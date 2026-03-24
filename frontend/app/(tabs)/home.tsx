@@ -61,7 +61,7 @@ const CATEGORY_DATA = [
 
 export default function ClientHomeScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, switchMode, isClientMode, isContractorMode: authIsContractorMode } = useAuth();
   const [contractors, setContractors] = useState<any[]>([]);
   const [category, setCategory] = useState('All');
   const [loading, setLoading] = useState(true);
@@ -81,6 +81,9 @@ export default function ClientHomeScreen() {
   const [showServiceMenu, setShowServiceMenu] = useState(false);
   const menuOpacity = useRef(new Animated.Value(0)).current;
   const menuScale = useRef(new Animated.Value(0.8)).current;
+  
+  // Check if contractor is in client mode (browsing as client)
+  const isContractorInClientMode = user?.role === 'contractor' && isClientMode;
   
   // Contractor types with emojis for dynamic stat
   const CONTRACTOR_STATS = [
@@ -448,8 +451,27 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
   // Check if user is contractor in contractor mode
   const isContractorMode = user?.role === 'contractor' && user?.currentMode !== 'client';
 
+  const handleSwitchToContractorMode = async () => {
+    await switchMode('contractor');
+    router.replace('/(tabs)/dashboard');
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Switch to Contractor Mode Banner */}
+      {isContractorInClientMode && (
+        <TouchableOpacity style={styles.switchModeBanner} onPress={handleSwitchToContractorMode}>
+          <View style={styles.switchModeBannerContent}>
+            <Ionicons name="construct" size={20} color="#C45500" />
+            <Text style={styles.switchModeBannerText}>You're browsing as a client</Text>
+          </View>
+          <View style={styles.switchModeBannerBtn}>
+            <Text style={styles.switchModeBannerBtnText}>Back to Contractor Mode</Text>
+            <Ionicons name="arrow-forward" size={16} color={colors.paper} />
+          </View>
+        </TouchableOpacity>
+      )}
+      
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -1415,5 +1437,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     marginBottom: 8,
+  },
+  // Switch Mode Banner for contractors in client mode
+  switchModeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF8EC',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFE4C4',
+  },
+  switchModeBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  switchModeBannerText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#C45500',
+  },
+  switchModeBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#C45500',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  switchModeBannerBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.paper,
   },
 });
