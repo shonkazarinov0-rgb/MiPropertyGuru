@@ -470,7 +470,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   <Text style={{ fontSize: 18 }}>{engagementStat.icon}</Text>
                 </View>
                 <Text style={styles.statNumber}>{engagementStat.count}</Text>
-                <Text style={styles.statLabel} numberOfLines={2}>{engagementStat.type} hired</Text>
+                <Text style={styles.statLabel} numberOfLines={2}>{engagementStat.type} hired today</Text>
               </View>
             </View>
           </View>
