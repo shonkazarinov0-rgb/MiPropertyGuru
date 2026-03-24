@@ -59,9 +59,6 @@ const CATEGORY_DATA = [
   { name: 'Pool Service', icon: '🏊', color: '#00ACC1' },
   { name: 'Locksmith', icon: '🔐', color: '#FFC107' },
   { name: 'Appliance Repair', icon: '🔌', color: '#673AB7' },
-  { name: 'Pest Control', icon: '🐜', color: '#4E342E' },
-  { name: 'Cleaning Service', icon: '🧹', color: '#26A69A' },
-  { name: 'Moving Service', icon: '📦', color: '#FF7043' },
 ];
 
 export default function ClientHomeScreen() {
