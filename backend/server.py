@@ -962,6 +962,76 @@ async def list_conversations(user=Depends(get_current_user)):
 async def get_messages(conv_id: str):
     return {"messages": await db.messages.find({"conversation_id": conv_id}, {"_id": 0}).sort("created_at", 1).to_list(200)}
 
+# Send message via API (more reliable than socket)
+class SendMessageReq(BaseModel):
+    conversation_id: str
+    text: str
+
+@api_router.post("/messages/send")
+async def send_message_api(req: SendMessageReq, user=Depends(get_current_user)):
+    msg = {
+        "id": str(uuid.uuid4()),
+        "conversation_id": req.conversation_id,
+        "sender_id": user["id"],
+        "text": req.text,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.messages.insert_one(msg.copy())
+    # Update conversation last_message
+    await db.conversations.update_one(
+        {"id": req.conversation_id},
+        {"$set": {"last_message": req.text, "last_message_at": msg["created_at"]}}
+    )
+    # Emit via socket if available
+    try:
+        await sio.emit('new_message', msg, room=req.conversation_id)
+    except:
+        pass
+    return {"message": msg}
+
+# Confirm job in conversation
+@api_router.post("/conversations/{conv_id}/confirm-job")
+async def confirm_job(conv_id: str, user=Depends(get_current_user)):
+    conv = await db.conversations.find_one({"id": conv_id})
+    if not conv:
+        raise HTTPException(404, "Conversation not found")
+    
+    # Initialize confirmed_by if not exists
+    confirmed_by = conv.get("confirmed_by", [])
+    
+    # Add user to confirmed list if not already
+    if user["id"] not in confirmed_by:
+        confirmed_by.append(user["id"])
+    
+    # Check if both parties confirmed
+    participants = [conv["participant_1"], conv["participant_2"]]
+    all_confirmed = all(p in confirmed_by for p in participants)
+    
+    job_status = "confirmed" if all_confirmed else "pending_confirmation"
+    
+    await db.conversations.update_one(
+        {"id": conv_id},
+        {"$set": {
+            "confirmed_by": confirmed_by,
+            "job_status": job_status,
+            "confirmed_at": datetime.now(timezone.utc).isoformat() if all_confirmed else None
+        }}
+    )
+    
+    updated_conv = await db.conversations.find_one({"id": conv_id}, {"_id": 0})
+    
+    # Notify both parties via socket
+    try:
+        await sio.emit('job_confirmed', {
+            "conversation_id": conv_id,
+            "confirmed_by": confirmed_by,
+            "job_status": job_status
+        }, room=conv_id)
+    except:
+        pass
+    
+    return {"conversation": updated_conv}
+
 # ── Contracts ──
 
 @api_router.post("/contracts/generate")

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -10,11 +10,22 @@ import { io, Socket } from 'socket.io-client';
 import Constants from 'expo-constants';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
-import { colors, spacing, radius } from '../../src/theme';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 
                     Constants.expoConfig?.extra?.backendUrl || 
                     'https://mipropertyguru-production.up.railway.app';
+
+const colors = {
+  primary: '#FF6A00',
+  primaryLight: '#FFF3EB',
+  background: '#F7F7F7',
+  paper: '#FFFFFF',
+  text: '#1A1A1A',
+  textSecondary: '#6B7280',
+  green: '#22C55E',
+  greenLight: '#DCFCE7',
+  border: '#E5E7EB',
+};
 
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
@@ -23,9 +34,12 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const [otherName, setOtherName] = useState('');
+  const [conversation, setConversation] = useState<any>(null);
   const socketRef = useRef<Socket | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const lastSentRef = useRef<string>('');
 
   useEffect(() => {
     fetchMessages();
@@ -40,6 +54,7 @@ export default function ChatScreen() {
       const convRes = await api.get('/conversations');
       const conv = (convRes.conversations || []).find((c: any) => c.id === conversationId);
       if (conv) {
+        setConversation(conv);
         setOtherName(conv.participant_1 === user?.id ? conv.participant_2_name : conv.participant_1_name);
       }
     } catch (e) { console.error(e); }
@@ -57,28 +72,108 @@ export default function ChatScreen() {
     });
     socketRef.current.on('new_message', (msg: any) => {
       setMessages(prev => {
+        // Check if message already exists (by id or by matching text+sender within last 5 seconds)
         if (prev.some(m => m.id === msg.id)) return prev;
+        
+        // Also check for temp messages with same text from same sender
+        const isDuplicate = prev.some(m => 
+          m.id.startsWith('temp-') && 
+          m.sender_id === msg.sender_id && 
+          m.text === msg.text
+        );
+        
+        if (isDuplicate) {
+          // Replace temp message with real message
+          return prev.map(m => 
+            (m.id.startsWith('temp-') && m.sender_id === msg.sender_id && m.text === msg.text) 
+              ? msg 
+              : m
+          );
+        }
+        
         return [...prev, msg];
       });
     });
+    
+    // Listen for job confirmation updates
+    socketRef.current.on('job_confirmed', (data: any) => {
+      if (data.conversation_id === conversationId) {
+        setConversation((prev: any) => ({
+          ...prev,
+          ...data,
+        }));
+      }
+    });
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     const trimmed = text.trim();
-    if (!trimmed || !socketRef.current?.connected) return;
+    if (!trimmed || sending) return;
+    
+    // Prevent duplicate sends
+    if (lastSentRef.current === trimmed) return;
+    lastSentRef.current = trimmed;
+    
+    setSending(true);
+    const tempId = `temp-${Date.now()}`;
     const tempMsg = {
-      id: `temp-${Date.now()}`,
+      id: tempId,
       conversation_id: conversationId,
       sender_id: user?.id,
       text: trimmed,
       created_at: new Date().toISOString(),
     };
+    
     setMessages(prev => [...prev, tempMsg]);
-    socketRef.current.emit('send_message', {
-      conversation_id: conversationId,
-      text: trimmed,
-    });
     setText('');
+    
+    try {
+      // Send via API instead of socket for reliability
+      await api.post('/messages/send', {
+        conversation_id: conversationId,
+        text: trimmed,
+      });
+    } catch (e) {
+      console.error('Failed to send message:', e);
+      // Try socket as fallback
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('send_message', {
+          conversation_id: conversationId,
+          text: trimmed,
+        });
+      }
+    } finally {
+      setSending(false);
+      // Reset last sent after a delay
+      setTimeout(() => { lastSentRef.current = ''; }, 2000);
+    }
+  };
+
+  const confirmJob = async () => {
+    Alert.alert(
+      'Confirm Job',
+      'Are you sure you want to confirm this job? Both parties must confirm for the job to be marked as confirmed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Confirm', 
+          onPress: async () => {
+            try {
+              const res = await api.post(`/conversations/${conversationId}/confirm-job`);
+              setConversation(res.conversation);
+              
+              if (res.conversation.job_status === 'confirmed') {
+                Alert.alert('Job Confirmed! 🎉', 'Both parties have confirmed. This conversation has been moved to Confirmed Jobs.');
+              } else {
+                Alert.alert('Confirmation Sent', 'Waiting for the other party to confirm.');
+              }
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Could not confirm job');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const formatTime = (iso: string) => {
@@ -98,46 +193,100 @@ export default function ChatScreen() {
     );
   };
 
-  return (
-    <SafeAreaView style={s.container} edges={['top']}>
-      <View style={s.topBar}>
-        <TouchableOpacity testID="chat-back-btn" style={s.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={colors.paper} />
-        </TouchableOpacity>
-        <View style={s.topInfo}>
-          <Text style={s.topName}>{otherName || 'Chat'}</Text>
-        </View>
-        <View style={{ width: 44 }} />
-      </View>
+  // Determine confirmation status
+  const myConfirmed = conversation?.confirmed_by?.includes(user?.id);
+  const isFullyConfirmed = conversation?.job_status === 'confirmed';
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={s.flex} keyboardVerticalOffset={0}>
-        {loading ? (
-          <View style={s.center}><ActivityIndicator size="large" color={colors.primary} /></View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            renderItem={renderMessage}
-            keyExtractor={item => item.id}
-            contentContainerStyle={s.messagesList}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            ListEmptyComponent={
-              <View style={s.emptyChat}>
-                <Ionicons name="chatbubble-ellipses-outline" size={48} color={colors.textDisabled} />
-                <Text style={s.emptyText}>Start the conversation!</Text>
+  if (loading) {
+    return (
+      <SafeAreaView style={s.container}>
+        <View style={s.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={s.container} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView 
+        style={s.flex} 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        {/* Header */}
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <View style={s.headerInfo}>
+            <Text style={s.headerName}>{otherName}</Text>
+            {isFullyConfirmed && (
+              <View style={s.confirmedBadge}>
+                <Ionicons name="checkmark-circle" size={14} color={colors.green} />
+                <Text style={s.confirmedText}>Job Confirmed</Text>
               </View>
-            }
-          />
+            )}
+          </View>
+          <View style={s.headerRight} />
+        </View>
+
+        {/* Job Confirmation Banner */}
+        {!isFullyConfirmed && (
+          <View style={s.confirmBanner}>
+            <View style={s.confirmInfo}>
+              <Ionicons name="briefcase-outline" size={20} color={colors.primary} />
+              <Text style={s.confirmText}>
+                {myConfirmed 
+                  ? 'You confirmed. Waiting for the other party...' 
+                  : 'Agreed on the job? Confirm to proceed.'}
+              </Text>
+            </View>
+            {!myConfirmed && (
+              <TouchableOpacity style={s.confirmBtn} onPress={confirmJob}>
+                <Text style={s.confirmBtnText}>Confirm Job</Text>
+              </TouchableOpacity>
+            )}
+            {myConfirmed && (
+              <View style={s.waitingBadge}>
+                <Ionicons name="hourglass-outline" size={16} color={colors.textSecondary} />
+              </View>
+            )}
+          </View>
         )}
 
-        <View style={s.inputBar}>
-          <TextInput testID="chat-input" style={s.chatInput} placeholder="Type a message..."
-            placeholderTextColor={colors.placeholder} value={text} onChangeText={setText}
-            multiline maxLength={1000} />
-          <TouchableOpacity testID="send-btn" style={[s.sendBtn, !text.trim() && s.sendBtnDisabled]}
-            onPress={sendMessage} disabled={!text.trim()}>
-            <Ionicons name="send" size={20} color={text.trim() ? colors.paper : colors.textDisabled} />
+        {/* Messages */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={s.messagesList}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+          onLayout={() => flatListRef.current?.scrollToEnd()}
+        />
+
+        {/* Input */}
+        <View style={s.inputContainer}>
+          <TextInput
+            style={s.input}
+            value={text}
+            onChangeText={setText}
+            placeholder="Type a message..."
+            placeholderTextColor={colors.textSecondary}
+            multiline
+            maxLength={1000}
+          />
+          <TouchableOpacity 
+            style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnDisabled]} 
+            onPress={sendMessage}
+            disabled={!text.trim() || sending}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color={colors.paper} />
+            ) : (
+              <Ionicons name="send" size={20} color={colors.paper} />
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -146,46 +295,161 @@ export default function ChatScreen() {
 }
 
 const s = StyleSheet.create({
-  flex: { flex: 1 },
-  container: { flex: 1, backgroundColor: colors.background },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.m, paddingVertical: spacing.s, backgroundColor: colors.primary,
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
-  topInfo: { flex: 1, alignItems: 'center' },
-  topName: { fontSize: 17, fontWeight: '600', color: colors.paper },
-  messagesList: { padding: spacing.m, paddingBottom: spacing.s },
-  msgRow: { marginBottom: spacing.s },
-  msgRowRight: { alignItems: 'flex-end' },
-  msgRowLeft: { alignItems: 'flex-start' },
-  msgBubble: { maxWidth: '78%', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18 },
-  myBubble: { backgroundColor: colors.primary, borderBottomRightRadius: 4 },
-  theirBubble: { backgroundColor: colors.paper, borderBottomLeftRadius: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 2, elevation: 1,
+  flex: {
+    flex: 1,
   },
-  msgText: { fontSize: 16, lineHeight: 21 },
-  myText: { color: colors.secondary },
-  theirText: { color: colors.textPrimary },
-  msgTime: { fontSize: 11, marginTop: 4 },
-  myTime: { color: 'rgba(28,28,30,0.5)', alignSelf: 'flex-end' },
-  theirTime: { color: colors.textDisabled, alignSelf: 'flex-end' },
-  emptyChat: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 100 },
-  emptyText: { fontSize: 16, color: colors.textSecondary, marginTop: spacing.s },
-  inputBar: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: spacing.s,
-    paddingHorizontal: spacing.m, paddingVertical: spacing.s,
-    backgroundColor: colors.paper, borderTopWidth: 1, borderTopColor: colors.border,
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  chatInput: {
-    flex: 1, backgroundColor: colors.background, borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 10, fontSize: 16,
-    color: colors.textPrimary, maxHeight: 100,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: colors.paper,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  backBtn: {
+    padding: 4,
+  },
+  headerInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  headerName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  headerRight: {
+    width: 32,
+  },
+  confirmedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  confirmedText: {
+    fontSize: 12,
+    color: colors.green,
+    fontWeight: '500',
+  },
+  confirmBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.primaryLight,
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  confirmInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  confirmText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
+  },
+  confirmBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  confirmBtnText: {
+    color: colors.paper,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  waitingBadge: {
+    padding: 8,
+  },
+  messagesList: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  msgRow: {
+    marginBottom: 8,
+  },
+  msgRowLeft: {
+    alignItems: 'flex-start',
+  },
+  msgRowRight: {
+    alignItems: 'flex-end',
+  },
+  msgBubble: {
+    maxWidth: '80%',
+    padding: 12,
+    borderRadius: 16,
+  },
+  myBubble: {
+    backgroundColor: colors.primary,
+    borderBottomRightRadius: 4,
+  },
+  theirBubble: {
+    backgroundColor: colors.paper,
+    borderBottomLeftRadius: 4,
+  },
+  msgText: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  myText: {
+    color: colors.paper,
+  },
+  theirText: {
+    color: colors.text,
+  },
+  msgTime: {
+    fontSize: 11,
+    marginTop: 4,
+  },
+  myTime: {
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'right',
+  },
+  theirTime: {
+    color: colors.textSecondary,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    padding: 12,
+    backgroundColor: colors.paper,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: 8,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 16,
+    maxHeight: 100,
+    color: colors.text,
   },
   sendBtn: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary,
-    justifyContent: 'center', alignItems: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  sendBtnDisabled: { backgroundColor: colors.border },
+  sendBtnDisabled: {
+    backgroundColor: colors.border,
+  },
 });
