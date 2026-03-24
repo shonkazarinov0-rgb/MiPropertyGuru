@@ -186,6 +186,18 @@ export default function ProfileScreen() {
             </Text>
           </TouchableOpacity>
         )}
+        
+        {/* Become a Contractor button for pure Clients */}
+        {!isContractor && (
+          <TouchableOpacity 
+            style={s.becomeContractorBtn} 
+            onPress={() => router.push('/contractor-register')}
+          >
+            <Ionicons name="briefcase" size={20} color={colors.paper} />
+            <Text style={s.becomeContractorBtnText}>Become a Contractor</Text>
+            <Text style={s.becomeContractorSubtext}>Start earning by offering your services</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Profile Card */}
         <View style={s.profileCard}>
@@ -507,6 +519,23 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.primary,
+  },
+  becomeContractorBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+    gap: 4,
+  },
+  becomeContractorBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  becomeContractorSubtext: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
   },
   profileCard: {
     backgroundColor: colors.paper,

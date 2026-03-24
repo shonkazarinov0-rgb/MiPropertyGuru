@@ -691,6 +691,94 @@ async def report_suspicious_activity(user=Depends(get_current_user)):
     })
     return {"message": "All other sessions have been logged out. Please change your password.", "new_session_id": new_session_id}
 
+# ── Admin Endpoints ──
+
+@api_router.get("/admin/users")
+async def get_all_users(
+    role: Optional[str] = None,
+    admin_secret: str = Header(None, alias="X-Admin-Secret")
+):
+    """Get all registered users with optional role filter"""
+    if admin_secret != ADMIN_SECRET:
+        raise HTTPException(401, "Invalid admin credentials")
+    
+    query = {}
+    if role and role in ['client', 'contractor']:
+        query["role"] = role
+    
+    users = await db.users.find(query, {"_id": 0, "password_hash": 0}).sort("created_at", -1).to_list(1000)
+    
+    # Add computed fields
+    for user in users:
+        user["is_contractor_as_client"] = user.get("role") == "contractor"
+        user["has_switched_modes"] = user.get("role") == "contractor"  # Contractors can switch
+        
+    # Stats
+    total_users = len(users)
+    pure_clients = len([u for u in users if u.get("role") == "client"])
+    contractors = len([u for u in users if u.get("role") == "contractor"])
+    
+    return {
+        "users": users,
+        "stats": {
+            "total": total_users,
+            "pure_clients": pure_clients,
+            "contractors": contractors,
+            "contractors_can_be_clients": contractors  # All contractors can switch to client mode
+        }
+    }
+
+@api_router.get("/admin/users/{user_id}")
+async def get_user_detail(user_id: str, admin_secret: str = Header(None, alias="X-Admin-Secret")):
+    """Get detailed info about a specific user"""
+    if admin_secret != ADMIN_SECRET:
+        raise HTTPException(401, "Invalid admin credentials")
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(404, "User not found")
+    
+    # Get login history
+    login_history = user.get("login_history", [])
+    
+    # Get suspicious activities
+    suspicious = await db.suspicious_activity.find({"user_id": user_id}, {"_id": 0}).to_list(50)
+    
+    return {
+        "user": user,
+        "login_history": login_history,
+        "suspicious_activities": suspicious
+    }
+
+@api_router.get("/admin/stats")
+async def get_admin_stats(admin_secret: str = Header(None, alias="X-Admin-Secret")):
+    """Get overall platform statistics"""
+    if admin_secret != ADMIN_SECRET:
+        raise HTTPException(401, "Invalid admin credentials")
+    
+    total_users = await db.users.count_documents({})
+    total_clients = await db.users.count_documents({"role": "client"})
+    total_contractors = await db.users.count_documents({"role": "contractor"})
+    active_contractors = await db.users.count_documents({"role": "contractor", "subscription_status": "active"})
+    verified_emails = await db.users.count_documents({"email_verified": True})
+    with_license = await db.users.count_documents({"has_license": True})
+    suspicious_flags = await db.suspicious_activity.count_documents({})
+    
+    # Recent registrations (last 7 days)
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    recent_users = await db.users.count_documents({"created_at": {"$gte": week_ago}})
+    
+    return {
+        "total_users": total_users,
+        "clients": total_clients,
+        "contractors": total_contractors,
+        "active_contractors": active_contractors,
+        "verified_emails": verified_emails,
+        "contractors_with_license": with_license,
+        "suspicious_activity_flags": suspicious_flags,
+        "registrations_last_7_days": recent_users
+    }
+
 # ── Categories ──
 
 @api_router.get("/categories")
