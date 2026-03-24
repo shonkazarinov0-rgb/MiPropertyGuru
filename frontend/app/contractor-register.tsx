@@ -121,13 +121,59 @@ export default function ContractorRegisterScreen() {
     }
   };
 
+  // Validation helpers
+  const isValidEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const isValidPhone = (phone: string) => {
+    // Remove all non-digit characters for validation
+    const digitsOnly = phone.replace(/\D/g, '');
+    // Must have at least 10 digits (standard phone number)
+    return digitsOnly.length >= 10 && digitsOnly.length <= 15;
+  };
+
+  const formatPhoneNumber = (text: string) => {
+    // Remove all non-digit characters
+    const digitsOnly = text.replace(/\D/g, '');
+    // Format as (XXX) XXX-XXXX for US numbers
+    if (digitsOnly.length <= 3) {
+      return digitsOnly;
+    } else if (digitsOnly.length <= 6) {
+      return `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3)}`;
+    } else {
+      return `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6, 10)}`;
+    }
+  };
+
   const validateStep = () => {
     switch (step) {
       case 1:
-        if (!name.trim()) { Alert.alert('Error', 'Name is required'); return false; }
-        if (!phone.trim()) { Alert.alert('Error', 'Phone number is required'); return false; }
-        if (!email.trim() || !email.includes('@')) { Alert.alert('Error', 'Valid email is required'); return false; }
-        if (password.length < 6) { Alert.alert('Error', 'Password must be at least 6 characters'); return false; }
+        if (!name.trim() || name.trim().length < 2) { 
+          Alert.alert('Error', 'Please enter your full name (at least 2 characters)'); 
+          return false; 
+        }
+        if (!phone.trim()) { 
+          Alert.alert('Error', 'Phone number is required'); 
+          return false; 
+        }
+        if (!isValidPhone(phone)) { 
+          Alert.alert('Invalid Phone', 'Please enter a valid phone number (at least 10 digits)'); 
+          return false; 
+        }
+        if (!email.trim()) { 
+          Alert.alert('Error', 'Email is required'); 
+          return false; 
+        }
+        if (!isValidEmail(email)) { 
+          Alert.alert('Invalid Email', 'Please enter a valid email address (e.g., name@example.com)'); 
+          return false; 
+        }
+        if (password.length < 6) { 
+          Alert.alert('Error', 'Password must be at least 6 characters'); 
+          return false; 
+        }
         return true;
       case 2:
         if (selectedTrades.length === 0) { Alert.alert('Error', 'Select at least one trade'); return false; }
@@ -181,7 +227,9 @@ export default function ContractorRegisterScreen() {
   };
 
   const renderStep1 = () => {
-    const showPhoneError = touched.email && email.trim() && !phone.trim();
+    const showPhoneError = touched.phone && phone.trim() && !isValidPhone(phone);
+    const showEmailError = touched.email && email.trim() && !isValidEmail(email);
+    const showPhoneRequired = touched.email && email.trim() && !phone.trim();
     
     return (
       <View style={styles.stepContent}>
@@ -201,26 +249,35 @@ export default function ContractorRegisterScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, showPhoneError && styles.inputLabelError]}>
-            Phone Number {showPhoneError && <Text style={styles.requiredText}>*Required</Text>}
+          <Text style={[styles.inputLabel, (showPhoneError || showPhoneRequired) && styles.inputLabelError]}>
+            Phone Number {(showPhoneError || showPhoneRequired) && <Text style={styles.requiredText}>*Required</Text>}
           </Text>
           <TextInput
-            style={[styles.input, showPhoneError && styles.inputError]}
+            style={[styles.input, (showPhoneError || showPhoneRequired) && styles.inputError]}
             value={phone}
-            onChangeText={setPhone}
-            placeholder="+1 (555) 123-4567"
+            onChangeText={(text) => {
+              setPhone(formatPhoneNumber(text));
+              setTouched({ ...touched, phone: true });
+            }}
+            placeholder="(555) 123-4567"
             placeholderTextColor={colors.textSecondary}
             keyboardType="phone-pad"
+            maxLength={14}
           />
-          {showPhoneError && (
+          {showPhoneRequired && (
             <Text style={styles.errorText}>Please enter your phone number</Text>
+          )}
+          {showPhoneError && (
+            <Text style={styles.errorText}>Enter a valid phone number (at least 10 digits)</Text>
           )}
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Email</Text>
+          <Text style={[styles.inputLabel, showEmailError && styles.inputLabelError]}>
+            Email {showEmailError && <Text style={styles.requiredText}>*Invalid</Text>}
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, showEmailError && styles.inputError]}
             value={email}
             onChangeText={(text) => {
               setEmail(text);
@@ -231,6 +288,9 @@ export default function ContractorRegisterScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
           />
+          {showEmailError && (
+            <Text style={styles.errorText}>Enter a valid email (e.g., name@example.com)</Text>
+          )}
         </View>
 
         <View style={styles.inputGroup}>
