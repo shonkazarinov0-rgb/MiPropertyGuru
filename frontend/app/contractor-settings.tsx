@@ -22,9 +22,33 @@ const colors = {
 };
 
 const TRADES = [
-  'Electrician', 'Plumber', 'Handyman', 'HVAC Technician', 'Carpenter',
-  'Painter', 'Roofer', 'General Contractor', 'Tiler', 'Landscaper',
-  'Flooring Specialist', 'Mason', 'Welder', 'Glazier', 'Drywall Installer',
+  { name: 'Electrician', icon: '⚡' },
+  { name: 'Plumber', icon: '🔧' },
+  { name: 'Handyman', icon: '🔨' },
+  { name: 'HVAC Technician', icon: '❄️' },
+  { name: 'Carpenter', icon: '🪚' },
+  { name: 'Painter', icon: '🎨' },
+  { name: 'Roofer', icon: '🏠' },
+  { name: 'General Contractor', icon: '👷' },
+  { name: 'Tiler', icon: '🔲' },
+  { name: 'Landscaper', icon: '🌳' },
+  { name: 'Mason', icon: '🧱' },
+  { name: 'Welder', icon: '🔥' },
+  { name: 'Glazier', icon: '🪟' },
+  { name: 'Demolition', icon: '💥' },
+  { name: 'Drywall', icon: '🏗️' },
+  { name: 'Flooring', icon: '🪵' },
+  { name: 'Insulation', icon: '🧤' },
+  { name: 'Concrete', icon: '🪨' },
+  { name: 'Fence', icon: '🚧' },
+  { name: 'Deck Builder', icon: '🌲' },
+  { name: 'Cabinet Maker', icon: '🪑' },
+  { name: 'Window Installer', icon: '🖼️' },
+  { name: 'Siding', icon: '🏘️' },
+  { name: 'Garage Door', icon: '🚗' },
+  { name: 'Pool Service', icon: '🏊' },
+  { name: 'Locksmith', icon: '🔐' },
+  { name: 'Appliance Repair', icon: '🔌' },
 ];
 
 export default function ContractorSettingsScreen() {
@@ -52,11 +76,11 @@ export default function ContractorSettingsScreen() {
     }
   }, [user]);
 
-  const toggleTrade = (trade: string) => {
-    if (selectedTrades.includes(trade)) {
-      setSelectedTrades(selectedTrades.filter(t => t !== trade));
+  const toggleTrade = (tradeName: string) => {
+    if (selectedTrades.includes(tradeName)) {
+      setSelectedTrades(selectedTrades.filter(t => t !== tradeName));
     } else if (selectedTrades.length < 5) {
-      setSelectedTrades([...selectedTrades, trade]);
+      setSelectedTrades([...selectedTrades, tradeName]);
     } else {
       Alert.alert('Limit reached', 'You can select up to 5 trades');
     }
@@ -142,20 +166,21 @@ export default function ContractorSettingsScreen() {
           <View style={styles.tradesGrid}>
             {TRADES.map(trade => (
               <TouchableOpacity
-                key={trade}
+                key={trade.name}
                 style={[
                   styles.tradeChip,
-                  selectedTrades.includes(trade) && styles.tradeChipActive,
+                  selectedTrades.includes(trade.name) && styles.tradeChipActive,
                 ]}
-                onPress={() => toggleTrade(trade)}
+                onPress={() => toggleTrade(trade.name)}
               >
+                <Text style={styles.tradeIcon}>{trade.icon}</Text>
                 <Text style={[
                   styles.tradeText,
-                  selectedTrades.includes(trade) && styles.tradeTextActive,
+                  selectedTrades.includes(trade.name) && styles.tradeTextActive,
                 ]}>
-                  {trade}
+                  {trade.name}
                 </Text>
-                {selectedTrades.includes(trade) && (
+                {selectedTrades.includes(trade.name) && (
                   <Ionicons name="checkmark" size={16} color={colors.paper} />
                 )}
               </TouchableOpacity>
@@ -338,6 +363,9 @@ const styles = StyleSheet.create({
   tradeChipActive: {
     backgroundColor: colors.primary,
     borderColor: colors.primary,
+  },
+  tradeIcon: {
+    fontSize: 16,
   },
   tradeText: {
     fontSize: 13,
