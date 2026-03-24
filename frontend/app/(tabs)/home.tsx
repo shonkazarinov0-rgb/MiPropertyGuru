@@ -454,14 +454,30 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Browse Categories</Text>
-                <TouchableOpacity onPress={() => setCategory('All')}>
-                  <Text style={styles.seeAll}>See all</Text>
-                </TouchableOpacity>
               </View>
               <FlatList
                 horizontal
-                data={CATEGORY_DATA.slice(0, 12)}
-                renderItem={renderCategoryItem}
+                data={[{ name: 'All', icon: '🔍', color: '#666' }, ...CATEGORY_DATA]}
+                renderItem={({ item }) => (
+                  <TouchableOpacity 
+                    style={[
+                      item.name === 'All' ? styles.allCategoryChip : styles.categoryChip, 
+                      category === item.name && styles.categoryChipActive
+                    ]}
+                    onPress={() => setCategory(item.name)}
+                  >
+                    {item.name === 'All' ? (
+                      <Text style={[styles.allCategoryText, category === 'All' && styles.categoryTextActive]}>All</Text>
+                    ) : (
+                      <>
+                        <Text style={styles.categoryIcon}>{item.icon}</Text>
+                        <Text style={[styles.categoryText, category === item.name && styles.categoryTextActive]}>
+                          {item.name}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
                 keyExtractor={item => item.name}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.categoriesList}
@@ -784,6 +800,21 @@ const styles = StyleSheet.create({
   },
   categoriesList: {
     gap: 10,
+  },
+  allCategoryChip: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 50,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  allCategoryText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
   },
   categoryChip: {
     flexDirection: 'row',
