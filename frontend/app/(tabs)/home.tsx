@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet,
+  View, Text, TouchableOpacity, FlatList, StyleSheet,
   ActivityIndicator, ScrollView, RefreshControl, Platform, Dimensions,
-  Image, Linking, Animated, PanResponder, Modal,
+  Image, Linking, Animated, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,7 +15,6 @@ import { useAuth } from '../../src/auth-context';
 
 const { width, height } = Dimensions.get('window');
 
-// Design System Colors
 const colors = {
   primary: '#FF6A00',
   primaryDark: '#E55A00',
@@ -30,7 +29,6 @@ const colors = {
   border: '#E5E7EB',
 };
 
-// Extended contractor categories with emojis
 const CATEGORY_DATA = [
   { name: 'Electrician', icon: '⚡', color: '#FFC107' },
   { name: 'Plumber', icon: '🔧', color: '#2196F3' },
@@ -71,15 +69,29 @@ export default function ClientHomeScreen() {
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState('Detecting location...');
   const [onlineCount, setOnlineCount] = useState(0);
-  const [homeStats, setHomeStats] = useState<any>(null);
   const [showFullMap, setShowFullMap] = useState(false);
   
-  // Radial Menu State
-  const [showRadialMenu, setShowRadialMenu] = useState(false);
-  const [selectedIndex, setSelectedIndex] = useState(-1);
-  const fabScale = useRef(new Animated.Value(1)).current;
+  // FAB Menu State - Click to open
+  const [showServiceMenu, setShowServiceMenu] = useState(false);
   const menuOpacity = useRef(new Animated.Value(0)).current;
-  const menuScale = useRef(new Animated.Value(0.5)).current;
+  const menuScale = useRef(new Animated.Value(0.8)).current;
+  
+  // Dynamic engagement stat
+  const [engagementStat, setEngagementStat] = useState({ count: 7, type: 'Electricians' });
+
+  // Rotate engagement stats every 30 seconds
+  useEffect(() => {
+    const updateEngagement = () => {
+      const types = ['Electricians', 'Plumbers', 'Handymen', 'Painters', 'Carpenters', 'Roofers', 'HVAC Techs'];
+      const randomType = types[Math.floor(Math.random() * types.length)];
+      const randomCount = Math.floor(Math.random() * 12) + 3; // 3-14
+      setEngagementStat({ count: randomCount, type: randomType });
+    };
+    
+    updateEngagement();
+    const interval = setInterval(updateEngagement, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -113,22 +125,17 @@ export default function ClientHomeScreen() {
   useEffect(() => {
     if (userLoc) {
       fetchContractors();
-      fetchHomeStats();
     }
   }, [category, userLoc]);
 
-  const fetchHomeStats = async () => {
-    try {
-      const params = userLoc ? `?lat=${userLoc.lat}&lng=${userLoc.lng}` : '';
-      const res = await api.get(`/home/stats${params}`);
-      setHomeStats(res);
-      setOnlineCount(res.contractors_available || 0);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   const fetchContractors = async () => {
+    // Only fetch contractors if user is in client mode or is a client
+    if (user?.role === 'contractor' && user?.currentMode !== 'client') {
+      setContractors([]);
+      setLoading(false);
+      return;
+    }
+    
     try {
       const params = new URLSearchParams();
       if (category !== 'All') params.append('category', category);
@@ -150,7 +157,6 @@ export default function ClientHomeScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchContractors();
-    fetchHomeStats();
   }, [category, userLoc]);
 
   const getDailyJobCount = () => {
@@ -159,14 +165,6 @@ export default function ClientHomeScreen() {
     const base = 85;
     const variation = (dayOfYear * 7) % 35;
     return base + variation;
-  };
-
-  const handlePostJob = () => {
-    if (!user) {
-      router.push('/');
-      return;
-    }
-    router.push('/post-job');
   };
 
   const handleCall = (phone: string) => {
@@ -181,57 +179,36 @@ export default function ClientHomeScreen() {
     router.push(`/chat/${contractorId}`);
   };
 
-  // Radial Menu Functions
-  const openRadialMenu = () => {
-    setShowRadialMenu(true);
-    setSelectedIndex(-1);
+  // Service Menu Functions
+  const toggleServiceMenu = () => {
+    if (showServiceMenu) {
+      closeServiceMenu();
+    } else {
+      openServiceMenu();
+    }
+  };
+
+  const openServiceMenu = () => {
+    setShowServiceMenu(true);
     Animated.parallel([
-      Animated.spring(fabScale, { toValue: 0.9, useNativeDriver: true }),
       Animated.spring(menuOpacity, { toValue: 1, useNativeDriver: true }),
       Animated.spring(menuScale, { toValue: 1, useNativeDriver: true }),
     ]).start();
   };
 
-  const closeRadialMenu = () => {
+  const closeServiceMenu = () => {
     Animated.parallel([
-      Animated.spring(fabScale, { toValue: 1, useNativeDriver: true }),
       Animated.timing(menuOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-      Animated.timing(menuScale, { toValue: 0.5, duration: 200, useNativeDriver: true }),
+      Animated.timing(menuScale, { toValue: 0.8, duration: 200, useNativeDriver: true }),
     ]).start(() => {
-      setShowRadialMenu(false);
-      if (selectedIndex >= 0 && selectedIndex < CATEGORY_DATA.length) {
-        const selected = CATEGORY_DATA[selectedIndex];
-        setCategory(selected.name);
-      }
+      setShowServiceMenu(false);
     });
   };
 
-  const handlePanMove = (gestureY: number) => {
-    // Map Y position to category index (inverted because higher Y = lower on screen)
-    const menuHeight = Math.min(CATEGORY_DATA.length * 50, height * 0.6);
-    const startY = height - 120 - menuHeight;
-    const relativeY = gestureY - startY;
-    const index = Math.floor(relativeY / 50);
-    if (index >= 0 && index < CATEGORY_DATA.length) {
-      setSelectedIndex(index);
-    }
+  const selectCategory = (categoryName: string) => {
+    setCategory(categoryName);
+    closeServiceMenu();
   };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        openRadialMenu();
-      },
-      onPanResponderMove: (_, gestureState) => {
-        handlePanMove(gestureState.moveY);
-      },
-      onPanResponderRelease: () => {
-        closeRadialMenu();
-      },
-    })
-  ).current;
 
   const getMapHTML = () => {
     if (!userLoc) return '';
@@ -357,6 +334,9 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
     </TouchableOpacity>
   );
 
+  // Check if user is contractor in contractor mode
+  const isContractorMode = user?.role === 'contractor' && user?.currentMode !== 'client';
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -418,134 +398,167 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               </View>
               <View style={styles.statCard}>
                 <View style={[styles.statIconBg, { backgroundColor: '#E8F5E9' }]}>
-                  <Text style={{ fontSize: 16 }}>⭐</Text>
+                  <Text style={{ fontSize: 16 }}>💼</Text>
                 </View>
-                <Text style={styles.statNumber}>4.8</Text>
-                <Text style={styles.statLabel}>Avg Rating</Text>
+                <Text style={styles.statNumber}>{engagementStat.count}</Text>
+                <Text style={styles.statLabel} numberOfLines={2}>{engagementStat.type} hired</Text>
               </View>
             </View>
           </View>
         </LinearGradient>
 
-        {/* Mini Map */}
-        {userLoc && contractors.length > 0 && Platform.OS !== 'web' && (
-          <TouchableOpacity style={styles.mapPreview} onPress={() => setShowFullMap(true)}>
-            <WebView 
-              source={{ html: getMapHTML() }} 
-              style={styles.mapWebView}
-              onMessage={handleMapMessage}
-              scrollEnabled={false}
-              pointerEvents="none"
-            />
-            <View style={styles.mapOverlay}>
-              <Text style={styles.mapOverlayText}>Tap to expand map</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-        {Platform.OS === 'web' && (
-          <View style={styles.mapPlaceholder}>
-            <Ionicons name="map" size={32} color={colors.primary} />
-            <Text style={styles.mapPlaceholderText}>Map view on mobile app</Text>
-          </View>
-        )}
-
-        {/* Categories */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Browse Categories</Text>
-            <TouchableOpacity onPress={() => setCategory('All')}>
-              <Text style={styles.seeAll}>See all</Text>
+        {/* Show message if contractor is in contractor mode */}
+        {isContractorMode ? (
+          <View style={styles.contractorModeMessage}>
+            <Ionicons name="information-circle" size={48} color={colors.primary} />
+            <Text style={styles.contractorModeTitle}>You're in Contractor Mode</Text>
+            <Text style={styles.contractorModeText}>
+              Switch to Client Mode to browse and hire contractors for your own projects.
+            </Text>
+            <TouchableOpacity 
+              style={styles.switchModeBtn}
+              onPress={() => router.push('/profile')}
+            >
+              <Text style={styles.switchModeBtnText}>Switch to Client Mode</Text>
             </TouchableOpacity>
           </View>
-          <FlatList
-            horizontal
-            data={CATEGORY_DATA.slice(0, 12)}
-            renderItem={renderCategoryItem}
-            keyExtractor={item => item.name}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesList}
-          />
-        </View>
-
-        {/* Available Contractors */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {category !== 'All' ? `${category}s` : 'Available Contractors'}
-            </Text>
-            <Text style={styles.resultCount}>{contractors.length} found</Text>
-          </View>
-          {loading ? (
-            <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
-          ) : contractors.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={48} color={colors.textSecondary} />
-              <Text style={styles.emptyText}>No contractors found</Text>
-              <Text style={styles.emptySubtext}>Try a different category or location</Text>
-            </View>
-          ) : (
-            contractors.slice(0, 10).map(contractor => (
-              <View key={contractor.id}>
-                {renderContractorCard({ item: contractor })}
+        ) : (
+          <>
+            {/* Mini Map */}
+            {userLoc && contractors.length > 0 && Platform.OS !== 'web' && (
+              <TouchableOpacity style={styles.mapPreview} onPress={() => setShowFullMap(true)}>
+                <WebView 
+                  source={{ html: getMapHTML() }} 
+                  style={styles.mapWebView}
+                  onMessage={handleMapMessage}
+                  scrollEnabled={false}
+                  pointerEvents="none"
+                />
+                <View style={styles.mapOverlay}>
+                  <Text style={styles.mapOverlayText}>Tap to expand map</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            {Platform.OS === 'web' && (
+              <View style={styles.mapPlaceholder}>
+                <Ionicons name="map" size={32} color={colors.primary} />
+                <Text style={styles.mapPlaceholderText}>Map view on mobile app</Text>
               </View>
-            ))
-          )}
-        </View>
+            )}
+
+            {/* Categories */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Browse Categories</Text>
+                <TouchableOpacity onPress={() => setCategory('All')}>
+                  <Text style={styles.seeAll}>See all</Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                horizontal
+                data={CATEGORY_DATA.slice(0, 12)}
+                renderItem={renderCategoryItem}
+                keyExtractor={item => item.name}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoriesList}
+              />
+            </View>
+
+            {/* Available Contractors */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  {category !== 'All' ? `${category}s` : 'Available Contractors'}
+                </Text>
+                <Text style={styles.resultCount}>{contractors.length} found</Text>
+              </View>
+              {loading ? (
+                <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+              ) : contractors.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="people-outline" size={48} color={colors.textSecondary} />
+                  <Text style={styles.emptyText}>No contractors found</Text>
+                  <Text style={styles.emptySubtext}>Try a different category or location</Text>
+                </View>
+              ) : (
+                contractors.slice(0, 10).map(contractor => (
+                  <View key={contractor.id}>
+                    {renderContractorCard({ item: contractor })}
+                  </View>
+                ))
+              )}
+            </View>
+          </>
+        )}
       </ScrollView>
 
-      {/* Radial Menu Overlay */}
-      {showRadialMenu && (
-        <Animated.View 
-          style={[
-            styles.radialMenuOverlay,
-            { opacity: menuOpacity }
-          ]}
+      {/* Service Menu Modal */}
+      <Modal
+        visible={showServiceMenu}
+        transparent
+        animationType="none"
+        onRequestClose={closeServiceMenu}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={closeServiceMenu}
         >
           <Animated.View 
             style={[
-              styles.radialMenuContainer,
-              { transform: [{ scale: menuScale }] }
+              styles.serviceMenuContainer,
+              { 
+                opacity: menuOpacity,
+                transform: [{ scale: menuScale }]
+              }
             ]}
           >
-            <Text style={styles.radialMenuTitle}>Select a Service</Text>
-            <ScrollView style={styles.radialMenuList} showsVerticalScrollIndicator={false}>
-              {CATEGORY_DATA.map((cat, index) => (
-                <View 
+            <View style={styles.serviceMenuHeader}>
+              <Text style={styles.serviceMenuTitle}>Select a Service</Text>
+              <TouchableOpacity onPress={closeServiceMenu}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.serviceMenuList} showsVerticalScrollIndicator={false}>
+              {CATEGORY_DATA.map((cat) => (
+                <TouchableOpacity 
                   key={cat.name}
                   style={[
-                    styles.radialMenuItem,
-                    selectedIndex === index && styles.radialMenuItemSelected
+                    styles.serviceMenuItem,
+                    category === cat.name && styles.serviceMenuItemSelected
                   ]}
+                  onPress={() => selectCategory(cat.name)}
                 >
-                  <Text style={styles.radialMenuIcon}>{cat.icon}</Text>
+                  <Text style={styles.serviceMenuIcon}>{cat.icon}</Text>
                   <Text style={[
-                    styles.radialMenuText,
-                    selectedIndex === index && styles.radialMenuTextSelected
+                    styles.serviceMenuText,
+                    category === cat.name && styles.serviceMenuTextSelected
                   ]}>{cat.name}</Text>
-                </View>
+                  {category === cat.name && (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                  )}
+                </TouchableOpacity>
               ))}
             </ScrollView>
-            <Text style={styles.radialMenuHint}>Slide up/down to select, release to confirm</Text>
           </Animated.View>
-        </Animated.View>
-      )}
+        </TouchableOpacity>
+      </Modal>
 
-      {/* Floating Action Button */}
-      <Animated.View 
-        style={[
-          styles.fab,
-          { transform: [{ scale: fabScale }] }
-        ]}
-        {...panResponder.panHandlers}
-      >
-        <LinearGradient
-          colors={['#FF6A00', '#FF8C33']}
-          style={styles.fabGradient}
+      {/* Floating Action Button - Click to open */}
+      {!isContractorMode && (
+        <TouchableOpacity 
+          style={styles.fab}
+          onPress={toggleServiceMenu}
+          activeOpacity={0.8}
         >
-          <Ionicons name="flash" size={28} color={colors.paper} />
-        </LinearGradient>
-      </Animated.View>
-      <Text style={styles.fabLabel}>Hold for services</Text>
+          <LinearGradient
+            colors={['#FF6A00', '#FF8C33']}
+            style={styles.fabGradient}
+          >
+            <Ionicons name={showServiceMenu ? "close" : "flash"} size={28} color={colors.paper} />
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
@@ -665,6 +678,39 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '500',
     marginTop: 2,
+    textAlign: 'center',
+  },
+  contractorModeMessage: {
+    margin: 20,
+    padding: 30,
+    backgroundColor: colors.paper,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  contractorModeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 16,
+  },
+  contractorModeText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+  switchModeBtn: {
+    marginTop: 20,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  switchModeBtnText: {
+    color: colors.paper,
+    fontSize: 14,
+    fontWeight: '600',
   },
   mapPreview: {
     height: 160,
@@ -913,66 +959,59 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 4,
   },
-  // Radial Menu Styles
-  radialMenuOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+  // Service Menu Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
-    alignItems: 'flex-end',
-    paddingRight: 24,
-    paddingBottom: 120,
   },
-  radialMenuContainer: {
+  serviceMenuContainer: {
     backgroundColor: colors.paper,
-    borderRadius: 20,
-    padding: 16,
-    width: width * 0.7,
-    maxHeight: height * 0.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 10,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: height * 0.7,
+    paddingBottom: 40,
   },
-  radialMenuTitle: {
-    fontSize: 16,
+  serviceMenuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  serviceMenuTitle: {
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    textAlign: 'center',
-    marginBottom: 12,
   },
-  radialMenuList: {
-    maxHeight: height * 0.35,
+  serviceMenuList: {
+    paddingHorizontal: 16,
   },
-  radialMenuItem: {
+  serviceMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
     borderRadius: 12,
-    marginBottom: 4,
+    marginTop: 8,
     gap: 12,
   },
-  radialMenuItemSelected: {
+  serviceMenuItemSelected: {
     backgroundColor: colors.primaryLight,
   },
-  radialMenuIcon: {
+  serviceMenuIcon: {
     fontSize: 24,
   },
-  radialMenuText: {
-    fontSize: 15,
+  serviceMenuText: {
+    flex: 1,
+    fontSize: 16,
     fontWeight: '500',
     color: colors.text,
   },
-  radialMenuTextSelected: {
+  serviceMenuTextSelected: {
     color: colors.primary,
     fontWeight: '700',
-  },
-  radialMenuHint: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 12,
   },
   // FAB Styles
   fab: {
@@ -994,13 +1033,5 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  fabLabel: {
-    position: 'absolute',
-    bottom: 12,
-    right: 16,
-    fontSize: 10,
-    color: colors.textSecondary,
-    fontWeight: '500',
   },
 });

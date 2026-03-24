@@ -1,19 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet, Switch, TextInput,
-  Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, FlatList,
+  Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
-import { colors, spacing, radius } from '../../src/theme';
+
+const colors = {
+  primary: '#FF6A00',
+  primaryLight: '#FFF3EB',
+  background: '#F7F7F7',
+  paper: '#FFFFFF',
+  text: '#1A1A1A',
+  textSecondary: '#6B7280',
+  green: '#22C55E',
+  greenLight: '#DCFCE7',
+  red: '#EF4444',
+  border: '#E5E7EB',
+};
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout, refreshUser } = useAuth();
+  const { user, logout, refreshUser, switchMode, isClientMode, isContractorMode } = useAuth();
   const [liveLocation, setLiveLocation] = useState(user?.live_location_enabled || false);
   const [saving, setSaving] = useState(false);
   const [showAddLocation, setShowAddLocation] = useState(false);
@@ -22,10 +35,14 @@ export default function ProfileScreen() {
   const [showAddPortfolio, setShowAddPortfolio] = useState(false);
   const [portfolioTitle, setPortfolioTitle] = useState('');
   const [portfolioDesc, setPortfolioDesc] = useState('');
+  const [workPhotos, setWorkPhotos] = useState<string[]>([]);
 
   useEffect(() => {
-    if (user?.role === 'contractor') fetchPortfolio();
-  }, []);
+    if (user?.role === 'contractor') {
+      fetchPortfolio();
+      setWorkPhotos(user?.work_photos || []);
+    }
+  }, [user]);
 
   const fetchPortfolio = async () => {
     try {
@@ -89,6 +106,61 @@ export default function ProfileScreen() {
     finally { setSaving(false); }
   };
 
+  const pickWorkPhoto = async () => {
+    if (workPhotos.length >= 6) {
+      Alert.alert('Limit reached', 'You can upload up to 6 photos');
+      return;
+    }
+    
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        const photoUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        const newPhotos = [...workPhotos, photoUri];
+        setWorkPhotos(newPhotos);
+        // Save to server
+        try {
+          await api.put('/contractors/work-photos', { work_photos: newPhotos });
+        } catch (e) {
+          console.log('Could not save photos to server');
+        }
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+    }
+  };
+
+  const removeWorkPhoto = async (index: number) => {
+    const newPhotos = workPhotos.filter((_, i) => i !== index);
+    setWorkPhotos(newPhotos);
+    try {
+      await api.put('/contractors/work-photos', { work_photos: newPhotos });
+    } catch (e) {
+      console.log('Could not save photos to server');
+    }
+  };
+
+  const handleModeSwitch = async () => {
+    if (user?.role !== 'contractor') return;
+    
+    const newMode = isContractorMode ? 'client' : 'contractor';
+    await switchMode(newMode);
+    
+    // Navigate appropriately
+    if (newMode === 'client') {
+      router.replace('/(tabs)/home');
+    } else {
+      router.replace('/(tabs)/dashboard');
+    }
+  };
+
   const isContractor = user?.role === 'contractor';
 
   return (
@@ -96,17 +168,62 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={s.scrollContent}>
         <View style={s.header}>
           <Text style={s.title}>Profile</Text>
+          {isContractor && (
+            <View style={s.modeBadge}>
+              <Text style={s.modeText}>
+                {isContractorMode ? '👷 Contractor Mode' : '🏠 Client Mode'}
+              </Text>
+            </View>
+          )}
         </View>
 
+        {/* Mode Switcher for Contractors */}
+        {isContractor && (
+          <TouchableOpacity style={s.modeSwitchCard} onPress={handleModeSwitch}>
+            <View style={s.modeSwitchContent}>
+              <View style={s.modeSwitchIcon}>
+                <Ionicons 
+                  name={isContractorMode ? "home-outline" : "construct-outline"} 
+                  size={24} 
+                  color={colors.primary} 
+                />
+              </View>
+              <View style={s.modeSwitchInfo}>
+                <Text style={s.modeSwitchTitle}>
+                  Switch to {isContractorMode ? 'Client' : 'Contractor'} Mode
+                </Text>
+                <Text style={s.modeSwitchDesc}>
+                  {isContractorMode 
+                    ? 'Browse and hire contractors for your projects' 
+                    : 'View your dashboard and find work'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Profile Card */}
         <View style={s.profileCard}>
           <View style={s.avatarLg}>
-            <Text style={s.avatarLgText}>{user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}</Text>
+            <Text style={s.avatarLgText}>
+              {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+            </Text>
           </View>
           <Text style={s.profileName}>{user?.name}</Text>
-          {isContractor && <View style={s.typeBadge}><Text style={s.typeText}>{user?.contractor_type}</Text></View>}
+          
+          {/* Show trade badge only in contractor mode */}
+          {isContractor && isContractorMode && (
+            <View style={s.typeBadge}>
+              <Text style={s.typeText}>{user?.contractor_type}</Text>
+            </View>
+          )}
+          
           <Text style={s.profileEmail}>{user?.email}</Text>
           <Text style={s.profilePhone}>{user?.phone}</Text>
-          {isContractor && (
+          
+          {/* Show stats only in contractor mode */}
+          {isContractor && isContractorMode && (
             <View style={s.statsRow}>
               <View style={s.stat}>
                 <Text style={s.statValue}>{user?.rating || 0}</Text>
@@ -117,43 +234,89 @@ export default function ProfileScreen() {
                 <Text style={s.statValue}>{user?.review_count || 0}</Text>
                 <Text style={s.statLabel}>Reviews</Text>
               </View>
+              <View style={s.statDivider} />
+              <View style={s.stat}>
+                <Text style={s.statValue}>{user?.experience_years || 0}</Text>
+                <Text style={s.statLabel}>Years Exp</Text>
+              </View>
             </View>
           )}
         </View>
 
-        {isContractor && (
+        {/* Contractor-only sections - only show in contractor mode */}
+        {isContractor && isContractorMode && (
           <>
+            {/* Bio Section */}
+            {user?.bio && (
+              <View style={s.section}>
+                <Text style={s.sectionTitle}>About Me</Text>
+                <View style={s.bioCard}>
+                  <Text style={s.bioText}>{user.bio}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Work Photos Section */}
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Photos of My Work</Text>
+              <View style={s.photoGrid}>
+                {workPhotos.map((photo, index) => (
+                  <View key={index} style={s.photoItem}>
+                    <Image source={{ uri: photo }} style={s.workPhoto} />
+                    <TouchableOpacity 
+                      style={s.removePhotoBtn}
+                      onPress={() => removeWorkPhoto(index)}
+                    >
+                      <Ionicons name="close-circle" size={24} color={colors.red} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                {workPhotos.length < 6 && (
+                  <TouchableOpacity style={s.addPhotoBtn} onPress={pickWorkPhoto}>
+                    <Ionicons name="camera-outline" size={32} color={colors.textSecondary} />
+                    <Text style={s.addPhotoText}>Add Photo</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              {workPhotos.length === 0 && (
+                <Text style={s.emptyText}>No work photos yet. Add some to showcase your skills!</Text>
+              )}
+            </View>
+
+            {/* Subscription */}
             <View style={s.section}>
               <Text style={s.sectionTitle}>Subscription</Text>
               <View style={s.subscriptionCard}>
                 <View style={s.subRow}>
                   <Text style={s.subLabel}>Status</Text>
                   <View style={[s.subBadge, user?.subscription_status === 'active' ? s.subActive : s.subPending]}>
-                    <Text style={s.subBadgeText}>{user?.subscription_status === 'active' ? 'Active' : 'Pending'}</Text>
+                    <Text style={s.subBadgeText}>
+                      {user?.subscription_status === 'active' ? 'Active' : 'Free Trial'}
+                    </Text>
                   </View>
                 </View>
-                <View style={s.subRow}>
-                  <Text style={s.subLabel}>Monthly Fee</Text>
-                  <Text style={s.subAmount}>$24.99 CAD/mo</Text>
-                </View>
-                <Text style={s.subNote}>Stripe payment integration coming soon</Text>
+                <Text style={s.subNote}>Enjoying free access during beta!</Text>
               </View>
             </View>
 
+            {/* Location Settings */}
             <View style={s.section}>
               <Text style={s.sectionTitle}>Location Settings</Text>
               <View style={s.settingCard}>
                 <View style={s.settingRow}>
                   <View style={s.settingInfo}>
                     <Ionicons name="location" size={22} color={colors.primary} />
-                    <View style={{ marginLeft: spacing.s }}>
+                    <View style={{ marginLeft: 12 }}>
                       <Text style={s.settingLabel}>Live Location</Text>
                       <Text style={s.settingDesc}>Share your real-time location</Text>
                     </View>
                   </View>
-                  <Switch testID="live-location-toggle" value={liveLocation} onValueChange={toggleLiveLocation}
+                  <Switch 
+                    value={liveLocation} 
+                    onValueChange={toggleLiveLocation}
                     trackColor={{ false: colors.border, true: colors.primaryLight }}
-                    thumbColor={liveLocation ? colors.primary : '#f4f4f4'} />
+                    thumbColor={liveLocation ? colors.primary : '#f4f4f4'} 
+                  />
                 </View>
 
                 <View style={s.divider} />
@@ -165,7 +328,7 @@ export default function ProfileScreen() {
                   </View>
                 ))}
                 {(user?.work_locations || []).length < 3 && (
-                  <TouchableOpacity testID="add-work-location-btn" style={s.addBtn} onPress={() => setShowAddLocation(true)}>
+                  <TouchableOpacity style={s.addBtn} onPress={() => setShowAddLocation(true)}>
                     <Ionicons name="add-circle" size={20} color={colors.primary} />
                     <Text style={s.addBtnText}>Add Work Location</Text>
                   </TouchableOpacity>
@@ -173,10 +336,11 @@ export default function ProfileScreen() {
               </View>
             </View>
 
+            {/* Portfolio */}
             <View style={s.section}>
               <View style={s.sectionHeader}>
                 <Text style={s.sectionTitle}>Portfolio</Text>
-                <TouchableOpacity testID="add-portfolio-btn" onPress={() => setShowAddPortfolio(true)}>
+                <TouchableOpacity onPress={() => setShowAddPortfolio(true)}>
                   <Ionicons name="add-circle" size={28} color={colors.primary} />
                 </TouchableOpacity>
               </View>
@@ -186,153 +350,561 @@ export default function ProfileScreen() {
                   <Text style={s.portfolioDesc}>{item.description}</Text>
                 </View>
               ))}
-              {portfolio.length === 0 && <Text style={s.emptyText}>No portfolio items yet</Text>}
+              {portfolio.length === 0 && (
+                <Text style={s.emptyText}>No portfolio items yet</Text>
+              )}
             </View>
 
-            <TouchableOpacity testID="generate-contract-btn" style={s.contractBtn}
-              onPress={() => router.push('/contract/generate')}>
-              <Ionicons name="document-text" size={22} color={colors.paper} />
-              <Text style={s.contractBtnText}>Generate AI Contract</Text>
+            {/* Contractor Settings */}
+            <TouchableOpacity 
+              style={s.settingsBtn}
+              onPress={() => router.push('/contractor-settings')}
+            >
+              <Ionicons name="settings-outline" size={22} color={colors.primary} />
+              <Text style={s.settingsBtnText}>Contractor Settings</Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </>
         )}
 
-        <TouchableOpacity testID="logout-btn" style={s.logoutBtn} onPress={logout}>
-          <Ionicons name="log-out-outline" size={22} color={colors.error} />
-          <Text style={s.logoutText}>Log Out</Text>
+        {/* Client mode or pure client - simplified profile */}
+        {(!isContractor || isClientMode) && (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Account Settings</Text>
+            <TouchableOpacity style={s.menuItem}>
+              <Ionicons name="person-outline" size={22} color={colors.primary} />
+              <Text style={s.menuItemText}>Edit Profile</Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={s.menuItem}>
+              <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+              <Text style={s.menuItemText}>Notifications</Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={s.menuItem}>
+              <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
+              <Text style={s.menuItemText}>Privacy & Security</Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Logout Button */}
+        <TouchableOpacity style={s.logoutBtn} onPress={logout}>
+          <Ionicons name="log-out-outline" size={22} color={colors.red} />
+          <Text style={s.logoutBtnText}>Log Out</Text>
         </TouchableOpacity>
+
+        {/* Add Work Location Modal */}
+        <Modal visible={showAddLocation} transparent animationType="slide">
+          <View style={s.modalOverlay}>
+            <View style={s.modalContent}>
+              <Text style={s.modalTitle}>Add Work Location</Text>
+              <TextInput
+                style={s.modalInput}
+                placeholder="Location name (e.g., Downtown Toronto)"
+                placeholderTextColor={colors.textSecondary}
+                value={locationName}
+                onChangeText={setLocationName}
+              />
+              <View style={s.modalActions}>
+                <TouchableOpacity 
+                  style={s.modalCancelBtn} 
+                  onPress={() => setShowAddLocation(false)}
+                >
+                  <Text style={s.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={s.modalConfirmBtn} 
+                  onPress={addWorkLocation}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator color={colors.paper} />
+                  ) : (
+                    <Text style={s.modalConfirmText}>Add</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Add Portfolio Modal */}
+        <Modal visible={showAddPortfolio} transparent animationType="slide">
+          <View style={s.modalOverlay}>
+            <View style={s.modalContent}>
+              <Text style={s.modalTitle}>Add Portfolio Item</Text>
+              <TextInput
+                style={s.modalInput}
+                placeholder="Project title"
+                placeholderTextColor={colors.textSecondary}
+                value={portfolioTitle}
+                onChangeText={setPortfolioTitle}
+              />
+              <TextInput
+                style={[s.modalInput, s.textArea]}
+                placeholder="Description"
+                placeholderTextColor={colors.textSecondary}
+                value={portfolioDesc}
+                onChangeText={setPortfolioDesc}
+                multiline
+                numberOfLines={4}
+              />
+              <View style={s.modalActions}>
+                <TouchableOpacity 
+                  style={s.modalCancelBtn} 
+                  onPress={() => setShowAddPortfolio(false)}
+                >
+                  <Text style={s.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={s.modalConfirmBtn} 
+                  onPress={addPortfolioItem}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator color={colors.paper} />
+                  ) : (
+                    <Text style={s.modalConfirmText}>Add</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
-
-      <Modal visible={showAddLocation} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalOverlay}>
-          <View style={s.modalContent}>
-            <Text style={s.modalTitle}>Add Work Location</Text>
-            <Text style={s.modalDesc}>Your current GPS coordinates will be used</Text>
-            <TextInput testID="location-name-input" style={s.modalInput} placeholder="Area name (e.g. Downtown NYC)"
-              placeholderTextColor={colors.placeholder} value={locationName} onChangeText={setLocationName} />
-            <View style={s.modalBtns}>
-              <TouchableOpacity testID="cancel-location-btn" style={s.modalCancelBtn} onPress={() => setShowAddLocation(false)}>
-                <Text style={s.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity testID="save-location-btn" style={s.modalSaveBtn} onPress={addWorkLocation} disabled={saving}>
-                {saving ? <ActivityIndicator color={colors.secondary} size="small" /> : <Text style={s.modalSaveText}>Save</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      <Modal visible={showAddPortfolio} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalOverlay}>
-          <View style={s.modalContent}>
-            <Text style={s.modalTitle}>Add Portfolio Item</Text>
-            <TextInput testID="portfolio-title-input" style={s.modalInput} placeholder="Project title"
-              placeholderTextColor={colors.placeholder} value={portfolioTitle} onChangeText={setPortfolioTitle} />
-            <TextInput testID="portfolio-desc-input" style={[s.modalInput, { height: 80 }]} placeholder="Describe the project..."
-              placeholderTextColor={colors.placeholder} value={portfolioDesc} onChangeText={setPortfolioDesc}
-              multiline textAlignVertical="top" />
-            <View style={s.modalBtns}>
-              <TouchableOpacity testID="cancel-portfolio-btn" style={s.modalCancelBtn} onPress={() => setShowAddPortfolio(false)}>
-                <Text style={s.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity testID="save-portfolio-btn" style={s.modalSaveBtn} onPress={addPortfolioItem} disabled={saving}>
-                {saving ? <ActivityIndicator color={colors.secondary} size="small" /> : <Text style={s.modalSaveText}>Save</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scrollContent: { paddingBottom: 100 },
-  header: { paddingHorizontal: spacing.m, paddingVertical: spacing.m, backgroundColor: colors.paper, borderBottomWidth: 1, borderBottomColor: colors.border },
-  title: { fontSize: 28, fontWeight: '700', color: colors.secondary },
-  profileCard: {
-    backgroundColor: colors.paper, margin: spacing.m, borderRadius: radius.m, padding: spacing.l,
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 3,
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modeBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  modeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  modeSwitchCard: {
+    backgroundColor: colors.paper,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  modeSwitchContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  modeSwitchIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modeSwitchInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  modeSwitchTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  modeSwitchDesc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  profileCard: {
+    backgroundColor: colors.paper,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 20,
   },
   avatarLg: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: colors.primary,
-    justifyContent: 'center', alignItems: 'center', marginBottom: spacing.m,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  avatarLgText: { fontSize: 28, fontWeight: '700', color: colors.paper },
-  profileName: { fontSize: 22, fontWeight: '700', color: colors.secondary },
+  avatarLgText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  profileName: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+  },
   typeBadge: {
-    backgroundColor: '#FFF8EC', paddingHorizontal: 12, paddingVertical: 4,
-    borderRadius: radius.round, marginTop: spacing.xs,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
   },
-  typeText: { fontSize: 13, fontWeight: '600', color: colors.primaryDark },
-  profileEmail: { fontSize: 15, color: colors.textSecondary, marginTop: spacing.xs },
-  profilePhone: { fontSize: 15, color: colors.textSecondary, marginTop: 2 },
-  statsRow: { flexDirection: 'row', marginTop: spacing.m, gap: spacing.l },
-  stat: { alignItems: 'center' },
-  statValue: { fontSize: 20, fontWeight: '700', color: colors.secondary },
-  statLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
-  statDivider: { width: 1, backgroundColor: colors.border },
-  section: { paddingHorizontal: spacing.m, marginTop: spacing.m },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.secondary, marginBottom: spacing.s },
+  typeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  profileEmail: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 8,
+  },
+  profilePhone: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  stat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: colors.border,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  bioCard: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+  },
+  bioText: {
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  photoItem: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  workPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  removePhotoBtn: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+  },
+  addPhotoBtn: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.paper,
+  },
+  addPhotoText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
   subscriptionCard: {
-    backgroundColor: colors.paper, borderRadius: radius.m, padding: spacing.m,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
   },
-  subRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.s },
-  subLabel: { fontSize: 15, color: colors.textSecondary },
-  subBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: radius.round },
-  subActive: { backgroundColor: '#E8F9EE' },
-  subPending: { backgroundColor: '#FFF8EC' },
-  subBadgeText: { fontSize: 12, fontWeight: '600', color: colors.success },
-  subAmount: { fontSize: 16, fontWeight: '700', color: colors.secondary },
-  subNote: { fontSize: 12, color: colors.textDisabled, marginTop: spacing.xs },
+  subRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  subLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  subBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  subActive: {
+    backgroundColor: colors.greenLight,
+  },
+  subPending: {
+    backgroundColor: colors.primaryLight,
+  },
+  subBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.green,
+  },
+  subNote: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
   settingCard: {
-    backgroundColor: colors.paper, borderRadius: radius.m, padding: spacing.m,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
   },
-  settingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  settingInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  settingLabel: { fontSize: 16, fontWeight: '600', color: colors.secondary },
-  settingDesc: { fontSize: 12, color: colors.textSecondary },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.m },
-  workLocTitle: { fontSize: 14, fontWeight: '600', color: colors.secondary, marginBottom: spacing.s },
-  workLocItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.s, paddingVertical: spacing.xs },
-  workLocText: { fontSize: 14, color: colors.textSecondary },
-  addBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.s },
-  addBtnText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  settingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  settingDesc: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 16,
+  },
+  workLocTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  workLocItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  workLocText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  addBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.primary,
+  },
   portfolioItem: {
-    backgroundColor: colors.paper, borderRadius: radius.s, padding: spacing.m, marginBottom: spacing.s,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 10,
   },
-  portfolioTitle: { fontSize: 15, fontWeight: '600', color: colors.secondary },
-  portfolioDesc: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  emptyText: { fontSize: 14, color: colors.textDisabled, textAlign: 'center', paddingVertical: spacing.m },
-  contractBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.s,
-    backgroundColor: colors.secondary, borderRadius: radius.l, paddingVertical: 16,
-    marginHorizontal: spacing.m, marginTop: spacing.l,
+  portfolioTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
   },
-  contractBtnText: { fontSize: 17, fontWeight: '600', color: colors.paper },
+  portfolioDesc: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 20,
+  },
+  settingsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  settingsBtnText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    gap: 12,
+  },
+  menuItemText: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+  },
   logoutBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.s,
-    marginHorizontal: spacing.m, marginTop: spacing.l, paddingVertical: 16,
-    borderWidth: 1, borderColor: colors.error, borderRadius: radius.l,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 20,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.red,
   },
-  logoutText: { fontSize: 16, fontWeight: '600', color: colors.error },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: spacing.l },
-  modalContent: { backgroundColor: colors.paper, borderRadius: radius.m, padding: spacing.l },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: colors.secondary, marginBottom: spacing.xs },
-  modalDesc: { fontSize: 13, color: colors.textSecondary, marginBottom: spacing.m },
+  logoutBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.red,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: colors.paper,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+  },
   modalInput: {
-    backgroundColor: colors.background, borderRadius: radius.s, paddingHorizontal: spacing.m,
-    paddingVertical: 12, fontSize: 16, color: colors.textPrimary, marginBottom: spacing.m,
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  modalBtns: { flexDirection: 'row', gap: spacing.m },
-  modalCancelBtn: { flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: radius.l, borderWidth: 1, borderColor: colors.border },
-  modalCancelText: { fontSize: 16, fontWeight: '600', color: colors.textSecondary },
-  modalSaveBtn: { flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: radius.l, backgroundColor: colors.primary },
-  modalSaveText: { fontSize: 16, fontWeight: '600', color: colors.secondary },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  modalConfirmBtn: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  modalConfirmText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.paper,
+  },
 });
