@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Slider from '@react-native-community/slider';
 import { api } from '../src/api';
 import { useAuth } from '../src/auth-context';
@@ -218,9 +219,10 @@ export default function ContractorRegisterScreen() {
       console.log('Registration response:', res);
 
       if (res.token && res.user) {
-        console.log('Login successful, redirecting to dashboard...');
-        await login(res.token, res.user);
-        // Go directly to dashboard since registration is free
+        console.log('Registration successful, storing token and redirecting...');
+        // Store the token
+        await AsyncStorage.setItem('auth_token', res.token);
+        // Redirect to dashboard
         router.replace('/(tabs)/dashboard');
       } else {
         console.log('No token/user in response');
@@ -229,8 +231,8 @@ export default function ContractorRegisterScreen() {
     } catch (e: any) {
       console.log('Registration error:', e);
       const errorMessage = e.message || e.detail || 'Please try again';
-      if (errorMessage.includes('already registered')) {
-        Alert.alert('Account Exists', 'This email or phone number is already registered. Please use different credentials or try logging in.');
+      if (errorMessage.includes('already registered') || errorMessage.includes('already in use')) {
+        Alert.alert('Account Exists', 'This email or phone number is already in use. Please use different credentials or try logging in.');
       } else {
         Alert.alert('Registration Failed', errorMessage);
       }
