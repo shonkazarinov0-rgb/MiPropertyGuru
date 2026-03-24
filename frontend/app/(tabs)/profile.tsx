@@ -177,29 +177,13 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* Mode Switcher for Contractors */}
+        {/* Mode Switcher for Contractors - matches Dashboard style */}
         {isContractor && (
-          <TouchableOpacity style={s.modeSwitchCard} onPress={handleModeSwitch}>
-            <View style={s.modeSwitchContent}>
-              <View style={s.modeSwitchIcon}>
-                <Ionicons 
-                  name={isContractorMode ? "home-outline" : "construct-outline"} 
-                  size={24} 
-                  color={colors.primary} 
-                />
-              </View>
-              <View style={s.modeSwitchInfo}>
-                <Text style={s.modeSwitchTitle}>
-                  Switch to {isContractorMode ? 'Client' : 'Contractor'} Mode
-                </Text>
-                <Text style={s.modeSwitchDesc}>
-                  {isContractorMode 
-                    ? 'Browse and hire contractors for your projects' 
-                    : 'View your dashboard and find work'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
-            </View>
+          <TouchableOpacity style={s.switchModeBtn} onPress={handleModeSwitch}>
+            <Ionicons name="swap-horizontal" size={20} color={colors.primary} />
+            <Text style={s.switchModeBtnText}>
+              Switch to {isContractorMode ? 'Client' : 'Contractor'} Mode
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -509,40 +493,20 @@ const s = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
-  modeSwitchCard: {
-    backgroundColor: colors.paper,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    borderStyle: 'dashed',
-  },
-  modeSwitchContent: {
+  switchModeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  modeSwitchIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primaryLight,
     justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    gap: 8,
   },
-  modeSwitchInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  modeSwitchTitle: {
+  switchModeBtnText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text,
-  },
-  modeSwitchDesc: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 2,
+    color: colors.primary,
   },
   profileCard: {
     backgroundColor: colors.paper,
