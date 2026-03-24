@@ -1,22 +1,24 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet,
   ActivityIndicator, ScrollView, RefreshControl, Platform, Dimensions,
-  Image, Linking,
+  Image, Linking, Animated, PanResponder, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
+import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 // Design System Colors
 const colors = {
   primary: '#FF6A00',
+  primaryDark: '#E55A00',
   primaryLight: '#FFF3EB',
   background: '#F7F7F7',
   paper: '#FFFFFF',
@@ -28,17 +30,38 @@ const colors = {
   border: '#E5E7EB',
 };
 
+// Extended contractor categories with emojis
 const CATEGORY_DATA = [
-  { name: 'Electrician', icon: '⚡' },
-  { name: 'Plumber', icon: '💧' },
-  { name: 'Handyman', icon: '🔨' },
-  { name: 'HVAC Technician', icon: '❄️' },
-  { name: 'Carpenter', icon: '🪚' },
-  { name: 'Painter', icon: '🎨' },
-  { name: 'Roofer', icon: '🏠' },
-  { name: 'General Contractor', icon: '👷' },
-  { name: 'Tiler', icon: '🔲' },
-  { name: 'Landscaper', icon: '🌳' },
+  { name: 'Electrician', icon: '⚡', color: '#FFC107' },
+  { name: 'Plumber', icon: '🔧', color: '#2196F3' },
+  { name: 'Handyman', icon: '🔨', color: '#795548' },
+  { name: 'HVAC Technician', icon: '❄️', color: '#00BCD4' },
+  { name: 'Carpenter', icon: '🪚', color: '#8D6E63' },
+  { name: 'Painter', icon: '🎨', color: '#9C27B0' },
+  { name: 'Roofer', icon: '🏠', color: '#607D8B' },
+  { name: 'General Contractor', icon: '👷', color: '#FF9800' },
+  { name: 'Tiler', icon: '🔲', color: '#3F51B5' },
+  { name: 'Landscaper', icon: '🌳', color: '#4CAF50' },
+  { name: 'Mason', icon: '🧱', color: '#BF360C' },
+  { name: 'Welder', icon: '🔥', color: '#FF5722' },
+  { name: 'Glazier', icon: '🪟', color: '#81D4FA' },
+  { name: 'Demolition', icon: '💥', color: '#D32F2F' },
+  { name: 'Drywall', icon: '🏗️', color: '#9E9E9E' },
+  { name: 'Flooring', icon: '🪵', color: '#6D4C41' },
+  { name: 'Insulation', icon: '🧤', color: '#E91E63' },
+  { name: 'Concrete', icon: '🪨', color: '#757575' },
+  { name: 'Fence', icon: '🚧', color: '#8BC34A' },
+  { name: 'Deck Builder', icon: '🌲', color: '#33691E' },
+  { name: 'Cabinet Maker', icon: '🪑', color: '#A1887F' },
+  { name: 'Window Installer', icon: '🖼️', color: '#42A5F5' },
+  { name: 'Siding', icon: '🏘️', color: '#78909C' },
+  { name: 'Garage Door', icon: '🚗', color: '#546E7A' },
+  { name: 'Pool Service', icon: '🏊', color: '#00ACC1' },
+  { name: 'Locksmith', icon: '🔐', color: '#FFC107' },
+  { name: 'Appliance Repair', icon: '🔌', color: '#673AB7' },
+  { name: 'Pest Control', icon: '🐜', color: '#4E342E' },
+  { name: 'Cleaning Service', icon: '🧹', color: '#26A69A' },
+  { name: 'Moving Service', icon: '📦', color: '#FF7043' },
 ];
 
 export default function ClientHomeScreen() {
@@ -53,6 +76,13 @@ export default function ClientHomeScreen() {
   const [onlineCount, setOnlineCount] = useState(0);
   const [homeStats, setHomeStats] = useState<any>(null);
   const [showFullMap, setShowFullMap] = useState(false);
+  
+  // Radial Menu State
+  const [showRadialMenu, setShowRadialMenu] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const fabScale = useRef(new Animated.Value(1)).current;
+  const menuOpacity = useRef(new Animated.Value(0)).current;
+  const menuScale = useRef(new Animated.Value(0.5)).current;
 
   useEffect(() => {
     (async () => {
@@ -61,7 +91,6 @@ export default function ClientHomeScreen() {
         if (status === 'granted') {
           const loc = await Location.getCurrentPositionAsync({});
           setUserLoc({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-          // Get location name
           try {
             const [address] = await Location.reverseGeocodeAsync({
               latitude: loc.coords.latitude,
@@ -127,27 +156,12 @@ export default function ClientHomeScreen() {
     fetchHomeStats();
   }, [category, userLoc]);
 
-  // Generate a daily job count that varies by day to look active
   const getDailyJobCount = () => {
     const today = new Date();
     const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
-    // Base of 85-120 jobs, varies by day
     const base = 85;
-    const variation = (dayOfYear * 7) % 35; // 0-35 variation
+    const variation = (dayOfYear * 7) % 35;
     return base + variation;
-  };
-
-  const handleFindHelpNow = () => {
-    // Navigate to contractor list with online filter
-    router.push('/(tabs)/home');
-  };
-
-  const handleGetQuotes = () => {
-    if (!user) {
-      router.push('/');
-      return;
-    }
-    router.push('/post-job');
   };
 
   const handlePostJob = () => {
@@ -169,6 +183,58 @@ export default function ClientHomeScreen() {
     }
     router.push(`/chat/${contractorId}`);
   };
+
+  // Radial Menu Functions
+  const openRadialMenu = () => {
+    setShowRadialMenu(true);
+    setSelectedIndex(-1);
+    Animated.parallel([
+      Animated.spring(fabScale, { toValue: 0.9, useNativeDriver: true }),
+      Animated.spring(menuOpacity, { toValue: 1, useNativeDriver: true }),
+      Animated.spring(menuScale, { toValue: 1, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const closeRadialMenu = () => {
+    Animated.parallel([
+      Animated.spring(fabScale, { toValue: 1, useNativeDriver: true }),
+      Animated.timing(menuOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(menuScale, { toValue: 0.5, duration: 200, useNativeDriver: true }),
+    ]).start(() => {
+      setShowRadialMenu(false);
+      if (selectedIndex >= 0 && selectedIndex < CATEGORY_DATA.length) {
+        const selected = CATEGORY_DATA[selectedIndex];
+        setCategory(selected.name);
+      }
+    });
+  };
+
+  const handlePanMove = (gestureY: number) => {
+    // Map Y position to category index (inverted because higher Y = lower on screen)
+    const menuHeight = Math.min(CATEGORY_DATA.length * 50, height * 0.6);
+    const startY = height - 120 - menuHeight;
+    const relativeY = gestureY - startY;
+    const index = Math.floor(relativeY / 50);
+    if (index >= 0 && index < CATEGORY_DATA.length) {
+      setSelectedIndex(index);
+    }
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        openRadialMenu();
+      },
+      onPanResponderMove: (_, gestureState) => {
+        handlePanMove(gestureState.moveY);
+      },
+      onPanResponderRelease: () => {
+        closeRadialMenu();
+      },
+    })
+  ).current;
 
   const getMapHTML = () => {
     if (!userLoc) return '';
@@ -301,20 +367,68 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.appName}>miPropertyGuru</Text>
-          <Text style={styles.tagline}>Find help near you in minutes</Text>
-          <View style={styles.locationRow}>
-            <Ionicons name="location" size={16} color={colors.paper} />
-            <Text style={styles.locationText}>{locationName}</Text>
+        {/* Enhanced Header */}
+        <LinearGradient
+          colors={['#FF6A00', '#FF8C33', '#FFA559']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <View style={styles.headerTop}>
+            <View style={styles.logoContainer}>
+              <Image 
+                source={require('../../assets/images/icon.png')} 
+                style={styles.logoImage}
+              />
+              <View>
+                <Text style={styles.appName}>MiPropertyGuru</Text>
+                <Text style={styles.tagline}>Your home, our experts</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.notificationBtn}>
+              <Ionicons name="notifications-outline" size={24} color={colors.paper} />
+            </TouchableOpacity>
           </View>
-          <View style={styles.availableBadge}>
-            <View style={styles.greenDot} />
-            <Text style={styles.availableText}>{onlineCount} contractors available now</Text>
+          
+          <View style={styles.headerContent}>
+            <View style={styles.locationCard}>
+              <View style={styles.locationIcon}>
+                <Ionicons name="location" size={20} color={colors.primary} />
+              </View>
+              <View style={styles.locationInfo}>
+                <Text style={styles.locationLabel}>Your Location</Text>
+                <Text style={styles.locationValue}>{locationName}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </View>
+            
+            <View style={styles.statsCards}>
+              <View style={styles.statCard}>
+                <View style={[styles.statIconBg, { backgroundColor: colors.greenLight }]}>
+                  <View style={styles.pulsingDot} />
+                </View>
+                <Text style={styles.statNumber}>{onlineCount}</Text>
+                <Text style={styles.statLabel}>Online Now</Text>
+              </View>
+              <View style={styles.statCard}>
+                <View style={[styles.statIconBg, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={{ fontSize: 16 }}>📋</Text>
+                </View>
+                <Text style={styles.statNumber}>{getDailyJobCount()}</Text>
+                <Text style={styles.statLabel}>Jobs Today</Text>
+              </View>
+              <View style={styles.statCard}>
+                <View style={[styles.statIconBg, { backgroundColor: '#E8F5E9' }]}>
+                  <Text style={{ fontSize: 16 }}>⭐</Text>
+                </View>
+                <Text style={styles.statNumber}>4.8</Text>
+                <Text style={styles.statLabel}>Avg Rating</Text>
+              </View>
+            </View>
           </View>
-        </View>
+        </LinearGradient>
 
         {/* Mini Map */}
         {userLoc && contractors.length > 0 && Platform.OS !== 'web' && (
@@ -340,10 +454,15 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
 
         {/* Categories */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Categories</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Browse Categories</Text>
+            <TouchableOpacity onPress={() => setCategory('All')}>
+              <Text style={styles.seeAll}>See all</Text>
+            </TouchableOpacity>
+          </View>
           <FlatList
             horizontal
-            data={CATEGORY_DATA}
+            data={CATEGORY_DATA.slice(0, 12)}
             renderItem={renderCategoryItem}
             keyExtractor={item => item.name}
             showsHorizontalScrollIndicator={false}
@@ -351,17 +470,14 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
           />
         </View>
 
-        {/* Social Proof */}
-        <View style={styles.socialProof}>
-          <View style={styles.proofItem}>
-            <Text style={styles.proofIcon}>📋</Text>
-            <Text style={styles.proofText}>{getDailyJobCount()} jobs posted today</Text>
-          </View>
-        </View>
-
         {/* Available Contractors */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Available Contractors</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              {category !== 'All' ? `${category}s` : 'Available Contractors'}
+            </Text>
+            <Text style={styles.resultCount}>{contractors.length} found</Text>
+          </View>
           {loading ? (
             <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
           ) : contractors.length === 0 ? (
@@ -380,11 +496,59 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
         </View>
       </ScrollView>
 
-      {/* Sticky Find Help Button */}
-      <TouchableOpacity style={styles.postJobBtn} onPress={handlePostJob}>
-        <Ionicons name="search" size={24} color={colors.paper} />
-        <Text style={styles.postJobText}>Get Help Now</Text>
-      </TouchableOpacity>
+      {/* Radial Menu Overlay */}
+      {showRadialMenu && (
+        <Animated.View 
+          style={[
+            styles.radialMenuOverlay,
+            { opacity: menuOpacity }
+          ]}
+        >
+          <Animated.View 
+            style={[
+              styles.radialMenuContainer,
+              { transform: [{ scale: menuScale }] }
+            ]}
+          >
+            <Text style={styles.radialMenuTitle}>Select a Service</Text>
+            <ScrollView style={styles.radialMenuList} showsVerticalScrollIndicator={false}>
+              {CATEGORY_DATA.map((cat, index) => (
+                <View 
+                  key={cat.name}
+                  style={[
+                    styles.radialMenuItem,
+                    selectedIndex === index && styles.radialMenuItemSelected
+                  ]}
+                >
+                  <Text style={styles.radialMenuIcon}>{cat.icon}</Text>
+                  <Text style={[
+                    styles.radialMenuText,
+                    selectedIndex === index && styles.radialMenuTextSelected
+                  ]}>{cat.name}</Text>
+                </View>
+              ))}
+            </ScrollView>
+            <Text style={styles.radialMenuHint}>Slide up/down to select, release to confirm</Text>
+          </Animated.View>
+        </Animated.View>
+      )}
+
+      {/* Floating Action Button */}
+      <Animated.View 
+        style={[
+          styles.fab,
+          { transform: [{ scale: fabScale }] }
+        ]}
+        {...panResponder.panHandlers}
+      >
+        <LinearGradient
+          colors={['#FF6A00', '#FF8C33']}
+          style={styles.fabGradient}
+        >
+          <Ionicons name="flash" size={28} color={colors.paper} />
+        </LinearGradient>
+      </Animated.View>
+      <Text style={styles.fabLabel}>Hold for services</Text>
     </SafeAreaView>
   );
 }
@@ -395,95 +559,115 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    backgroundColor: colors.primary,
     paddingHorizontal: 16,
-    paddingVertical: 20,
-    paddingBottom: 24,
+    paddingTop: 8,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.paper,
   },
   appName: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: colors.paper,
+    letterSpacing: -0.5,
   },
   tagline: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: 4,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    gap: 6,
-  },
-  locationText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)',
-  },
-  availableBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
-    marginTop: 12,
-    gap: 8,
-  },
-  greenDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.green,
-  },
-  availableText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: colors.paper,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 1,
   },
-  actionButtons: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
+  notificationBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerContent: {
     gap: 12,
-    marginTop: -12,
   },
-  primaryBtn: {
-    flex: 1,
+  locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 14,
-    gap: 8,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  primaryBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.paper,
-  },
-  secondaryBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: colors.paper,
-    paddingVertical: 16,
+    padding: 12,
     borderRadius: 14,
-    gap: 8,
-    borderWidth: 2,
-    borderColor: colors.primary,
+    gap: 12,
   },
-  secondaryBtnText: {
+  locationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  locationInfo: {
+    flex: 1,
+  },
+  locationLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  locationValue: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.primary,
+    color: colors.text,
+  },
+  statsCards: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.paper,
+    padding: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  statIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  pulsingDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.green,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    marginTop: 2,
   },
   mapPreview: {
     height: 160,
@@ -531,11 +715,25 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingHorizontal: 16,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 12,
+  },
+  seeAll: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  resultCount: {
+    fontSize: 13,
+    color: colors.textSecondary,
   },
   categoriesList: {
     gap: 10,
@@ -565,29 +763,6 @@ const styles = StyleSheet.create({
   },
   categoryTextActive: {
     color: colors.primary,
-  },
-  socialProof: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginTop: 20,
-    gap: 16,
-  },
-  proofItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.paper,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-  },
-  proofIcon: {
-    fontSize: 14,
-  },
-  proofText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textSecondary,
   },
   contractorCard: {
     backgroundColor: colors.paper,
@@ -741,27 +916,94 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 4,
   },
-  postJobBtn: {
-    position: 'absolute',
-    bottom: 24,
-    left: 16,
-    right: 16,
+  // Radial Menu Styles
+  radialMenuOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    paddingRight: 24,
+    paddingBottom: 120,
+  },
+  radialMenuContainer: {
+    backgroundColor: colors.paper,
+    borderRadius: 20,
+    padding: 16,
+    width: width * 0.7,
+    maxHeight: height * 0.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  radialMenuTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  radialMenuList: {
+    maxHeight: height * 0.35,
+  },
+  radialMenuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 14,
-    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 4,
+    gap: 12,
+  },
+  radialMenuItemSelected: {
+    backgroundColor: colors.primaryLight,
+  },
+  radialMenuIcon: {
+    fontSize: 24,
+  },
+  radialMenuText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  radialMenuTextSelected: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  radialMenuHint: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  // FAB Styles
+  fab: {
+    position: 'absolute',
+    bottom: 30,
+    right: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
-    elevation: 6,
+    elevation: 8,
   },
-  postJobText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.paper,
+  fabGradient: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fabLabel: {
+    position: 'absolute',
+    bottom: 12,
+    right: 16,
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
 });
