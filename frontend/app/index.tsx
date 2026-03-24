@@ -59,6 +59,7 @@ export default function AuthScreen() {
   const [error, setError] = useState('');
   const [typeSearch, setTypeSearch] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [keepLoggedIn, setKeepLoggedIn] = useState(true); // Keep me logged in option
 
   if (loading) {
     return (
@@ -72,7 +73,7 @@ export default function AuthScreen() {
   const handleLogin = async () => {
     if (!email || !password) { setError('Please fill in all fields'); return; }
     setSubmitting(true); setError('');
-    try { await login(email, password); }
+    try { await login(email, password, keepLoggedIn); }
     catch (e: any) { setError(e.message || 'Login failed'); }
     finally { setSubmitting(false); }
   };
@@ -164,6 +165,17 @@ export default function AuthScreen() {
                 placeholderTextColor={colors.placeholder} value={password} onChangeText={setPassword}
                 secureTextEntry />
             </View>
+
+            <TouchableOpacity 
+              style={s.keepLoggedInRow} 
+              onPress={() => setKeepLoggedIn(!keepLoggedIn)}
+              activeOpacity={0.7}
+            >
+              <View style={[s.keepLoggedInCheckbox, keepLoggedIn && s.keepLoggedInCheckboxActive]}>
+                {keepLoggedIn && <Ionicons name="checkmark" size={14} color="#fff" />}
+              </View>
+              <Text style={s.keepLoggedInText}>Keep me logged in</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity testID="login-submit-btn" style={s.primaryBtn} onPress={handleLogin} disabled={submitting}>
               {submitting ? <ActivityIndicator color={colors.paper} /> : <Text style={s.primaryBtnText}>Log In</Text>}
@@ -487,4 +499,19 @@ const s = StyleSheet.create({
   // Forgot password
   forgotBtn: { alignItems: 'center', paddingVertical: spacing.s },
   forgotText: { fontSize: 14, color: colors.primary, fontWeight: '500' },
+  
+  // Keep me logged in
+  keepLoggedInRow: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: spacing.s, 
+    marginTop: spacing.s,
+    marginBottom: spacing.s,
+  },
+  keepLoggedInCheckbox: {
+    width: 20, height: 20, borderRadius: 4, borderWidth: 2, borderColor: colors.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  keepLoggedInCheckboxActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  keepLoggedInText: { fontSize: 14, color: colors.textSecondary },
 });

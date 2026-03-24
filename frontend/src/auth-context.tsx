@@ -31,13 +31,14 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, keepLoggedIn?: boolean) => Promise<void>;
   register: (data: any) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   switchMode: (mode: 'client' | 'contractor') => Promise<void>;
   isClientMode: boolean;
   isContractorMode: boolean;
+  sessionExpired: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -45,6 +46,7 @@ const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   useEffect(() => { checkAuth(); }, []);
 
@@ -72,16 +74,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkAuth = async () => {
     try {
       const token = await AsyncStorage.getItem('auth_token');
-      if (token) {
-        const userData = await api.get('/auth/me');
-        // Set default mode based on role
-        if (userData.role === 'contractor' && !userData.currentMode) {
-          userData.currentMode = 'contractor';
+      const keepLoggedIn = await AsyncStorage.getItem('keep_logged_in');
+      
+      // If user didn't select "keep logged in" and it's a new app session, clear token
+      if (token && keepLoggedIn !== 'true') {
+        // Check if this is a fresh app launch vs just resuming
+        const lastSessionTime = await AsyncStorage.getItem('last_session_time');
+        const now = Date.now();
+        // If more than 24 hours since last session, clear the token
+        if (lastSessionTime && (now - parseInt(lastSessionTime)) > 24 * 60 * 60 * 1000) {
+          await AsyncStorage.removeItem('auth_token');
+          setLoading(false);
+          return;
         }
-        setUser(userData);
-        // Register for push notifications after auth check
-        if (Platform.OS !== 'web') {
-          registerForPushNotifications();
+      }
+      
+      if (token) {
+        try {
+          const userData = await api.get('/auth/me');
+          // Check if session is still valid (not kicked by another login)
+          if (userData.session_invalid) {
+            setSessionExpired(true);
+            await AsyncStorage.removeItem('auth_token');
+            setLoading(false);
+            return;
+          }
+          // Set default mode based on role
+          if (userData.role === 'contractor' && !userData.currentMode) {
+            userData.currentMode = 'contractor';
+          }
+          setUser(userData);
+          // Update session time
+          await AsyncStorage.setItem('last_session_time', Date.now().toString());
+          // Register for push notifications after auth check
+          if (Platform.OS !== 'web') {
+            registerForPushNotifications();
+          }
+        } catch (e: any) {
+          // Check if it's a session invalid error
+          if (e.message?.includes('session') || e.status === 401) {
+            setSessionExpired(true);
+          }
+          await AsyncStorage.removeItem('auth_token');
         }
       }
     } catch {
@@ -91,14 +125,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
-    const res = await api.post('/auth/login', { email, password });
+  const login = async (email: string, password: string, keepLoggedIn: boolean = true) => {
+    const res = await api.post('/auth/login', { email, password, keep_logged_in: keepLoggedIn });
     await AsyncStorage.setItem('auth_token', res.token);
+    // Save keep_logged_in preference
+    await AsyncStorage.setItem('keep_logged_in', keepLoggedIn ? 'true' : 'false');
+    await AsyncStorage.setItem('last_session_time', Date.now().toString());
+    // Store session ID for validation
+    if (res.session_id) {
+      await AsyncStorage.setItem('session_id', res.session_id);
+    }
     // Set default mode
     if (res.user.role === 'contractor' && !res.user.currentMode) {
       res.user.currentMode = 'contractor';
     }
     setUser(res.user);
+    setSessionExpired(false);
     // Register for push notifications after login
     if (Platform.OS !== 'web') {
       registerForPushNotifications();
@@ -175,7 +217,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshUser, 
       switchMode,
       isClientMode,
-      isContractorMode 
+      isContractorMode,
+      sessionExpired
     }}>
       {children}
     </AuthContext.Provider>

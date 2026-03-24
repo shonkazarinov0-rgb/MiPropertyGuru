@@ -389,9 +389,28 @@ async def login(req: LoginReq):
     user = await db.users.find_one(query, {"_id": 0})
     if not user or not verify_pw(req.password, user["password_hash"]):
         raise HTTPException(401, "Invalid credentials")
+    
+    # Generate new session ID - this invalidates any previous sessions
+    new_session_id = str(uuid.uuid4())
+    
+    # Update user's active session ID in database
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {
+            "active_session_id": new_session_id,
+            "last_login": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
     token = create_token(user["id"], user.get("email") or user["phone"], user["role"])
     safe = {k: v for k, v in user.items() if k != "password_hash"}
-    return {"token": token, "user": safe}
+    safe["active_session_id"] = new_session_id
+    
+    return {
+        "token": token, 
+        "user": safe,
+        "session_id": new_session_id
+    }
 
 @api_router.get("/auth/me")
 async def get_me(user=Depends(get_current_user)):
