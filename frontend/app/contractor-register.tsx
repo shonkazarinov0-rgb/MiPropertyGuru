@@ -201,6 +201,7 @@ export default function ContractorRegisterScreen() {
 
     setLoading(true);
     try {
+      console.log('Attempting registration...');
       const res = await api.post('/auth/register', {
         name: name.trim(),
         email: email.trim().toLowerCase(),
@@ -214,13 +215,25 @@ export default function ContractorRegisterScreen() {
         service_radius: serviceRadius,
       });
 
+      console.log('Registration response:', res);
+
       if (res.token && res.user) {
+        console.log('Login successful, redirecting to dashboard...');
         await login(res.token, res.user);
         // Go directly to dashboard since registration is free
         router.replace('/(tabs)/dashboard');
+      } else {
+        console.log('No token/user in response');
+        Alert.alert('Registration Failed', 'Something went wrong. Please try again.');
       }
     } catch (e: any) {
-      Alert.alert('Registration Failed', e.message || 'Please try again');
+      console.log('Registration error:', e);
+      const errorMessage = e.message || e.detail || 'Please try again';
+      if (errorMessage.includes('already registered')) {
+        Alert.alert('Account Exists', 'This email or phone number is already registered. Please use different credentials or try logging in.');
+      } else {
+        Alert.alert('Registration Failed', errorMessage);
+      }
     } finally {
       setLoading(false);
     }
