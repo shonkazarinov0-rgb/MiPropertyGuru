@@ -76,16 +76,89 @@ export default function ClientHomeScreen() {
   const menuOpacity = useRef(new Animated.Value(0)).current;
   const menuScale = useRef(new Animated.Value(0.8)).current;
   
-  // Dynamic engagement stat
-  const [engagementStat, setEngagementStat] = useState({ count: 7, type: 'Electricians' });
+  // Contractor types with emojis for dynamic stat
+  const CONTRACTOR_STATS = [
+    { type: 'Electricians', icon: '⚡' },
+    { type: 'Plumbers', icon: '🔧' },
+    { type: 'Handymen', icon: '🔨' },
+    { type: 'Painters', icon: '🎨' },
+    { type: 'Carpenters', icon: '🪚' },
+    { type: 'Roofers', icon: '🏠' },
+    { type: 'HVAC Techs', icon: '❄️' },
+    { type: 'Landscapers', icon: '🌳' },
+    { type: 'Masons', icon: '🧱' },
+    { type: 'Tilers', icon: '🔲' },
+  ];
+  
+  // Dynamic engagement stat - rotates every 30 seconds
+  const [engagementStat, setEngagementStat] = useState({ count: 7, type: 'Electricians', icon: '⚡' });
+
+  // Calculate Jobs Today based on time of day (resets at midnight, increases throughout day)
+  const getJobsToday = () => {
+    const now = new Date();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    
+    // Calculate total 30-minute intervals since midnight
+    const intervals = (hour * 2) + Math.floor(minute / 30);
+    
+    // Base calculation: starts at 0 at midnight
+    let jobs = 0;
+    
+    for (let i = 0; i < intervals; i++) {
+      const intervalHour = Math.floor(i / 2);
+      
+      // AM hours (0-11): slower growth
+      if (intervalHour < 6) {
+        // Very early morning (12am-6am): minimal activity
+        jobs += Math.floor(Math.random() * 3) + 1; // 1-3 per interval
+      } else if (intervalHour < 12) {
+        // Morning (6am-12pm): moderate activity
+        jobs += Math.floor(Math.random() * 5) + 6; // 6-10 per interval
+      } else if (intervalHour < 18) {
+        // Afternoon (12pm-6pm): peak activity
+        jobs += Math.floor(Math.random() * 5) + 9; // 9-13 per interval
+      } else {
+        // Evening (6pm-12am): declining activity
+        jobs += Math.floor(Math.random() * 4) + 4; // 4-7 per interval
+      }
+    }
+    
+    // Add some randomness based on day of week
+    const dayOfWeek = now.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      // Weekends: slightly more activity
+      jobs = Math.floor(jobs * 1.1);
+    }
+    
+    return jobs;
+  };
+  
+  const [jobsToday, setJobsToday] = useState(getJobsToday());
+
+  // Update jobs count every 30 minutes
+  useEffect(() => {
+    const updateJobs = () => setJobsToday(getJobsToday());
+    updateJobs();
+    const interval = setInterval(updateJobs, 30 * 60 * 1000); // 30 minutes
+    return () => clearInterval(interval);
+  }, []);
 
   // Rotate engagement stats every 30 seconds
   useEffect(() => {
     const updateEngagement = () => {
-      const types = ['Electricians', 'Plumbers', 'Handymen', 'Painters', 'Carpenters', 'Roofers', 'HVAC Techs'];
-      const randomType = types[Math.floor(Math.random() * types.length)];
-      const randomCount = Math.floor(Math.random() * 12) + 3; // 3-14
-      setEngagementStat({ count: randomCount, type: randomType });
+      const stat = CONTRACTOR_STATS[Math.floor(Math.random() * CONTRACTOR_STATS.length)];
+      const now = new Date();
+      const hour = now.getHours();
+      
+      // Count based on time of day
+      let baseCount;
+      if (hour < 6) baseCount = Math.floor(Math.random() * 3) + 1;
+      else if (hour < 12) baseCount = Math.floor(Math.random() * 6) + 4;
+      else if (hour < 18) baseCount = Math.floor(Math.random() * 8) + 8;
+      else baseCount = Math.floor(Math.random() * 5) + 3;
+      
+      setEngagementStat({ count: baseCount, type: stat.type, icon: stat.icon });
     };
     
     updateEngagement();
@@ -162,14 +235,6 @@ export default function ClientHomeScreen() {
     setRefreshing(true);
     fetchContractors();
   }, [category, userLoc]);
-
-  const getDailyJobCount = () => {
-    const today = new Date();
-    const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / (1000 * 60 * 60 * 24));
-    const base = 85;
-    const variation = (dayOfYear * 7) % 35;
-    return base + variation;
-  };
 
   const handleCall = (phone: string) => {
     Linking.openURL(`tel:${phone}`);
@@ -397,12 +462,12 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 <View style={[styles.statIconBg, { backgroundColor: colors.primaryLight }]}>
                   <Text style={{ fontSize: 16 }}>📋</Text>
                 </View>
-                <Text style={styles.statNumber}>{getDailyJobCount()}</Text>
+                <Text style={styles.statNumber}>{jobsToday}</Text>
                 <Text style={styles.statLabel}>Jobs Today</Text>
               </View>
               <View style={styles.statCard}>
                 <View style={[styles.statIconBg, { backgroundColor: '#E8F5E9' }]}>
-                  <Text style={{ fontSize: 16 }}>💼</Text>
+                  <Text style={{ fontSize: 18 }}>{engagementStat.icon}</Text>
                 </View>
                 <Text style={styles.statNumber}>{engagementStat.count}</Text>
                 <Text style={styles.statLabel} numberOfLines={2}>{engagementStat.type} hired</Text>
