@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Linking,
-  Image,
+  Image, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Slider from '@react-native-community/slider';
 import { api } from '../src/api';
@@ -22,6 +23,7 @@ const colors = {
   text: '#1A1A1A',
   textSecondary: '#6B7280',
   green: '#22C55E',
+  greenLight: '#DCFCE7',
   border: '#E5E7EB',
   red: '#EF4444',
 };
@@ -56,6 +58,26 @@ const TRADES = [
   { name: 'Appliance Repair', icon: '🔌' },
 ];
 
+const LANGUAGES = [
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'fr', name: 'French', flag: '🇫🇷' },
+  { code: 'es', name: 'Spanish', flag: '🇪🇸' },
+  { code: 'pt', name: 'Portuguese', flag: '🇵🇹' },
+  { code: 'zh', name: 'Chinese (Mandarin)', flag: '🇨🇳' },
+  { code: 'hi', name: 'Hindi', flag: '🇮🇳' },
+  { code: 'ar', name: 'Arabic', flag: '🇸🇦' },
+  { code: 'tl', name: 'Tagalog', flag: '🇵🇭' },
+  { code: 'vi', name: 'Vietnamese', flag: '🇻🇳' },
+  { code: 'ko', name: 'Korean', flag: '🇰🇷' },
+  { code: 'it', name: 'Italian', flag: '🇮🇹' },
+  { code: 'de', name: 'German', flag: '🇩🇪' },
+  { code: 'pl', name: 'Polish', flag: '🇵🇱' },
+  { code: 'uk', name: 'Ukrainian', flag: '🇺🇦' },
+  { code: 'ru', name: 'Russian', flag: '🇷🇺' },
+  { code: 'pa', name: 'Punjabi', flag: '🇮🇳' },
+  { code: 'other', name: 'Other', flag: '🌐' },
+];
+
 export default function ContractorRegisterScreen() {
   const router = useRouter();
   const { login } = useAuth();
@@ -67,28 +89,37 @@ export default function ContractorRegisterScreen() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [businessName, setBusinessName] = useState('');
 
   // Step 2: Trades
   const [selectedTrades, setSelectedTrades] = useState<string[]>([]);
 
-  // Step 3: Service Radius
+  // Step 3: Languages
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(['English']);
+  const [otherLanguage, setOtherLanguage] = useState('');
+
+  // Step 4: Service Radius
   const [serviceRadius, setServiceRadius] = useState(15);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState('');
 
-  // Step 4: Profile
+  // Step 5: Profile
   const [bio, setBio] = useState('');
   const [experienceYears, setExperienceYears] = useState('');
   const [workPhotos, setWorkPhotos] = useState<string[]>([]);
 
-  // Step 5: Terms
+  // Step 6: License (optional)
+  const [licenseFile, setLicenseFile] = useState<{name: string; uri: string; base64?: string} | null>(null);
+  const [acceptLicenseTerms, setAcceptLicenseTerms] = useState(false);
+
+  // Step 7: Terms
   const [acceptTerms, setAcceptTerms] = useState(false);
   
   // Field validation tracking
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
-    if (step === 3) {
+    if (step === 4) {
       getLocation();
     }
   }, [step]);
@@ -122,23 +153,43 @@ export default function ContractorRegisterScreen() {
     }
   };
 
+  const toggleLanguage = (language: string) => {
+    if (selectedLanguages.includes(language)) {
+      if (selectedLanguages.length > 1) {
+        setSelectedLanguages(selectedLanguages.filter(l => l !== language));
+      }
+    } else {
+      setSelectedLanguages([...selectedLanguages, language]);
+    }
+  };
+
   // Validation helpers
   const isValidEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const isValidPhone = (phone: string) => {
-    // Remove all non-digit characters for validation
+  // Canadian phone format validation
+  const isValidCanadianPhone = (phone: string) => {
     const digitsOnly = phone.replace(/\D/g, '');
-    // Must have at least 10 digits (standard phone number)
-    return digitsOnly.length >= 10 && digitsOnly.length <= 15;
+    // Canadian phone: 10 digits, optionally with 1 country code = 11 digits
+    // Area codes: 2-9 for first digit (not 0 or 1)
+    if (digitsOnly.length === 10) {
+      return /^[2-9]\d{9}$/.test(digitsOnly);
+    } else if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
+      return /^1[2-9]\d{9}$/.test(digitsOnly);
+    }
+    return false;
   };
 
-  const formatPhoneNumber = (text: string) => {
+  const formatCanadianPhone = (text: string) => {
     // Remove all non-digit characters
-    const digitsOnly = text.replace(/\D/g, '');
-    // Format as (XXX) XXX-XXXX for US numbers
+    let digitsOnly = text.replace(/\D/g, '');
+    // Remove leading 1 for formatting purposes
+    if (digitsOnly.startsWith('1') && digitsOnly.length > 10) {
+      digitsOnly = digitsOnly.substring(1);
+    }
+    // Format as (XXX) XXX-XXXX for Canadian numbers
     if (digitsOnly.length <= 3) {
       return digitsOnly;
     } else if (digitsOnly.length <= 6) {
@@ -150,7 +201,7 @@ export default function ContractorRegisterScreen() {
 
   const validateStep = () => {
     switch (step) {
-      case 1:
+      case 1: // Basic Info
         if (!name.trim() || name.trim().length < 2) { 
           Alert.alert('Error', 'Please enter your full name (at least 2 characters)'); 
           return false; 
@@ -159,8 +210,8 @@ export default function ContractorRegisterScreen() {
           Alert.alert('Error', 'Phone number is required'); 
           return false; 
         }
-        if (!isValidPhone(phone)) { 
-          Alert.alert('Invalid Phone', 'Please enter a valid phone number (at least 10 digits)'); 
+        if (!isValidCanadianPhone(phone)) { 
+          Alert.alert('Invalid Phone', 'Please enter a valid Canadian phone number (10 digits).\n\nExample: (416) 555-1234'); 
           return false; 
         }
         if (!email.trim()) { 
@@ -176,15 +227,33 @@ export default function ContractorRegisterScreen() {
           return false; 
         }
         return true;
-      case 2:
-        if (selectedTrades.length === 0) { Alert.alert('Error', 'Select at least one trade'); return false; }
+      case 2: // Trades
+        if (selectedTrades.length === 0) { 
+          Alert.alert('Error', 'Select at least one trade'); 
+          return false; 
+        }
         return true;
-      case 3:
+      case 3: // Languages
+        if (selectedLanguages.length === 0) {
+          Alert.alert('Error', 'Select at least one language');
+          return false;
+        }
         return true;
-      case 4:
+      case 4: // Service Radius
         return true;
-      case 5:
-        if (!acceptTerms) { Alert.alert('Error', 'You must accept the Terms of Service'); return false; }
+      case 5: // Profile
+        return true;
+      case 6: // License
+        if (licenseFile && !acceptLicenseTerms) {
+          Alert.alert('Error', 'You must confirm your license is valid and current');
+          return false;
+        }
+        return true;
+      case 7: // Terms
+        if (!acceptTerms) { 
+          Alert.alert('Error', 'You must accept the Terms of Service'); 
+          return false; 
+        }
         return true;
       default:
         return true;
@@ -197,12 +266,44 @@ export default function ContractorRegisterScreen() {
     }
   };
 
+  const pickLicenseFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['image/*', 'application/pdf'],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const file = result.assets[0];
+        setLicenseFile({
+          name: file.name,
+          uri: file.uri,
+        });
+        setAcceptLicenseTerms(false); // Reset checkbox when new file is selected
+      }
+    } catch (error) {
+      console.error('Error picking document:', error);
+      Alert.alert('Error', 'Failed to select file. Please try again.');
+    }
+  };
+
+  const removeLicenseFile = () => {
+    setLicenseFile(null);
+    setAcceptLicenseTerms(false);
+  };
+
   const handleRegister = async () => {
     if (!validateStep()) return;
 
     setLoading(true);
     try {
-      console.log('Attempting registration...');
+      // Prepare languages with Other if specified
+      let finalLanguages = [...selectedLanguages];
+      if (selectedLanguages.includes('Other') && otherLanguage.trim()) {
+        finalLanguages = finalLanguages.filter(l => l !== 'Other');
+        finalLanguages.push(otherLanguage.trim());
+      }
+
       const res = await api.post('/auth/register', {
         name: name.trim(),
         email: email.trim().toLowerCase(),
@@ -214,22 +315,21 @@ export default function ContractorRegisterScreen() {
         bio: bio.trim(),
         experience_years: parseInt(experienceYears) || 0,
         service_radius: serviceRadius,
+        business_name: businessName.trim() || null,
+        languages: finalLanguages,
+        has_license: !!licenseFile,
+        license_confirmed: acceptLicenseTerms,
       });
 
-      console.log('Registration response:', res);
-
       if (res.token && res.user) {
-        console.log('Registration successful, storing token and redirecting...');
         // Store the token
         await AsyncStorage.setItem('auth_token', res.token);
         // Redirect to dashboard
         router.replace('/(tabs)/dashboard');
       } else {
-        console.log('No token/user in response');
         Alert.alert('Registration Failed', 'Something went wrong. Please try again.');
       }
     } catch (e: any) {
-      console.log('Registration error:', e);
       const errorMessage = e.message || e.detail || 'Please try again';
       if (errorMessage.includes('already registered') || errorMessage.includes('already in use')) {
         Alert.alert('Account Exists', 'This email or phone number is already in use. Please use different credentials or try logging in.');
@@ -241,10 +341,37 @@ export default function ContractorRegisterScreen() {
     }
   };
 
+  const pickWorkPhoto = async () => {
+    if (workPhotos.length >= 6) {
+      Alert.alert('Limit reached', 'You can upload up to 6 photos');
+      return;
+    }
+    
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        const photoUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        setWorkPhotos([...workPhotos, photoUri]);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+    }
+  };
+
+  const removeWorkPhoto = (index: number) => {
+    setWorkPhotos(workPhotos.filter((_, i) => i !== index));
+  };
+
   const renderStep1 = () => {
-    const showPhoneError = touched.phone && phone.trim() && !isValidPhone(phone);
+    const showPhoneError = touched.phone && phone.trim() && !isValidCanadianPhone(phone);
     const showEmailError = touched.email && email.trim() && !isValidEmail(email);
-    const showPhoneRequired = touched.email && email.trim() && !phone.trim();
     
     return (
       <View style={styles.stepContent}>
@@ -264,26 +391,35 @@ export default function ContractorRegisterScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, (showPhoneError || showPhoneRequired) && styles.inputLabelError]}>
-            Phone Number {(showPhoneError || showPhoneRequired) && <Text style={styles.requiredText}>*Required</Text>}
+          <Text style={styles.inputLabel}>Business Name (Optional)</Text>
+          <TextInput
+            style={styles.input}
+            value={businessName}
+            onChangeText={setBusinessName}
+            placeholder="e.g., Smith's Electric Services"
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="words"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={[styles.inputLabel, showPhoneError && styles.inputLabelError]}>
+            Phone Number (Canadian) {showPhoneError && <Text style={styles.requiredText}>*Invalid</Text>}
           </Text>
           <TextInput
-            style={[styles.input, (showPhoneError || showPhoneRequired) && styles.inputError]}
+            style={[styles.input, showPhoneError && styles.inputError]}
             value={phone}
             onChangeText={(text) => {
-              setPhone(formatPhoneNumber(text));
+              setPhone(formatCanadianPhone(text));
               setTouched({ ...touched, phone: true });
             }}
-            placeholder="(555) 123-4567"
+            placeholder="(416) 555-1234"
             placeholderTextColor={colors.textSecondary}
             keyboardType="phone-pad"
             maxLength={14}
           />
-          {showPhoneRequired && (
-            <Text style={styles.errorText}>Please enter your phone number</Text>
-          )}
           {showPhoneError && (
-            <Text style={styles.errorText}>Enter a valid phone number (at least 10 digits)</Text>
+            <Text style={styles.errorText}>Enter a valid Canadian phone number (10 digits)</Text>
           )}
         </View>
 
@@ -358,6 +494,58 @@ export default function ContractorRegisterScreen() {
 
   const renderStep3 = () => (
     <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>Languages You Speak</Text>
+      <Text style={styles.stepSubtitle}>Select all languages you can communicate in with clients</Text>
+
+      <View style={styles.languagesGrid}>
+        {LANGUAGES.map(lang => (
+          <TouchableOpacity
+            key={lang.code}
+            style={[
+              styles.languageChip,
+              selectedLanguages.includes(lang.name) && styles.languageChipActive,
+            ]}
+            onPress={() => toggleLanguage(lang.name)}
+          >
+            <Text style={styles.languageFlag}>{lang.flag}</Text>
+            <Text style={[
+              styles.languageName,
+              selectedLanguages.includes(lang.name) && styles.languageNameActive,
+            ]}>
+              {lang.name}
+            </Text>
+            {selectedLanguages.includes(lang.name) && (
+              <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {selectedLanguages.includes('Other') && (
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Specify Other Language</Text>
+          <TextInput
+            style={styles.input}
+            value={otherLanguage}
+            onChangeText={setOtherLanguage}
+            placeholder="e.g., Cantonese, Tamil, etc."
+            placeholderTextColor={colors.textSecondary}
+            autoCapitalize="words"
+          />
+        </View>
+      )}
+
+      <View style={styles.selectedLangsBox}>
+        <Text style={styles.selectedLangsLabel}>Selected: </Text>
+        <Text style={styles.selectedLangsText}>
+          {selectedLanguages.join(', ')}
+        </Text>
+      </View>
+    </View>
+  );
+
+  const renderStep4 = () => (
+    <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>Set your service area</Text>
       <Text style={styles.stepSubtitle}>You'll receive job alerts within this radius</Text>
 
@@ -396,35 +584,7 @@ export default function ContractorRegisterScreen() {
     </View>
   );
 
-  const pickWorkPhoto = async () => {
-    if (workPhotos.length >= 6) {
-      Alert.alert('Limit reached', 'You can upload up to 6 photos');
-      return;
-    }
-    
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.7,
-        base64: true,
-      });
-
-      if (!result.canceled && result.assets[0].base64) {
-        const photoUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
-        setWorkPhotos([...workPhotos, photoUri]);
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
-    }
-  };
-
-  const removeWorkPhoto = (index: number) => {
-    setWorkPhotos(workPhotos.filter((_, i) => i !== index));
-  };
-
-  const renderStep4 = () => (
+  const renderStep5 = () => (
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>Tell clients about yourself</Text>
       <Text style={styles.stepSubtitle}>This helps you stand out from the competition</Text>
@@ -485,7 +645,66 @@ export default function ContractorRegisterScreen() {
     </View>
   );
 
-  const renderStep5 = () => (
+  const renderStep6 = () => (
+    <View style={styles.stepContent}>
+      <Text style={styles.stepTitle}>License (Optional)</Text>
+      <Text style={styles.stepSubtitle}>Upload your professional license to build trust with clients</Text>
+
+      <View style={styles.licenseBox}>
+        <View style={styles.licenseIconBox}>
+          <Ionicons name="document-text" size={40} color={colors.primary} />
+        </View>
+        <Text style={styles.licenseTitle}>Professional License</Text>
+        <Text style={styles.licenseDesc}>
+          Upload a copy of your trade license or certification. Accepted formats: Image or PDF.
+        </Text>
+
+        {!licenseFile ? (
+          <TouchableOpacity style={styles.uploadBtn} onPress={pickLicenseFile}>
+            <Ionicons name="cloud-upload-outline" size={24} color={colors.paper} />
+            <Text style={styles.uploadBtnText}>Upload License</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.fileUploaded}>
+            <View style={styles.fileInfo}>
+              <Ionicons name="document-attach" size={24} color={colors.green} />
+              <Text style={styles.fileName} numberOfLines={1}>{licenseFile.name}</Text>
+            </View>
+            <TouchableOpacity onPress={removeLicenseFile}>
+              <Ionicons name="trash-outline" size={22} color={colors.red} />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {licenseFile && (
+        <TouchableOpacity
+          style={styles.licenseTermsRow}
+          onPress={() => setAcceptLicenseTerms(!acceptLicenseTerms)}
+        >
+          <View style={[styles.checkbox, acceptLicenseTerms && styles.checkboxActive]}>
+            {acceptLicenseTerms && <Ionicons name="checkmark" size={16} color={colors.paper} />}
+          </View>
+          <Text style={styles.licenseTermsText}>
+            I confirm that this license is valid, current, and belongs to me. I understand that misrepresentation may result in account suspension.
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      <View style={styles.warningBox}>
+        <Ionicons name="shield-checkmark" size={20} color={colors.textSecondary} />
+        <Text style={styles.warningText}>
+          Note: Uploading a license shows "License on file" on your profile. MiPropertyGuru does not verify licenses - clients are advised to confirm licenses independently.
+        </Text>
+      </View>
+
+      <TouchableOpacity style={styles.skipLink} onPress={handleNext}>
+        <Text style={styles.skipLinkText}>Skip for now →</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderStep7 = () => (
     <View style={styles.stepContent}>
       <Text style={styles.stepTitle}>Almost done!</Text>
       <Text style={styles.stepSubtitle}>Review and accept the terms</Text>
@@ -495,9 +714,19 @@ export default function ContractorRegisterScreen() {
           <Text style={styles.summaryLabel}>Name</Text>
           <Text style={styles.summaryValue}>{name}</Text>
         </View>
+        {businessName && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Business</Text>
+            <Text style={styles.summaryValue}>{businessName}</Text>
+          </View>
+        )}
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Trades</Text>
           <Text style={styles.summaryValue}>{selectedTrades.join(', ')}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Languages</Text>
+          <Text style={styles.summaryValue}>{selectedLanguages.join(', ')}</Text>
         </View>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Service Radius</Text>
@@ -506,6 +735,12 @@ export default function ContractorRegisterScreen() {
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Experience</Text>
           <Text style={styles.summaryValue}>{experienceYears || '0'} years</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>License</Text>
+          <Text style={[styles.summaryValue, licenseFile ? { color: colors.green } : {}]}>
+            {licenseFile ? '🪪 On file' : 'Not uploaded'}
+          </Text>
         </View>
       </View>
 
@@ -534,7 +769,7 @@ export default function ContractorRegisterScreen() {
     </View>
   );
 
-  const totalSteps = 5;
+  const totalSteps = 7;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -563,6 +798,8 @@ export default function ContractorRegisterScreen() {
           {step === 3 && renderStep3()}
           {step === 4 && renderStep4()}
           {step === 5 && renderStep5()}
+          {step === 6 && renderStep6()}
+          {step === 7 && renderStep7()}
         </ScrollView>
 
         {/* Footer */}
@@ -782,6 +1019,59 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // Languages Step
+  languagesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
+  languageChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 25,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 8,
+  },
+  languageChipActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  languageFlag: {
+    fontSize: 18,
+  },
+  languageName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  languageNameActive: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  selectedLangsBox: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 10,
+  },
+  selectedLangsLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  selectedLangsText: {
+    fontSize: 14,
+    color: colors.primary,
+    flex: 1,
+  },
+  // Location/Radius
   locationBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -834,6 +1124,107 @@ const styles = StyleSheet.create({
     color: colors.text,
     lineHeight: 18,
   },
+  // License Step
+  licenseBox: {
+    backgroundColor: colors.paper,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  licenseIconBox: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  licenseTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  licenseDesc: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  uploadBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  fileUploaded: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.greenLight,
+    borderRadius: 12,
+    padding: 14,
+    width: '100%',
+  },
+  fileInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
+  },
+  fileName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+    flex: 1,
+  },
+  licenseTermsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+    gap: 12,
+  },
+  licenseTermsText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
+    marginBottom: 20,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  skipLink: {
+    alignItems: 'center',
+    padding: 12,
+  },
+  skipLinkText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  // Summary
   summaryCard: {
     backgroundColor: colors.paper,
     borderRadius: 14,

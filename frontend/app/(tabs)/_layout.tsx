@@ -5,7 +5,7 @@ import { colors } from '../../src/theme';
 import { ActivityIndicator, View } from 'react-native';
 
 export default function TabLayout() {
-  const { user, loading } = useAuth();
+  const { user, loading, isClientMode, isContractorMode } = useAuth();
 
   if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={colors.primary} /></View>;
   if (!user) return <Redirect href="/" />;
@@ -15,7 +15,8 @@ export default function TabLayout() {
     return <Redirect href="/payment" />;
   }
 
-  const isContractor = user.role === 'contractor';
+  // Hide Dashboard tab when user is in client mode (including contractors who switched to client mode)
+  const showDashboard = user.role === 'contractor' && isContractorMode;
 
   return (
     <Tabs screenOptions={{
@@ -31,15 +32,17 @@ export default function TabLayout() {
       tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
     }}>
       <Tabs.Screen name="home" options={{
-        title: isContractor ? 'Find Work' : 'Explore',
+        title: isContractorMode ? 'Find Work' : 'Explore',
         tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
       }} />
-      {isContractor && (
-        <Tabs.Screen name="dashboard" options={{
+      <Tabs.Screen 
+        name="dashboard" 
+        options={{
           title: 'Dashboard',
           tabBarIcon: ({ color, size }) => <Ionicons name="grid" size={size} color={color} />,
-        }} />
-      )}
+          href: showDashboard ? undefined : null, // Hide when not in contractor mode
+        }} 
+      />
       <Tabs.Screen name="messages" options={{
         title: 'Messages',
         tabBarIcon: ({ color, size }) => <Ionicons name="chatbubbles" size={size} color={color} />,

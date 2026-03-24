@@ -231,6 +231,14 @@ export default function ChatScreen() {
           <View style={s.headerRight} />
         </View>
 
+        {/* Disclaimer Banner */}
+        <View style={s.disclaimerBanner}>
+          <Ionicons name="shield-checkmark-outline" size={16} color="#6B7280" />
+          <Text style={s.disclaimerText}>
+            We recommend confirming licenses and experience before hiring.
+          </Text>
+        </View>
+
         {/* Job Confirmation Banner */}
         {!isFullyConfirmed && (
           <View style={s.confirmBanner}>
@@ -451,5 +459,21 @@ const s = StyleSheet.create({
   },
   sendBtnDisabled: {
     backgroundColor: colors.border,
+  },
+  disclaimerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 16,
   },
 });

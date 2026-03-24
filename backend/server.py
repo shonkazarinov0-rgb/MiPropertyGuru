@@ -79,11 +79,37 @@ class RegisterReq(BaseModel):
     bio: Optional[str] = ""
     experience_years: Optional[int] = 0
     service_radius: Optional[int] = 15  # Default 15km
+    business_name: Optional[str] = None
+    languages: Optional[List[str]] = ["English"]
+    has_license: Optional[bool] = False
+    license_confirmed: Optional[bool] = False
 
 class LoginReq(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     password: str
+    keep_logged_in: Optional[bool] = False
+
+class ForgotPasswordReq(BaseModel):
+    email: str
+
+class VerifyResetCodeReq(BaseModel):
+    email: str
+    code: str
+
+class ResetPasswordReq(BaseModel):
+    email: str
+    code: str
+    new_password: str
+
+class VerifyCodeReq(BaseModel):
+    email: str
+    code: str
+    type: str  # 'email' or 'phone'
+
+class ResendVerificationReq(BaseModel):
+    email: str
+    type: str
 
 class LocationUpdate(BaseModel):
     live_location_enabled: bool
@@ -305,6 +331,8 @@ async def register(req: RegisterReq):
         raise HTTPException(400, "Contractor type or trades required")
     
     uid = str(uuid.uuid4())
+    session_id = str(uuid.uuid4())  # Unique session ID
+    
     user = {
         "id": uid, 
         "name": req.name, 
@@ -317,6 +345,10 @@ async def register(req: RegisterReq):
         "bio": req.bio or "", 
         "experience_years": req.experience_years or 0,
         "service_radius": req.service_radius or 15,
+        "business_name": req.business_name,
+        "languages": req.languages or ["English"],
+        "has_license": req.has_license or False,
+        "license_confirmed": req.license_confirmed or False,
         "availability_hours": {"start": "08:00", "end": "18:00"},
         "profile_photo": None,
         "live_location_enabled": False, 
@@ -334,6 +366,9 @@ async def register(req: RegisterReq):
         "subscription_status": "active",  # Free for testing - remove payment requirement
         "subscription_fee": 0,  # Free for now
         "terms_accepted": True,
+        "email_verified": False,
+        "phone_verified": False,
+        "active_session_id": session_id,  # For single session management
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.users.insert_one(user.copy())
@@ -361,6 +396,158 @@ async def login(req: LoginReq):
 @api_router.get("/auth/me")
 async def get_me(user=Depends(get_current_user)):
     return {k: v for k, v in user.items() if k != "password_hash"}
+
+# ── Password Reset & Verification ──
+
+def generate_verification_code():
+    """Generate a 6-digit verification code"""
+    return str(random.randint(100000, 999999))
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(req: ForgotPasswordReq):
+    """Send password reset code to user's email"""
+    user = await db.users.find_one({"email": req.email.lower()})
+    if not user:
+        # Don't reveal if email exists for security
+        return {"message": "If this email is registered, you will receive a reset code"}
+    
+    # Generate 6-digit code
+    code = generate_verification_code()
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    
+    # Store the code in database
+    await db.password_resets.update_one(
+        {"email": req.email.lower()},
+        {"$set": {
+            "email": req.email.lower(),
+            "code": code,
+            "expires_at": expires_at.isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    # In production, send email. For now, log it (TEMPORARY SOLUTION)
+    logger.info(f"Password reset code for {req.email}: {code}")
+    
+    # Store code in response for testing (REMOVE IN PRODUCTION)
+    return {
+        "message": "Verification code sent to your email",
+        "debug_code": code  # TEMPORARY - Remove in production
+    }
+
+@api_router.post("/auth/verify-reset-code")
+async def verify_reset_code(req: VerifyResetCodeReq):
+    """Verify the password reset code"""
+    reset_record = await db.password_resets.find_one({"email": req.email.lower()})
+    
+    if not reset_record:
+        raise HTTPException(400, "No reset code found. Please request a new one.")
+    
+    if reset_record["code"] != req.code:
+        raise HTTPException(400, "Invalid verification code")
+    
+    expires_at = datetime.fromisoformat(reset_record["expires_at"].replace('Z', '+00:00'))
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(400, "Code has expired. Please request a new one.")
+    
+    return {"message": "Code verified", "valid": True}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(req: ResetPasswordReq):
+    """Reset password with verified code"""
+    reset_record = await db.password_resets.find_one({"email": req.email.lower()})
+    
+    if not reset_record:
+        raise HTTPException(400, "No reset code found")
+    
+    if reset_record["code"] != req.code:
+        raise HTTPException(400, "Invalid verification code")
+    
+    expires_at = datetime.fromisoformat(reset_record["expires_at"].replace('Z', '+00:00'))
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(400, "Code has expired")
+    
+    if len(req.new_password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+    
+    # Update password
+    await db.users.update_one(
+        {"email": req.email.lower()},
+        {"$set": {"password_hash": hash_pw(req.new_password)}}
+    )
+    
+    # Delete the reset record
+    await db.password_resets.delete_one({"email": req.email.lower()})
+    
+    return {"message": "Password reset successfully"}
+
+@api_router.post("/auth/verify-code")
+async def verify_email_or_phone(req: VerifyCodeReq):
+    """Verify email or phone with code"""
+    verify_record = await db.verification_codes.find_one({
+        "email": req.email.lower(),
+        "type": req.type
+    })
+    
+    if not verify_record:
+        raise HTTPException(400, "No verification code found")
+    
+    if verify_record["code"] != req.code:
+        raise HTTPException(400, "Invalid verification code")
+    
+    expires_at = datetime.fromisoformat(verify_record["expires_at"].replace('Z', '+00:00'))
+    if datetime.now(timezone.utc) > expires_at:
+        raise HTTPException(400, "Code has expired")
+    
+    # Update user's verified status
+    update_field = "email_verified" if req.type == "email" else "phone_verified"
+    await db.users.update_one(
+        {"email": req.email.lower()},
+        {"$set": {update_field: True}}
+    )
+    
+    # Delete the verification record
+    await db.verification_codes.delete_one({
+        "email": req.email.lower(),
+        "type": req.type
+    })
+    
+    return {"message": f"{req.type.capitalize()} verified successfully"}
+
+@api_router.post("/auth/resend-verification")
+async def resend_verification(req: ResendVerificationReq):
+    """Resend verification code"""
+    user = await db.users.find_one({"email": req.email.lower()})
+    if not user:
+        raise HTTPException(404, "User not found")
+    
+    code = generate_verification_code()
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    
+    await db.verification_codes.update_one(
+        {"email": req.email.lower(), "type": req.type},
+        {"$set": {
+            "email": req.email.lower(),
+            "type": req.type,
+            "code": code,
+            "expires_at": expires_at.isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    logger.info(f"Verification code for {req.email} ({req.type}): {code}")
+    
+    return {
+        "message": f"Verification code sent to your {req.type}",
+        "debug_code": code  # TEMPORARY - Remove in production
+    }
+
+@api_router.post("/switch-mode")
+async def switch_mode_api(user=Depends(get_current_user)):
+    """Toggle between contractor and client mode"""
+    return {"message": "Mode switched", "success": True}
 
 # ── Categories ──
 

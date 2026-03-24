@@ -71,6 +71,12 @@ export default function ClientHomeScreen() {
   const [onlineCount, setOnlineCount] = useState(0);
   const [showFullMap, setShowFullMap] = useState(false);
   
+  // Advanced Filters State
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterLicenseOnly, setFilterLicenseOnly] = useState(false);
+  const [filterMinRating, setFilterMinRating] = useState(0); // 0 = no filter
+  const [filterLanguage, setFilterLanguage] = useState('All');
+  
   // FAB Menu State - Click to open
   const [showServiceMenu, setShowServiceMenu] = useState(false);
   const menuOpacity = useRef(new Animated.Value(0)).current;
@@ -218,9 +224,23 @@ export default function ClientHomeScreen() {
       }
       const res = await api.get(`/contractors?${params.toString()}`);
       // Filter out the current user so they don't see themselves
-      const filteredContractors = (res.contractors || []).filter(
+      let filteredContractors = (res.contractors || []).filter(
         (contractor: any) => contractor.id !== user?.id
       );
+      
+      // Apply client-side filters
+      if (filterLicenseOnly) {
+        filteredContractors = filteredContractors.filter((c: any) => c.has_license);
+      }
+      if (filterMinRating > 0) {
+        filteredContractors = filteredContractors.filter((c: any) => (c.rating || 0) >= filterMinRating);
+      }
+      if (filterLanguage !== 'All') {
+        filteredContractors = filteredContractors.filter((c: any) => 
+          (c.languages || ['English']).includes(filterLanguage)
+        );
+      }
+      
       setContractors(filteredContractors);
       if (res.online_count !== undefined) setOnlineCount(res.online_count);
     } catch (e) {
@@ -230,6 +250,13 @@ export default function ClientHomeScreen() {
       setRefreshing(false);
     }
   };
+
+  // Re-fetch when filters change
+  useEffect(() => {
+    if (userLoc) {
+      fetchContractors();
+    }
+  }, [filterLicenseOnly, filterMinRating, filterLanguage]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -343,6 +370,12 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               )}
             </View>
             <Text style={styles.jobTitle}>{item.contractor_type}</Text>
+            {/* License Badge */}
+            {item.has_license && (
+              <View style={styles.licenseBadge}>
+                <Text style={styles.licenseBadgeText}>🪪 License on file</Text>
+              </View>
+            )}
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Ionicons name="star" size={14} color="#FFB800" />
@@ -362,6 +395,15 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 </View>
               )}
             </View>
+            {/* Languages Badge */}
+            {item.languages && item.languages.length > 0 && (
+              <View style={styles.languagesBadge}>
+                <Ionicons name="globe-outline" size={12} color={colors.textSecondary} />
+                <Text style={styles.languagesBadgeText}>
+                  {item.languages.slice(0, 3).join(', ')}{item.languages.length > 3 ? '...' : ''}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
         
@@ -555,8 +597,95 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 <Text style={styles.sectionTitle}>
                   {category !== 'All' ? `${category}s` : 'Available Contractors'}
                 </Text>
-                <Text style={styles.resultCount}>{contractors.length} found</Text>
+                <TouchableOpacity 
+                  style={styles.filterBtn}
+                  onPress={() => setShowFilters(!showFilters)}
+                >
+                  <Ionicons name="options-outline" size={18} color={colors.primary} />
+                  <Text style={styles.filterBtnText}>Filters</Text>
+                  {(filterLicenseOnly || filterMinRating > 0 || filterLanguage !== 'All') && (
+                    <View style={styles.filterBadge}>
+                      <Text style={styles.filterBadgeText}>
+                        {[filterLicenseOnly, filterMinRating > 0, filterLanguage !== 'All'].filter(Boolean).length}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
               </View>
+              
+              {/* Filter Panel */}
+              {showFilters && (
+                <View style={styles.filterPanel}>
+                  {/* License Filter */}
+                  <TouchableOpacity 
+                    style={styles.filterOption}
+                    onPress={() => setFilterLicenseOnly(!filterLicenseOnly)}
+                  >
+                    <View style={[styles.filterCheckbox, filterLicenseOnly && styles.filterCheckboxActive]}>
+                      {filterLicenseOnly && <Ionicons name="checkmark" size={14} color="#fff" />}
+                    </View>
+                    <Text style={styles.filterOptionText}>🪪 License on file only</Text>
+                  </TouchableOpacity>
+                  
+                  {/* Rating Filter */}
+                  <View style={styles.filterGroup}>
+                    <Text style={styles.filterLabel}>Minimum Rating</Text>
+                    <View style={styles.ratingOptions}>
+                      {[0, 3, 4, 4.5].map((rating) => (
+                        <TouchableOpacity
+                          key={rating}
+                          style={[styles.ratingChip, filterMinRating === rating && styles.ratingChipActive]}
+                          onPress={() => setFilterMinRating(rating)}
+                        >
+                          {rating === 0 ? (
+                            <Text style={[styles.ratingChipText, filterMinRating === 0 && styles.ratingChipTextActive]}>All</Text>
+                          ) : (
+                            <>
+                              <Ionicons name="star" size={12} color={filterMinRating === rating ? '#fff' : '#FFB800'} />
+                              <Text style={[styles.ratingChipText, filterMinRating === rating && styles.ratingChipTextActive]}>{rating}+</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  
+                  {/* Language Filter */}
+                  <View style={styles.filterGroup}>
+                    <Text style={styles.filterLabel}>Language</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View style={styles.languageOptions}>
+                        {['All', 'English', 'French', 'Spanish', 'Chinese (Mandarin)', 'Hindi', 'Portuguese'].map((lang) => (
+                          <TouchableOpacity
+                            key={lang}
+                            style={[styles.langChip, filterLanguage === lang && styles.langChipActive]}
+                            onPress={() => setFilterLanguage(lang)}
+                          >
+                            <Text style={[styles.langChipText, filterLanguage === lang && styles.langChipTextActive]}>{lang}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  </View>
+                  
+                  {/* Clear Filters */}
+                  {(filterLicenseOnly || filterMinRating > 0 || filterLanguage !== 'All') && (
+                    <TouchableOpacity 
+                      style={styles.clearFiltersBtn}
+                      onPress={() => {
+                        setFilterLicenseOnly(false);
+                        setFilterMinRating(0);
+                        setFilterLanguage('All');
+                      }}
+                    >
+                      <Text style={styles.clearFiltersBtnText}>Clear all filters</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+              
+              <Text style={styles.resultCount}>{contractors.length} found</Text>
+              
               {loading ? (
                 <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
               ) : contractors.length === 0 ? (
@@ -1133,5 +1262,158 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Filter Styles
+  filterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.primaryLight,
+    borderRadius: 20,
+  },
+  filterBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  filterBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 4,
+  },
+  filterBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  filterPanel: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  filterCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterCheckboxActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  filterGroup: {
+    marginTop: 12,
+  },
+  filterLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  ratingOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  ratingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+  ratingChipActive: {
+    backgroundColor: colors.primary,
+  },
+  ratingChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  ratingChipTextActive: {
+    color: '#fff',
+  },
+  languageOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  langChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+  langChipActive: {
+    backgroundColor: colors.primary,
+  },
+  langChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  langChipTextActive: {
+    color: '#fff',
+  },
+  clearFiltersBtn: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  clearFiltersBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+  // License & Language badges for contractor cards
+  licenseBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  licenseBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#166534',
+  },
+  languagesBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  languagesBadgeText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  resultCount: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 8,
   },
 });
