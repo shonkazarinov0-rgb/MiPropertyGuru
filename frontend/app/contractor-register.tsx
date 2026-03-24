@@ -324,6 +324,17 @@ export default function ContractorRegisterScreen() {
       if (res.token && res.user) {
         // Store the token
         await AsyncStorage.setItem('auth_token', res.token);
+        await AsyncStorage.setItem('keep_logged_in', 'true');
+        await AsyncStorage.removeItem('guest_mode'); // Clear guest mode if was browsing as guest
+        
+        // Auto-login using email and password to properly set auth context
+        try {
+          await login(email.trim().toLowerCase(), password, true);
+        } catch (e) {
+          // If login fails, still redirect since token is stored
+          console.log('Auto-login after registration:', e);
+        }
+        
         // Redirect to dashboard
         router.replace('/(tabs)/dashboard');
       } else {
