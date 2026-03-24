@@ -89,6 +89,10 @@ class LoginReq(BaseModel):
     phone: Optional[str] = None
     password: str
     keep_logged_in: Optional[bool] = False
+    # Location tracking
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    device_info: Optional[str] = None
 
 class ForgotPasswordReq(BaseModel):
     email: str
@@ -110,6 +114,12 @@ class VerifyCodeReq(BaseModel):
 class ResendVerificationReq(BaseModel):
     email: str
     type: str
+
+class LocationInfo(BaseModel):
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    ip_address: Optional[str] = None
+    device_info: Optional[str] = None
 
 class LocationUpdate(BaseModel):
     live_location_enabled: bool
@@ -377,7 +387,7 @@ async def register(req: RegisterReq):
     return {"token": token, "user": safe}
 
 @api_router.post("/auth/login")
-async def login(req: LoginReq):
+async def login(req: LoginReq, request: Request):
     query = {}
     if req.email:
         query["email"] = req.email
@@ -393,14 +403,86 @@ async def login(req: LoginReq):
     # Generate new session ID - this invalidates any previous sessions
     new_session_id = str(uuid.uuid4())
     
-    # Update user's active session ID in database
+    # Get IP address from request
+    ip_address = request.client.host if request.client else None
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        ip_address = forwarded_for.split(",")[0].strip()
+    
+    # Location tracking - check for suspicious activity
+    suspicious_activity = False
+    suspicious_reasons = []
+    
+    # Get previous login history
+    login_history = user.get("login_history", [])
+    
+    if login_history and len(login_history) > 0:
+        last_login = login_history[-1]
+        last_login_time = datetime.fromisoformat(last_login.get("timestamp", "2020-01-01T00:00:00+00:00").replace('Z', '+00:00'))
+        time_diff_minutes = (datetime.now(timezone.utc) - last_login_time).total_seconds() / 60
+        
+        # Check for rapid location change (impossible travel)
+        if req.lat and req.lng and last_login.get("lat") and last_login.get("lng"):
+            # Calculate distance between locations
+            lat1, lng1 = last_login.get("lat"), last_login.get("lng")
+            lat2, lng2 = req.lat, req.lng
+            
+            # Haversine formula for distance
+            R = 6371  # Earth radius in km
+            dlat = math.radians(lat2 - lat1)
+            dlng = math.radians(lng2 - lng1)
+            a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng/2)**2
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+            distance_km = R * c
+            
+            # If distance > 500km in less than 60 minutes, flag as suspicious
+            if distance_km > 500 and time_diff_minutes < 60:
+                suspicious_activity = True
+                suspicious_reasons.append(f"Rapid location change: {distance_km:.0f}km in {time_diff_minutes:.0f} minutes")
+        
+        # Check for multiple IPs in short time
+        if ip_address and last_login.get("ip_address") and ip_address != last_login.get("ip_address"):
+            if time_diff_minutes < 5:
+                suspicious_activity = True
+                suspicious_reasons.append(f"Multiple IP addresses in {time_diff_minutes:.0f} minutes")
+    
+    # Create login record
+    login_record = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "ip_address": ip_address,
+        "lat": req.lat,
+        "lng": req.lng,
+        "device_info": req.device_info,
+        "suspicious": suspicious_activity,
+        "suspicious_reasons": suspicious_reasons
+    }
+    
+    # Update user with new session and login history (keep last 10 logins)
+    updated_login_history = (login_history + [login_record])[-10:]
+    
     await db.users.update_one(
         {"id": user["id"]},
         {"$set": {
             "active_session_id": new_session_id,
-            "last_login": datetime.now(timezone.utc).isoformat()
+            "last_login": datetime.now(timezone.utc).isoformat(),
+            "last_ip_address": ip_address,
+            "last_location": {"lat": req.lat, "lng": req.lng} if req.lat and req.lng else None,
+            "login_history": updated_login_history,
+            "suspicious_activity_flagged": suspicious_activity
         }}
     )
+    
+    # Log suspicious activity
+    if suspicious_activity:
+        logger.warning(f"Suspicious login detected for user {user['id']}: {suspicious_reasons}")
+        # Store in suspicious_activity collection for review
+        await db.suspicious_activity.insert_one({
+            "user_id": user["id"],
+            "user_email": user.get("email"),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "reasons": suspicious_reasons,
+            "login_record": login_record
+        })
     
     token = create_token(user["id"], user.get("email") or user["phone"], user["role"])
     safe = {k: v for k, v in user.items() if k != "password_hash"}
@@ -409,7 +491,9 @@ async def login(req: LoginReq):
     return {
         "token": token, 
         "user": safe,
-        "session_id": new_session_id
+        "session_id": new_session_id,
+        "suspicious_activity": suspicious_activity,
+        "suspicious_reasons": suspicious_reasons if suspicious_activity else None
     }
 
 @api_router.get("/auth/me")
@@ -567,6 +651,45 @@ async def resend_verification(req: ResendVerificationReq):
 async def switch_mode_api(user=Depends(get_current_user)):
     """Toggle between contractor and client mode"""
     return {"message": "Mode switched", "success": True}
+
+# ── Suspicious Activity Endpoints ──
+
+@api_router.get("/security/suspicious-activity")
+async def get_suspicious_activity(user=Depends(get_current_user)):
+    """Get suspicious activity logs for the current user"""
+    activities = await db.suspicious_activity.find(
+        {"user_id": user["id"]},
+        {"_id": 0}
+    ).sort("timestamp", -1).limit(20).to_list(20)
+    return {"activities": activities}
+
+@api_router.get("/security/login-history")
+async def get_login_history(user=Depends(get_current_user)):
+    """Get login history for the current user"""
+    user_data = await db.users.find_one({"id": user["id"]}, {"login_history": 1})
+    login_history = user_data.get("login_history", []) if user_data else []
+    return {"login_history": login_history}
+
+@api_router.post("/security/report-suspicious")
+async def report_suspicious_activity(user=Depends(get_current_user)):
+    """User reports their account may be compromised - invalidates all sessions"""
+    new_session_id = str(uuid.uuid4())
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {
+            "active_session_id": new_session_id,
+            "suspicious_activity_flagged": True,
+            "security_alert_timestamp": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    await db.suspicious_activity.insert_one({
+        "user_id": user["id"],
+        "user_email": user.get("email"),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "reasons": ["User reported suspicious activity"],
+        "reported_by_user": True
+    })
+    return {"message": "All other sessions have been logged out. Please change your password.", "new_session_id": new_session_id}
 
 # ── Categories ──
 

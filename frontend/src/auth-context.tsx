@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import * as Location from 'expo-location';
 import { api } from './api';
 import { registerForPushNotifications, removePushToken, addNotificationListeners } from './notifications';
 import { router } from 'expo-router';
@@ -126,7 +127,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string, keepLoggedIn: boolean = true) => {
-    const res = await api.post('/auth/login', { email, password, keep_logged_in: keepLoggedIn });
+    // Try to get device location for security tracking
+    let locationData: { lat?: number; lng?: number } = {};
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+        locationData = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+      }
+    } catch (e) {
+      // Location not available - that's okay
+    }
+    
+    const res = await api.post('/auth/login', { 
+      email, 
+      password, 
+      keep_logged_in: keepLoggedIn,
+      ...locationData,
+      device_info: Platform.OS
+    });
+    
+    // Check for suspicious activity warning
+    if (res.suspicious_activity) {
+      // Don't block login but alert user
+      console.warn('Suspicious activity detected:', res.suspicious_reasons);
+    }
+    
     await AsyncStorage.setItem('auth_token', res.token);
     // Save keep_logged_in preference
     await AsyncStorage.setItem('keep_logged_in', keepLoggedIn ? 'true' : 'false');

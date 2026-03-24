@@ -32,6 +32,19 @@ export default function ContractorDetailScreen() {
   };
 
   const handleMessage = async () => {
+    // Check if user is logged in - redirect to registration if not
+    if (!user) {
+      Alert.alert(
+        'Sign In Required',
+        'You need to create an account to message contractors.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign Up', onPress: () => router.push('/') },
+        ]
+      );
+      return;
+    }
+    
     if (!contractor) return;
     setMessaging(true);
     try {
@@ -42,10 +55,34 @@ export default function ContractorDetailScreen() {
   };
 
   const handleCall = () => {
+    // Check if user is logged in
+    if (!user) {
+      Alert.alert(
+        'Sign In Required',
+        'You need to create an account to contact contractors.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign Up', onPress: () => router.push('/') },
+        ]
+      );
+      return;
+    }
     if (contractor?.phone) Linking.openURL(`tel:${contractor.phone}`);
   };
 
   const handleEmail = () => {
+    // Check if user is logged in
+    if (!user) {
+      Alert.alert(
+        'Sign In Required',
+        'You need to create an account to contact contractors.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Sign Up', onPress: () => router.push('/') },
+        ]
+      );
+      return;
+    }
     if (contractor?.email) Linking.openURL(`mailto:${contractor.email}`);
   };
 
@@ -73,6 +110,7 @@ export default function ContractorDetailScreen() {
   }
 
   const initials = contractor.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2);
+  const languages = contractor.languages || ['English'];
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -88,20 +126,51 @@ export default function ContractorDetailScreen() {
         <View style={s.profileSection}>
           <View style={s.avatarLg}><Text style={s.avatarText}>{initials}</Text></View>
           <Text style={s.name}>{contractor.name}</Text>
+          
+          {/* Business Name */}
+          {contractor.business_name && (
+            <Text style={s.businessName}>{contractor.business_name}</Text>
+          )}
+          
           <View style={s.typeBadge}>
             <Text style={s.typeText}>{contractor.contractor_type}</Text>
           </View>
+          
+          {/* License Badge */}
+          {contractor.has_license && (
+            <View style={s.licenseBadge}>
+              <Text style={s.licenseBadgeText}>🪪 License on file</Text>
+            </View>
+          )}
+          
           <View style={s.ratingRow}>
             {renderStars(contractor.rating || 0)}
             <Text style={s.ratingNum}>{contractor.rating || 0}</Text>
             <Text style={s.reviewCount}>({contractor.review_count || 0} reviews)</Text>
           </View>
+          
+          {/* Languages Badge */}
+          <View style={s.languagesBadge}>
+            <Ionicons name="globe-outline" size={16} color={colors.textSecondary} />
+            <Text style={s.languagesText}>
+              {languages.join(', ')}
+            </Text>
+          </View>
+          
           <View style={s.locationInfo}>
             <Ionicons name="location" size={16} color={contractor.live_location_enabled ? colors.success : colors.primary} />
             <Text style={s.locationText}>
               {contractor.live_location_enabled ? 'Live Location Active' : 'Recent Location'}
             </Text>
           </View>
+          
+          {/* Experience */}
+          {contractor.experience_years > 0 && (
+            <View style={s.experienceBadge}>
+              <Ionicons name="briefcase-outline" size={16} color={colors.primary} />
+              <Text style={s.experienceText}>{contractor.experience_years}+ years experience</Text>
+            </View>
+          )}
         </View>
 
         {contractor.bio ? (
@@ -110,6 +179,20 @@ export default function ContractorDetailScreen() {
             <Text style={s.bioText}>{contractor.bio}</Text>
           </View>
         ) : null}
+        
+        {/* Trades/Services */}
+        {contractor.trades && contractor.trades.length > 0 && (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Services Offered</Text>
+            <View style={s.tradesContainer}>
+              {contractor.trades.map((trade: string, index: number) => (
+                <View key={index} style={s.tradeChip}>
+                  <Text style={s.tradeChipText}>{trade}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         <View style={s.contactSection}>
           <TouchableOpacity testID="call-btn" style={s.contactBtn} onPress={handleCall}>
@@ -132,6 +215,19 @@ export default function ContractorDetailScreen() {
             <Text style={s.contactLabel}>Message</Text>
           </TouchableOpacity>
         </View>
+        
+        {/* Not logged in warning */}
+        {!user && (
+          <View style={s.signInPrompt}>
+            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Text style={s.signInPromptText}>
+              Sign in or create an account to contact this contractor
+            </Text>
+            <TouchableOpacity style={s.signInBtn} onPress={() => router.push('/')}>
+              <Text style={s.signInBtnText}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {portfolio.length > 0 && (
           <View style={s.section}>
@@ -193,14 +289,51 @@ const s = StyleSheet.create({
   },
   avatarText: { fontSize: 32, fontWeight: '700', color: colors.paper },
   name: { fontSize: 24, fontWeight: '700', color: colors.secondary },
+  businessName: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
   typeBadge: {
     backgroundColor: '#FFF8EC', paddingHorizontal: 14, paddingVertical: 5,
     borderRadius: radius.round, marginTop: spacing.xs,
   },
   typeText: { fontSize: 14, fontWeight: '600', color: colors.primaryDark },
+  licenseBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.round,
+    marginTop: spacing.s,
+  },
+  licenseBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#166534',
+  },
   ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.s, gap: 4 },
   ratingNum: { fontSize: 16, fontWeight: '700', color: colors.secondary, marginLeft: 4 },
   reviewCount: { fontSize: 14, color: colors.textSecondary },
+  languagesBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.s,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.round,
+  },
+  languagesText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  experienceBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.s,
+  },
+  experienceText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
   rate: { fontSize: 20, fontWeight: '700', color: colors.primary, marginTop: spacing.s },
   locationInfo: {
     flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.s,
@@ -210,6 +343,22 @@ const s = StyleSheet.create({
   section: { padding: spacing.m },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.secondary, marginBottom: spacing.m },
   bioText: { fontSize: 15, color: colors.textSecondary, lineHeight: 22 },
+  tradesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tradeChip: {
+    backgroundColor: '#FFF8EC',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.round,
+  },
+  tradeChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.primaryDark,
+  },
   contactSection: {
     flexDirection: 'row', justifyContent: 'space-around', padding: spacing.m,
     backgroundColor: colors.paper, marginHorizontal: spacing.m, marginTop: spacing.m,
@@ -221,6 +370,33 @@ const s = StyleSheet.create({
     width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center',
   },
   contactLabel: { fontSize: 13, fontWeight: '600', color: colors.secondary },
+  signInPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8EC',
+    marginHorizontal: spacing.m,
+    marginTop: spacing.m,
+    padding: spacing.m,
+    borderRadius: radius.m,
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  signInPromptText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
+  },
+  signInBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: radius.s,
+  },
+  signInBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.paper,
+  },
   portfolioCard: {
     flexDirection: 'row', gap: spacing.m, backgroundColor: colors.paper,
     borderRadius: radius.s, padding: spacing.m, marginBottom: spacing.s,
