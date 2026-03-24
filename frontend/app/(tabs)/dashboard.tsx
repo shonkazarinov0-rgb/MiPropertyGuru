@@ -259,10 +259,6 @@ export default function ContractorDashboard() {
                 <Text style={styles.statNumber}>{stats?.profile_views || 0}</Text>
                 <Text style={styles.statLabel}>Profile views</Text>
               </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>{stats?.response_rate || 0}%</Text>
-                <Text style={styles.statLabel}>Response rate</Text>
-              </View>
             </View>
 
             {/* Quick Stats Row */}
@@ -271,11 +267,6 @@ export default function ContractorDashboard() {
                 <Ionicons name="star" size={18} color="#FFB800" />
                 <Text style={styles.quickStatText}>{stats?.rating || 0}</Text>
                 <Text style={styles.quickStatLabel}>({stats?.review_count || 0} reviews)</Text>
-              </View>
-              <View style={styles.quickStatItem}>
-                <Ionicons name="flash" size={18} color={colors.primary} />
-                <Text style={styles.quickStatText}>~{stats?.avg_response_time || 5} min</Text>
-                <Text style={styles.quickStatLabel}>response</Text>
               </View>
               <View style={styles.quickStatItem}>
                 <Ionicons name="checkmark-circle" size={18} color={colors.green} />
