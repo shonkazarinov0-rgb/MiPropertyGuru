@@ -144,7 +144,11 @@ export default function ClientHomeScreen() {
         params.append('lng', String(userLoc.lng));
       }
       const res = await api.get(`/contractors?${params.toString()}`);
-      setContractors(res.contractors || []);
+      // Filter out the current user so they don't see themselves
+      const filteredContractors = (res.contractors || []).filter(
+        (contractor: any) => contractor.id !== user?.id
+      );
+      setContractors(filteredContractors);
       if (res.online_count !== undefined) setOnlineCount(res.online_count);
     } catch (e) {
       console.error(e);
