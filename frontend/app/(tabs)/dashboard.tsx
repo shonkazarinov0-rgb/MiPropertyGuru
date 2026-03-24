@@ -27,7 +27,7 @@ const colors = {
 
 export default function ContractorDashboard() {
   const router = useRouter();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, switchMode, isClientMode, isContractorMode } = useAuth();
   const [isOnline, setIsOnline] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [incomingJobs, setIncomingJobs] = useState<any[]>([]);
@@ -35,7 +35,6 @@ export default function ContractorDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [mode, setMode] = useState<'contractor' | 'client'>('contractor');
 
   useEffect(() => {
     if (user) {
@@ -132,11 +131,13 @@ export default function ContractorDashboard() {
     }
   };
 
-  const switchToClientMode = async () => {
+  const toggleMode = async () => {
     try {
-      await api.post('/switch-to-client-mode');
-      setMode('client');
-      router.push('/(tabs)/home');
+      const newMode = isClientMode ? 'contractor' : 'client';
+      await switchMode(newMode);
+      if (newMode === 'client') {
+        router.push('/(tabs)/home');
+      }
     } catch (e) {
       console.error(e);
     }
@@ -283,10 +284,12 @@ export default function ContractorDashboard() {
               </View>
             </View>
 
-            {/* Switch to Client Mode */}
-            <TouchableOpacity style={styles.switchModeBtn} onPress={switchToClientMode}>
+            {/* Switch Mode Button */}
+            <TouchableOpacity style={styles.switchModeBtn} onPress={toggleMode}>
               <Ionicons name="swap-horizontal" size={20} color={colors.primary} />
-              <Text style={styles.switchModeText}>Switch to Client Mode</Text>
+              <Text style={styles.switchModeText}>
+                {isClientMode ? 'Switch to Contractor Mode' : 'Switch to Client Mode'}
+              </Text>
             </TouchableOpacity>
 
             {/* Incoming Jobs Header */}
