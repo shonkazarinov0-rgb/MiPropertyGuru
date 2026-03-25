@@ -694,32 +694,45 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
           </View>
         </LinearGradient>
 
-        {/* Content area - show for all modes */}
-        <>
-          {/* Mini Map */}
-          {userLoc && contractors.length > 0 && Platform.OS !== 'web' && (
-            <TouchableOpacity style={styles.mapPreview} onPress={() => setShowFullMap(true)}>
-              <WebView 
-                source={{ html: getMapHTML() }} 
-                style={styles.mapWebView}
-                onMessage={handleMapMessage}
-                scrollEnabled={false}
-                pointerEvents="none"
-              />
-              <View style={styles.mapOverlay}>
-                <Text style={styles.mapOverlayText}>Tap to expand map</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-          {Platform.OS === 'web' && (
-            <View style={styles.mapPlaceholder}>
-              <Ionicons name="map" size={32} color={colors.primary} />
-              <Text style={styles.mapPlaceholderText}>Map view on mobile app</Text>
-            </View>
-          )}
+        {/* Show switch prompt for contractors in contractor mode */}
+        {isContractorMode && (
+          <View style={styles.switchModePrompt}>
+            <Ionicons name="information-circle-outline" size={24} color={colors.primary} />
+            <Text style={styles.switchModePromptText}>
+              You're in Contractor Mode. To browse and hire contractors,{' '}
+              <Text style={styles.switchModeLink} onPress={() => switchMode('client')}>
+                switch to Client Mode
+              </Text>
+            </Text>
+          </View>
+        )}
 
-          {/* Post a Job - Compact Inline (only show when browsing as client or is a client) */}
-          {(isClientMode || user?.role === 'client' || !user) && (
+        {/* Content area - only show when in client mode or for clients/guests */}
+        {(isClientMode || user?.role === 'client' || !user) && (
+          <>
+            {/* Mini Map */}
+            {userLoc && contractors.length > 0 && Platform.OS !== 'web' && (
+              <TouchableOpacity style={styles.mapPreview} onPress={() => setShowFullMap(true)}>
+                <WebView 
+                  source={{ html: getMapHTML() }} 
+                  style={styles.mapWebView}
+                  onMessage={handleMapMessage}
+                  scrollEnabled={false}
+                  pointerEvents="none"
+                />
+                <View style={styles.mapOverlay}>
+                  <Text style={styles.mapOverlayText}>Tap to expand map</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            {Platform.OS === 'web' && (
+              <View style={styles.mapPlaceholder}>
+                <Ionicons name="map" size={32} color={colors.primary} />
+                <Text style={styles.mapPlaceholderText}>Map view on mobile app</Text>
+              </View>
+            )}
+
+            {/* Post a Job - Compact Inline */}
             <TouchableOpacity 
               style={styles.postJobBtn}
               onPress={() => {
@@ -746,7 +759,6 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.primary} />
             </TouchableOpacity>
-          )}
 
           {/* Categories */}
             <View style={styles.section}>
@@ -922,6 +934,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               )}
             </View>
           </>
+        )}
       </ScrollView>
 
       {/* Service Menu Modal */}
@@ -1777,5 +1790,27 @@ const styles = StyleSheet.create({
   postJobSubtitle: {
     fontSize: 12,
     color: colors.textSecondary,
+  },
+  // Switch mode prompt for contractors
+  switchModePrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  switchModePromptText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+  },
+  switchModeLink: {
+    color: colors.primary,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
 });

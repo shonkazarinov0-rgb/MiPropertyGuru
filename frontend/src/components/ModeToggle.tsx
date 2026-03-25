@@ -10,6 +10,7 @@ const colors = {
   text: '#1A1A1A',
   textSecondary: '#6B7280',
   green: '#22C55E',
+  greenLight: '#DCFCE7',
   border: '#E5E7EB',
 };
 
@@ -29,19 +30,25 @@ export default function ModeToggle() {
 
   return (
     <TouchableOpacity style={styles.container} onPress={handleToggle}>
-      <View style={[styles.option, isClientMode && styles.optionActive]}>
+      <View style={[styles.option, isClientMode && styles.optionActiveClient]}>
         <Ionicons 
           name="home" 
-          size={14} 
+          size={12} 
           color={isClientMode ? colors.paper : colors.textSecondary} 
         />
+        <Text style={[styles.optionText, isClientMode && styles.optionTextActive]}>
+          Client
+        </Text>
       </View>
       <View style={[styles.option, isContractorMode && styles.optionActiveContractor]}>
         <Ionicons 
           name="construct" 
-          size={14} 
+          size={12} 
           color={isContractorMode ? colors.paper : colors.textSecondary} 
         />
+        <Text style={[styles.optionText, isContractorMode && styles.optionTextActive]}>
+          Contractor
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -52,17 +59,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#F3F4F6',
     borderRadius: 16,
-    padding: 3,
+    padding: 2,
   },
   option: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 14,
+    gap: 4,
   },
-  optionActive: {
+  optionActiveClient: {
     backgroundColor: colors.primary,
   },
   optionActiveContractor: {
     backgroundColor: colors.green,
+  },
+  optionText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  optionTextActive: {
+    color: colors.paper,
   },
 });
