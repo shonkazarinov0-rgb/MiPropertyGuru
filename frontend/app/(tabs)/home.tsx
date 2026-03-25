@@ -71,6 +71,9 @@ export default function ClientHomeScreen() {
   const [onlineCount, setOnlineCount] = useState(0);
   const [showFullMap, setShowFullMap] = useState(false);
   
+  // Guest prompt modal state
+  const [showGuestPrompt, setShowGuestPrompt] = useState(false);
+  
   // Advanced Filters State
   const [showFilters, setShowFilters] = useState(false);
   const [filterLicenseOnly, setFilterLicenseOnly] = useState(false);
@@ -266,16 +269,39 @@ export default function ClientHomeScreen() {
     fetchContractors();
   }, [category, userLoc]);
 
-  const handleCall = (phone: string) => {
+  const handleCall = (phone: string, e?: any) => {
+    if (e) e.stopPropagation();
+    // Check if user is logged in
+    if (!user) {
+      setShowGuestPrompt(true);
+      return;
+    }
     Linking.openURL(`tel:${phone}`);
   };
 
-  const handleMessage = (contractorId: string) => {
+  const handleEmail = (email: string, e?: any) => {
+    if (e) e.stopPropagation();
+    // Check if user is logged in
     if (!user) {
-      router.push('/');
+      setShowGuestPrompt(true);
       return;
     }
-    router.push(`/chat/${contractorId}`);
+    Linking.openURL(`mailto:${email}`);
+  };
+
+  const handleMessage = async (contractorId: string, e?: any) => {
+    if (e) e.stopPropagation();
+    if (!user) {
+      setShowGuestPrompt(true);
+      return;
+    }
+    try {
+      const conv = await api.post('/conversations', { participant_id: contractorId });
+      router.push(`/chat/${conv.id}`);
+    } catch (err) {
+      console.error('Error creating conversation:', err);
+      router.push(`/chat/${contractorId}`);
+    }
   };
 
   // Service Menu Functions
@@ -414,24 +440,63 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
           <Text style={styles.bio} numberOfLines={2}>{item.bio}</Text>
         )}
         
-        <View style={styles.cardActions}>
+        {/* Action Buttons - Styled like the reference image */}
+        <View style={styles.contactButtonsRow}>
           <TouchableOpacity 
-            style={styles.messageBtn} 
-            onPress={(e) => { e.stopPropagation(); handleMessage(item.id); }}
+            style={styles.contactActionBtn}
+            onPress={(e) => handleCall(item.phone, e)}
           >
-            <Ionicons name="chatbubble-outline" size={18} color={colors.primary} />
-            <Text style={styles.messageBtnText}>Message</Text>
+            <View style={[styles.contactActionIcon, { backgroundColor: '#E8F9EE' }]}>
+              <Ionicons name="call" size={20} color="#22C55E" />
+            </View>
+            <Text style={styles.contactActionLabel}>Call</Text>
           </TouchableOpacity>
-          {item.phone && (
-            <TouchableOpacity 
-              style={styles.callBtn}
-              onPress={(e) => { e.stopPropagation(); handleCall(item.phone); }}
-            >
-              <Ionicons name="call" size={18} color={colors.paper} />
-              <Text style={styles.callBtnText}>Call</Text>
-            </TouchableOpacity>
-          )}
+          
+          <TouchableOpacity 
+            style={styles.contactActionBtn}
+            onPress={(e) => handleEmail(item.email, e)}
+          >
+            <View style={[styles.contactActionIcon, { backgroundColor: '#E8F0FF' }]}>
+              <Ionicons name="mail" size={20} color="#3B82F6" />
+            </View>
+            <Text style={styles.contactActionLabel}>Email</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.contactActionBtn}
+            onPress={(e) => handleMessage(item.id, e)}
+          >
+            <View style={[styles.contactActionIcon, { backgroundColor: '#FFF8EC' }]}>
+              <Ionicons name="chatbubble" size={20} color="#FF6A00" />
+            </View>
+            <Text style={styles.contactActionLabel}>Message</Text>
+          </TouchableOpacity>
         </View>
+
+        {/* Guest sign-in prompt - shows if user not logged in */}
+        {!user && (
+          <View style={styles.guestPromptBanner}>
+            <View style={styles.guestPromptLeft}>
+              <Ionicons name="information-circle" size={18} color={colors.primary} />
+              <Text style={styles.guestPromptText}>
+                <Text 
+                  style={styles.guestPromptLink} 
+                  onPress={(e) => { e.stopPropagation(); router.push('/'); }}
+                >
+                  Sign in
+                </Text>
+                {' or '}
+                <Text 
+                  style={styles.guestPromptLink}
+                  onPress={(e) => { e.stopPropagation(); router.push('/'); }}
+                >
+                  Register
+                </Text>
+                {' to contact'}
+              </Text>
+            </View>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -1208,6 +1273,61 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.paper,
+  },
+  // New contact action button styles (matching the reference image)
+  contactButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 14,
+    marginTop: 14,
+  },
+  contactActionBtn: {
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  contactActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contactActionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  // Guest prompt banner inside contractor card
+  guestPromptBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF8EC',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 10,
+  },
+  guestPromptLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  guestPromptText: {
+    fontSize: 12,
+    color: colors.text,
+    flex: 1,
+  },
+  guestPromptLink: {
+    color: colors.primary,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   loader: {
     paddingVertical: 40,

@@ -216,15 +216,17 @@ export default function ContractorDetailScreen() {
           </TouchableOpacity>
         </View>
         
-        {/* Not logged in warning */}
+        {/* Not logged in banner */}
         {!user && (
-          <View style={s.signInPrompt}>
-            <Ionicons name="information-circle" size={20} color={colors.primary} />
-            <Text style={s.signInPromptText}>
-              Sign in or create an account to contact this contractor
-            </Text>
-            <TouchableOpacity style={s.signInBtn} onPress={() => router.push('/')}>
-              <Text style={s.signInBtnText}>Sign In</Text>
+          <View style={s.signInBanner}>
+            <View style={s.signInBannerLeft}>
+              <Ionicons name="information-circle" size={22} color={colors.primary} />
+              <Text style={s.signInBannerText}>
+                Sign in or create an account to contact this contractor
+              </Text>
+            </View>
+            <TouchableOpacity style={s.signInBannerBtn} onPress={() => router.push('/')}>
+              <Text style={s.signInBannerBtnText}>Sign In</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -408,6 +410,41 @@ const s = StyleSheet.create({
   },
   signInBtnText: {
     fontSize: 13,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  // New sign-in banner style (matching the image)
+  signInBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF8EC',
+    borderRadius: radius.m,
+    padding: spacing.m,
+    marginHorizontal: spacing.m,
+    marginTop: spacing.xs,
+    marginBottom: spacing.m,
+    gap: spacing.s,
+  },
+  signInBannerLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s,
+  },
+  signInBannerText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  signInBannerBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  signInBannerBtnText: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.paper,
   },
