@@ -320,9 +320,14 @@ export default function ClientHomeScreen() {
         filteredContractors = filteredContractors.filter((c: any) => (c.rating || 0) >= filterMinRating);
       }
       if (filterLanguage !== 'All') {
-        filteredContractors = filteredContractors.filter((c: any) => 
-          (c.languages || ['English']).includes(filterLanguage)
-        );
+        filteredContractors = filteredContractors.filter((c: any) => {
+          const langs = c.languages || ['English'];
+          // Handle "Chinese (Mandarin)" filter matching both "Chinese (Mandarin)" and "Mandarin"
+          if (filterLanguage === 'Chinese (Mandarin)') {
+            return langs.some((l: string) => l.toLowerCase().includes('chinese') || l.toLowerCase().includes('mandarin'));
+          }
+          return langs.includes(filterLanguage);
+        });
       }
       
       setContractors(filteredContractors);
@@ -847,7 +852,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                     <Text style={styles.filterLabel}>Language</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       <View style={styles.languageOptions}>
-                        {['All', 'English', 'French', 'Spanish', 'Chinese (Mandarin)', 'Hindi', 'Portuguese'].map((lang) => (
+                        {['All', 'English', 'French', 'Spanish', 'Portuguese', 'Chinese (Mandarin)', 'Hindi', 'Arabic', 'Tagalog', 'Vietnamese', 'Korean', 'Italian', 'German', 'Polish', 'Ukrainian', 'Russian', 'Punjabi'].map((lang) => (
                           <TouchableOpacity
                             key={lang}
                             style={[styles.langChip, filterLanguage === lang && styles.langChipActive]}
