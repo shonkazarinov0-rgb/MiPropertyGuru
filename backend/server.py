@@ -825,17 +825,20 @@ async def get_my_posted_jobs(user=Depends(get_current_user)):
 
 @api_router.get("/jobs/available")
 async def get_available_jobs(user=Depends(get_current_user)):
-    """Get jobs available for the contractor based on their trades - excludes their own posted jobs"""
+    """Get jobs available for the contractor based on their trades - excludes their own posted jobs and dismissed jobs"""
     user_trades = user.get("trades", [])
     if user.get("contractor_type"):
         user_trades.append(user["contractor_type"])
     
-    # Get open jobs that match contractor's trades, excluding jobs they posted themselves
+    # Get open jobs that match contractor's trades, excluding:
+    # 1. Jobs they posted themselves
+    # 2. Jobs they've dismissed
     jobs = await db.posted_jobs.find(
         {
             "status": "open",
             "trade_required": {"$in": user_trades},
-            "posted_by": {"$ne": user["id"]}  # Exclude jobs posted by this user
+            "posted_by": {"$ne": user["id"]},  # Exclude jobs posted by this user
+            "dismissed_by": {"$nin": [user["id"]]}  # Exclude jobs they dismissed
         },
         {"_id": 0}
     ).sort("created_at", -1).to_list(50)
@@ -870,6 +873,21 @@ async def respond_to_job(job_id: str, user=Depends(get_current_user)):
     )
     
     return {"message": "Response sent successfully"}
+
+@api_router.post("/jobs/{job_id}/dismiss")
+async def dismiss_job(job_id: str, user=Depends(get_current_user)):
+    """Contractor dismisses/ignores a job - it won't show up in their feed again"""
+    job = await db.posted_jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, "Job not found")
+    
+    # Add user to dismissed_by list
+    await db.posted_jobs.update_one(
+        {"id": job_id},
+        {"$addToSet": {"dismissed_by": user["id"]}}
+    )
+    
+    return {"message": "Job dismissed"}
 
 # ── Categories ──
 

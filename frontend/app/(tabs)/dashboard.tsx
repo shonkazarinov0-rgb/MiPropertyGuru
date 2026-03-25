@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet,
-  ActivityIndicator, RefreshControl, Switch, Alert, Linking,
+  ActivityIndicator, RefreshControl, Switch, Alert, Linking, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -35,6 +35,10 @@ export default function ContractorDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+  
+  // Confirmation modal state
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [jobToRemove, setJobToRemove] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
@@ -116,18 +120,43 @@ export default function ContractorDashboard() {
   };
 
   const handleJobResponse = async (jobId: string, action: 'accept' | 'ignore') => {
-    try {
-      await api.post('/jobs/respond', { job_id: jobId, action });
-      
-      if (action === 'accept') {
-        Alert.alert('Great! 🎉', 'The client has been notified. They may contact you soon.');
+    if (action === 'ignore') {
+      // Show confirmation modal for "Not Interested"
+      const job = incomingJobs.find(j => j.id === jobId);
+      setJobToRemove(job);
+      setShowRemoveModal(true);
+      return;
+    }
+    
+    // For "Contact" action - navigate to chat with the client
+    const job = incomingJobs.find(j => j.id === jobId);
+    if (job && job.posted_by) {
+      try {
+        // Create or get conversation with the job poster
+        const conv = await api.post('/conversations', { participant_id: job.posted_by });
+        // Navigate to chat
+        router.push(`/chat/${conv.id}`);
+      } catch (e: any) {
+        Alert.alert('Error', e.message || 'Failed to start conversation');
       }
+    }
+  };
+
+  const confirmRemoveJob = async () => {
+    if (!jobToRemove) return;
+    
+    try {
+      // Mark job as ignored/dismissed
+      await api.post(`/jobs/${jobToRemove.id}/dismiss`).catch(() => {
+        // If endpoint doesn't exist, just remove locally
+      });
       
       // Remove job from list
-      setIncomingJobs(incomingJobs.filter(j => j.id !== jobId));
-      fetchData();
+      setIncomingJobs(incomingJobs.filter(j => j.id !== jobToRemove.id));
+      setShowRemoveModal(false);
+      setJobToRemove(null);
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to respond');
+      Alert.alert('Error', e.message || 'Failed to remove job');
     }
   };
 
@@ -330,6 +359,49 @@ export default function ContractorDashboard() {
           </View>
         )}
       />
+      
+      {/* Remove Job Confirmation Modal */}
+      <Modal
+        visible={showRemoveModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowRemoveModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconContainer}>
+              <Ionicons name="trash-outline" size={40} color={colors.red} />
+            </View>
+            <Text style={styles.modalTitle}>Remove This Job?</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to remove this job from your dashboard? You won't see it again.
+            </Text>
+            {jobToRemove && (
+              <View style={styles.modalJobPreview}>
+                <Text style={styles.modalJobTitle}>{jobToRemove.title}</Text>
+                <Text style={styles.modalJobTrade}>{jobToRemove.trade_required}</Text>
+              </View>
+            )}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.modalCancelBtn}
+                onPress={() => {
+                  setShowRemoveModal(false);
+                  setJobToRemove(null);
+                }}
+              >
+                <Text style={styles.modalCancelText}>Keep It</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.modalConfirmBtn}
+                onPress={confirmRemoveJob}
+              >
+                <Text style={styles.modalConfirmText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -623,5 +695,90 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 32,
     lineHeight: 20,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: colors.paper,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+  },
+  modalIconContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: colors.redLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  modalJobPreview: {
+    backgroundColor: colors.background,
+    padding: 12,
+    borderRadius: 10,
+    width: '100%',
+    marginBottom: 20,
+  },
+  modalJobTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  modalJobTrade: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  modalConfirmBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.red,
+    alignItems: 'center',
+  },
+  modalConfirmText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.paper,
   },
 });

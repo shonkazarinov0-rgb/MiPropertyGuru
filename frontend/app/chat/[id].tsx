@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -207,6 +207,27 @@ export default function ChatScreen() {
     );
   }
 
+  // Get other party's contact info
+  const otherParticipant = conversation?.participant_1 === user?.id 
+    ? { phone: conversation?.participant_2_phone, email: conversation?.participant_2_email }
+    : { phone: conversation?.participant_1_phone, email: conversation?.participant_1_email };
+
+  const handleCall = () => {
+    if (otherParticipant.phone) {
+      Linking.openURL(`tel:${otherParticipant.phone}`);
+    } else {
+      Alert.alert('Not Available', 'Phone number is not available for this contact.');
+    }
+  };
+
+  const handleEmail = () => {
+    if (otherParticipant.email) {
+      Linking.openURL(`mailto:${otherParticipant.email}`);
+    } else {
+      Alert.alert('Not Available', 'Email is not available for this contact.');
+    }
+  };
+
   return (
     <SafeAreaView style={s.container} edges={['top', 'bottom']}>
       <KeyboardAvoidingView 
@@ -228,7 +249,14 @@ export default function ChatScreen() {
               </View>
             )}
           </View>
-          <View style={s.headerRight} />
+          <View style={s.headerActions}>
+            <TouchableOpacity style={s.headerActionBtn} onPress={handleCall}>
+              <Ionicons name="call" size={22} color={colors.green} />
+            </TouchableOpacity>
+            <TouchableOpacity style={s.headerActionBtn} onPress={handleEmail}>
+              <Ionicons name="mail" size={22} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Disclaimer Banner */}
@@ -348,6 +376,19 @@ const s = StyleSheet.create({
     fontSize: 12,
     color: colors.green,
     fontWeight: '500',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerActionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   confirmBanner: {
     flexDirection: 'row',
