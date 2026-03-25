@@ -1853,17 +1853,18 @@ async def seed_data():
     logger.info("Seeding demo data...")
     base_lat, base_lng = 40.7128, -74.0060
     
+    # (name, type, trades, bio, rating, reviews, exp, languages)
     demos = [
-        ("Mike Johnson", "Electrician", ["Electrician"], "Licensed electrician with 15+ years experience.", 4.8, 47, 12),
-        ("Carlos Rodriguez", "Plumber", ["Plumber"], "Master plumber. Emergency repairs, remodels.", 4.9, 62, 8),
-        ("Dave Williams", "Handyman", ["Handyman", "Painter"], "Jack of all trades.", 4.5, 33, 5),
-        ("James Chen", "Carpenter", ["Carpenter", "Cabinet Maker"], "Custom cabinetry and woodwork.", 4.7, 28, 10),
-        ("Robert Taylor", "Painter", ["Painter"], "Interior & exterior painting.", 4.6, 41, 6),
-        ("Ahmed Hassan", "Roofer", ["Roofer"], "Full replacements and repairs.", 4.8, 35, 15),
-        ("Tom O'Brien", "HVAC Technician", ["HVAC Technician"], "AC repair, furnace installation.", 4.7, 29, 9),
-        ("Luis Martinez", "Tiler", ["Tiler", "Flooring Specialist"], "Beautiful tile work.", 4.9, 44, 7),
-        ("Kevin Brown", "General Contractor", ["General Contractor"], "Full home renovations.", 4.6, 51, 20),
-        ("Steve Wilson", "Welder", ["Welder"], "Structural & decorative welding.", 4.5, 19, 11),
+        ("Mike Johnson", "Electrician", ["Electrician"], "Licensed electrician with 15+ years experience.", 4.8, 47, 12, ["English"]),
+        ("Carlos Rodriguez", "Plumber", ["Plumber"], "Master plumber. Emergency repairs, bathroom remodels, water heaters.", 4.9, 62, 8, ["English", "Spanish"]),
+        ("Dave Williams", "Handyman", ["Handyman", "Painter"], "Jack of all trades. No job too small.", 4.5, 33, 5, ["English"]),
+        ("James Chen", "Carpenter", ["Carpenter", "Cabinet Maker"], "Custom cabinetry and woodwork.", 4.7, 28, 10, ["English", "Mandarin"]),
+        ("Robert Taylor", "Painter", ["Painter"], "Interior & exterior painting specialist.", 4.6, 41, 6, ["English"]),
+        ("Ahmed Hassan", "Roofer", ["Roofer"], "Full roof replacements and repairs.", 4.8, 35, 15, ["English", "Arabic"]),
+        ("Tom O'Brien", "HVAC Technician", ["HVAC Technician"], "AC repair, furnace installation, duct work.", 4.7, 29, 9, ["English", "French"]),
+        ("Luis Martinez", "Tiler", ["Tiler", "Flooring Specialist"], "Beautiful tile and flooring work.", 4.9, 44, 7, ["English", "Spanish", "Portuguese"]),
+        ("Kevin Brown", "General Contractor", ["General Contractor"], "Full home renovations and additions.", 4.6, 51, 20, ["English"]),
+        ("Steve Wilson", "Welder", ["Welder"], "Structural & decorative welding. Custom fabrication.", 4.5, 19, 11, ["English"]),
     ]
     
     comments = [
@@ -1875,7 +1876,7 @@ async def seed_data():
     ]
     names = ["Sarah Smith", "Emily Jones", "John Williams", "Lisa Brown", "Michael Davis"]
 
-    for name, ctype, trades, bio, rating, rc, exp in demos:
+    for name, ctype, trades, bio, rating, rc, exp, languages in demos:
         lat_off, lng_off = random.uniform(-0.05, 0.05), random.uniform(-0.05, 0.05)
         uid = str(uuid.uuid4())
         user = {
@@ -1889,6 +1890,7 @@ async def seed_data():
             "trades": trades,
             "bio": bio, 
             "experience_years": exp,
+            "languages": languages,
             "service_radius": random.choice([10, 15, 20, 25]),
             "availability_hours": {"start": "08:00", "end": "18:00"},
             "profile_photo": None,
