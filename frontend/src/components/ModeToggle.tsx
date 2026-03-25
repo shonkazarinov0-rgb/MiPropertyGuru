@@ -39,6 +39,10 @@ export default function ModeToggle() {
   const handleToggle = async () => {
     if (isClientMode) {
       await switchMode('contractor');
+      // If on posted-jobs (My Jobs), redirect to Dashboard (contractors don't use My Jobs)
+      if (pathname === '/posted-jobs' || pathname === '/(tabs)/posted-jobs') {
+        router.replace('/(tabs)/dashboard');
+      }
     } else {
       await switchMode('client');
       // If on dashboard, redirect to My Jobs (clients don't have dashboard)

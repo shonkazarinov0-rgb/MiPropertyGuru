@@ -184,14 +184,14 @@ export default function PostedJobsScreen() {
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
-        <Text style={s.title}>My Jobs</Text>
-        <View style={s.headerActions}>
+        <View style={s.headerLeft}>
+          <Text style={s.title}>My Jobs</Text>
           <ModeToggle />
-          <TouchableOpacity style={s.postBtn} onPress={() => router.push('/post-job')}>
-            <Ionicons name="add" size={20} color={colors.paper} />
-            <Text style={s.postBtnText}>Post</Text>
-          </TouchableOpacity>
         </View>
+        <TouchableOpacity style={s.postBtn} onPress={() => router.push('/post-job')}>
+          <Ionicons name="add" size={18} color={colors.paper} />
+          <Text style={s.postBtnText}>Post</Text>
+        </TouchableOpacity>
       </View>
 
       {/* 3 Tabs: Pending, Confirmed, Completed */}
@@ -301,7 +301,7 @@ const s = StyleSheet.create({
   },
   header: { 
     paddingHorizontal: 16, 
-    paddingVertical: 16, 
+    paddingVertical: 12, 
     backgroundColor: colors.paper, 
     borderBottomWidth: 1, 
     borderBottomColor: colors.border,
@@ -309,15 +309,15 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  title: { 
-    fontSize: 28, 
-    fontWeight: '700', 
-    color: colors.text,
-  },
-  headerActions: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+  },
+  title: { 
+    fontSize: 24, 
+    fontWeight: '700', 
+    color: colors.text,
   },
   postBtn: {
     flexDirection: 'row',
