@@ -66,8 +66,8 @@ export default function MessagesScreen() {
   };
 
   // Filter conversations based on current mode
-  // The person who STARTS a conversation (participant_1) is always the CLIENT
-  // The person who RECEIVES the conversation (participant_2) is always the CONTRACTOR
+  // In CLIENT mode: Show chats where the OTHER person is a CONTRACTOR (I'm talking to contractors)
+  // In CONTRACTOR mode: Show chats where the OTHER person is a CLIENT (clients are talking to me)
   const filterByMode = (convList: any[]) => {
     if (!user) return convList;
     
@@ -76,19 +76,18 @@ export default function MessagesScreen() {
     
     // For contractors who can switch modes
     return convList.filter(conv => {
-      const iAmTheInitiator = conv.participant_1 === user.id;
+      const isParticipant1 = conv.participant_1 === user.id;
       
-      // If I started the conversation, I was acting as CLIENT
-      // If someone else started the conversation with me, I was acting as CONTRACTOR
-      if (isClientMode) {
-        // Show conversations where I was the client (I initiated)
-        return iAmTheInitiator;
-      }
+      // Get the OTHER person's role
+      const otherRole = isParticipant1 
+        ? conv.participant_2_role 
+        : conv.participant_1_role;
       
-      if (isContractorMode) {
-        // Show conversations where I was the contractor (they initiated/contacted me)
-        return !iAmTheInitiator;
-      }
+      // In CLIENT mode: show if other person is a contractor
+      if (isClientMode && otherRole === 'contractor') return true;
+      
+      // In CONTRACTOR mode: show if other person is a client
+      if (isContractorMode && otherRole === 'client') return true;
       
       return false;
     });
