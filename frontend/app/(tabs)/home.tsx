@@ -638,24 +638,23 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 <Text style={styles.tagline}>Your home, our experts</Text>
               </View>
             </View>
-            <TouchableOpacity 
-              style={[
-                styles.notificationBtn, 
-                notificationsEnabled && styles.notificationBtnActive
-              ]}
-              onPress={handleNotificationToggle}
-            >
-              <Ionicons 
-                name={notificationsEnabled ? "notifications" : "notifications-outline"} 
-                size={22} 
-                color={notificationsEnabled ? '#FFD700' : colors.paper} 
-              />
-            </TouchableOpacity>
-          </View>
-          
-          {/* Mode Toggle Row - under header */}
-          <View style={styles.modeToggleRow}>
-            <ModeToggle />
+            {/* Mode Toggle and Bell in same column on right */}
+            <View style={styles.headerRightColumn}>
+              <ModeToggle />
+              <TouchableOpacity 
+                style={[
+                  styles.notificationBtn, 
+                  notificationsEnabled && styles.notificationBtnActive
+                ]}
+                onPress={handleNotificationToggle}
+              >
+                <Ionicons 
+                  name={notificationsEnabled ? "notifications" : "notifications-outline"} 
+                  size={22} 
+                  color={notificationsEnabled ? '#FFD700' : colors.paper} 
+                />
+              </TouchableOpacity>
+            </View>
           </View>
           
           <View style={styles.headerContent}>
@@ -1025,8 +1024,12 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 16,
+  },
+  headerRightColumn: {
+    alignItems: 'flex-end',
+    gap: 8,
   },
   logoContainer: {
     flexDirection: 'row',
