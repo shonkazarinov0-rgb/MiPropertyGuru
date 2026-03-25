@@ -41,9 +41,9 @@ export default function ModeToggle() {
       await switchMode('contractor');
     } else {
       await switchMode('client');
-      // If on dashboard, redirect to explore (clients don't have dashboard)
+      // If on dashboard, redirect to My Jobs (clients don't have dashboard)
       if (pathname === '/dashboard' || pathname === '/(tabs)/dashboard') {
-        router.replace('/(tabs)/home');
+        router.replace('/(tabs)/posted-jobs');
       }
     }
   };

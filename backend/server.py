@@ -1217,14 +1217,18 @@ async def respond_to_job(req: JobResponseReq, user=Depends(get_current_user)):
 @api_router.get("/jobs/{job_id}")
 async def get_job(job_id: str, user=Depends(get_current_user)):
     """Get job details with responses"""
-    job = await db.jobs.find_one({"id": job_id}, {"_id": 0})
+    # Try posted_jobs first
+    job = await db.posted_jobs.find_one({"id": job_id}, {"_id": 0})
+    if not job:
+        # Fallback to old jobs collection
+        job = await db.jobs.find_one({"id": job_id}, {"_id": 0})
     if not job:
         raise HTTPException(404, "Job not found")
     
     # Get contractor details for responses
     responses_with_details = []
     for resp in job.get("contractor_responses", []):
-        if resp["action"] == "accept":
+        if resp.get("action") == "accept":
             contractor = await db.users.find_one(
                 {"id": resp["contractor_id"]}, 
                 {"_id": 0, "password_hash": 0}
@@ -1234,6 +1238,45 @@ async def get_job(job_id: str, user=Depends(get_current_user)):
     
     job["contractor_responses"] = responses_with_details
     return {"job": job}
+
+class JobUpdate(BaseModel):
+    description: Optional[str] = None
+    location: Optional[str] = None
+
+@api_router.put("/jobs/{job_id}")
+async def update_job(job_id: str, data: JobUpdate, user=Depends(get_current_user)):
+    """Update a job (only by the poster)"""
+    job = await db.posted_jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, "Job not found")
+    if job["posted_by"] != user["id"]:
+        raise HTTPException(403, "Not authorized to edit this job")
+    
+    update_data = {}
+    if data.description is not None:
+        update_data["description"] = data.description
+    if data.location is not None:
+        update_data["location"] = data.location
+    
+    if update_data:
+        await db.posted_jobs.update_one({"id": job_id}, {"$set": update_data})
+    
+    updated_job = await db.posted_jobs.find_one({"id": job_id}, {"_id": 0})
+    return {"job": updated_job}
+
+@api_router.delete("/jobs/{job_id}")
+async def delete_job(job_id: str, user=Depends(get_current_user)):
+    """Delete a job (only by the poster, and only if not confirmed)"""
+    job = await db.posted_jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, "Job not found")
+    if job["posted_by"] != user["id"]:
+        raise HTTPException(403, "Not authorized to delete this job")
+    if job.get("status") in ["confirmed", "completed"]:
+        raise HTTPException(400, "Cannot delete a confirmed or completed job")
+    
+    await db.posted_jobs.delete_one({"id": job_id})
+    return {"message": "Job deleted"}
 
 @api_router.post("/jobs/{job_id}/select")
 async def select_contractor(job_id: str, contractor_id: str, user=Depends(get_current_user)):

@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
+import ModeToggle from '../../src/components/ModeToggle';
 
 const colors = {
   primary: '#FF6A00',
@@ -184,10 +185,13 @@ export default function PostedJobsScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
         <Text style={s.title}>My Jobs</Text>
-        <TouchableOpacity style={s.postBtn} onPress={() => router.push('/post-job')}>
-          <Ionicons name="add" size={20} color={colors.paper} />
-          <Text style={s.postBtnText}>Post</Text>
-        </TouchableOpacity>
+        <View style={s.headerActions}>
+          <ModeToggle />
+          <TouchableOpacity style={s.postBtn} onPress={() => router.push('/post-job')}>
+            <Ionicons name="add" size={20} color={colors.paper} />
+            <Text style={s.postBtnText}>Post</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 3 Tabs: Pending, Confirmed, Completed */}
@@ -309,6 +313,11 @@ const s = StyleSheet.create({
     fontSize: 28, 
     fontWeight: '700', 
     color: colors.text,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   postBtn: {
     flexDirection: 'row',
