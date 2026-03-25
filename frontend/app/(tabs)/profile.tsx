@@ -3,6 +3,7 @@ import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet, Switch, TextInput,
   Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Image,
 } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,6 +30,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, refreshUser, switchMode, isClientMode, isContractorMode } = useAuth();
   const [liveLocation, setLiveLocation] = useState(user?.live_location_enabled || false);
+  const [serviceRadius, setServiceRadius] = useState(user?.service_radius || 50);
   const [saving, setSaving] = useState(false);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [locationName, setLocationName] = useState('');
@@ -92,6 +94,16 @@ export default function ProfileScreen() {
       await refreshUser();
     } catch (e: any) { Alert.alert('Error', e.message); setLiveLocation(!val); }
     finally { setSaving(false); }
+  };
+
+  const updateServiceRadius = async (value: number) => {
+    setServiceRadius(value);
+    try {
+      await api.put('/contractors/service-radius', { service_radius: value });
+      await refreshUser();
+    } catch (e: any) {
+      console.error('Failed to update service radius:', e.message);
+    }
   };
 
   const addWorkLocation = async () => {
@@ -480,6 +492,40 @@ export default function ProfileScreen() {
                     trackColor={{ false: colors.border, true: colors.primaryLight }}
                     thumbColor={liveLocation ? colors.primary : '#f4f4f4'} 
                   />
+                </View>
+
+                <View style={s.divider} />
+                
+                {/* Service Radius Slider */}
+                <View style={s.radiusSection}>
+                  <View style={s.radiusHeader}>
+                    <View style={s.radiusInfo}>
+                      <Ionicons name="compass-outline" size={22} color={colors.primary} />
+                      <Text style={s.radiusLabel}>Service Radius</Text>
+                    </View>
+                    <Text style={s.radiusValue}>
+                      {serviceRadius >= 200 ? '200+ km' : `${serviceRadius} km`}
+                    </Text>
+                  </View>
+                  <View style={s.sliderContainer}>
+                    <Text style={s.sliderMinMax}>0</Text>
+                    <Slider
+                      style={s.slider}
+                      minimumValue={0}
+                      maximumValue={200}
+                      step={5}
+                      value={serviceRadius}
+                      onSlidingComplete={updateServiceRadius}
+                      onValueChange={setServiceRadius}
+                      minimumTrackTintColor={colors.primary}
+                      maximumTrackTintColor={colors.border}
+                      thumbTintColor={colors.primary}
+                    />
+                    <Text style={s.sliderMinMax}>200+</Text>
+                  </View>
+                  <Text style={s.radiusHint}>
+                    How far are you willing to travel for jobs?
+                  </Text>
                 </View>
 
                 <View style={s.divider} />
@@ -1040,6 +1086,55 @@ const s = StyleSheet.create({
     height: 1,
     backgroundColor: colors.border,
     marginVertical: 16,
+  },
+  radiusSection: {
+    marginBottom: 4,
+  },
+  radiusHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  radiusInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  radiusLabel: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  radiusValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  sliderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  slider: {
+    flex: 1,
+    height: 40,
+  },
+  sliderMinMax: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    width: 30,
+  },
+  radiusHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   workLocTitle: {
     fontSize: 14,

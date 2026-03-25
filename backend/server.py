@@ -128,6 +128,7 @@ class JobPostCreate(BaseModel):
     location: Optional[str] = None
     budget: Optional[str] = None
     urgency: Optional[str] = "normal"  # normal, urgent
+    photos: Optional[List[str]] = None  # Up to 10 photos
 
 class LocationUpdate(BaseModel):
     live_location_enabled: bool
@@ -814,6 +815,7 @@ async def post_job(req: JobPostCreate, user=Depends(get_current_user)):
         "posted_by_phone": user.get("phone"),
         "responses": [],  # Contractors who responded
         "dismissed_by": [],  # Initialize dismissed_by array
+        "photos": (req.photos or [])[:10],  # Limit to 10 photos
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
@@ -1045,6 +1047,21 @@ async def update_online_status(req: OnlineStatusReq, user=Depends(get_current_us
     status_text = "You are live" if req.is_online else "You are offline"
     return {"message": status_text, "is_online": req.is_online}
 
+class ServiceRadiusReq(BaseModel):
+    service_radius: int
+
+@api_router.put("/contractors/service-radius")
+async def update_service_radius(req: ServiceRadiusReq, user=Depends(get_current_user)):
+    """Update contractor service radius in km"""
+    if user["role"] != "contractor":
+        raise HTTPException(403, "Contractors only")
+    
+    # Clamp between 0 and 200
+    radius = max(0, min(200, req.service_radius))
+    
+    await db.users.update_one({"id": user["id"]}, {"$set": {"service_radius": radius}})
+    return {"message": "Service radius updated", "service_radius": radius}
+
 @api_router.put("/contractors/profile")
 async def update_profile(req: ProfileUpdate, user=Depends(get_current_user)):
     update = {}
@@ -1242,6 +1259,8 @@ async def get_job(job_id: str, user=Depends(get_current_user)):
 class JobUpdate(BaseModel):
     description: Optional[str] = None
     location: Optional[str] = None
+    trade_required: Optional[str] = None
+    photos: Optional[List[str]] = None
 
 @api_router.put("/jobs/{job_id}")
 async def update_job(job_id: str, data: JobUpdate, user=Depends(get_current_user)):
@@ -1257,6 +1276,11 @@ async def update_job(job_id: str, data: JobUpdate, user=Depends(get_current_user
         update_data["description"] = data.description
     if data.location is not None:
         update_data["location"] = data.location
+    if data.trade_required is not None:
+        update_data["trade_required"] = data.trade_required
+    if data.photos is not None:
+        # Limit to 10 photos
+        update_data["photos"] = data.photos[:10]
     
     if update_data:
         await db.posted_jobs.update_one({"id": job_id}, {"$set": update_data})

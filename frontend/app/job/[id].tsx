@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet, TextInput,
-  Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Image, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
 
@@ -25,6 +26,24 @@ const colors = {
   border: '#E5E7EB',
 };
 
+// Trade types with icons
+const TRADE_TYPES = [
+  { label: 'Electrician', icon: 'flash' },
+  { label: 'Plumber', icon: 'water' },
+  { label: 'Carpenter', icon: 'construct' },
+  { label: 'Painter', icon: 'color-palette' },
+  { label: 'HVAC', icon: 'thermometer' },
+  { label: 'Roofer', icon: 'home' },
+  { label: 'Landscaper', icon: 'leaf' },
+  { label: 'General Contractor', icon: 'build' },
+  { label: 'Handyman', icon: 'hammer' },
+  { label: 'Cleaner', icon: 'sparkles' },
+  { label: 'Tile/Flooring', icon: 'grid' },
+  { label: 'Fence', icon: 'git-network' },
+  { label: 'Drywall', icon: 'albums' },
+  { label: 'Concrete', icon: 'cube' },
+];
+
 // Trade icons mapping
 const tradeIcons: Record<string, string> = {
   'Electrician': 'flash',
@@ -37,6 +56,10 @@ const tradeIcons: Record<string, string> = {
   'General Contractor': 'build',
   'Handyman': 'hammer',
   'Cleaner': 'sparkles',
+  'Tile/Flooring': 'grid',
+  'Fence': 'git-network',
+  'Drywall': 'albums',
+  'Concrete': 'cube',
 };
 
 export default function JobDetailScreen() {
@@ -49,6 +72,10 @@ export default function JobDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [editDescription, setEditDescription] = useState('');
   const [editLocation, setEditLocation] = useState('');
+  const [editTradeRequired, setEditTradeRequired] = useState('');
+  const [editPhotos, setEditPhotos] = useState<string[]>([]);
+  const [showTradeModal, setShowTradeModal] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchJob();
@@ -60,6 +87,8 @@ export default function JobDetailScreen() {
       setJob(res.job);
       setEditDescription(res.job?.description || '');
       setEditLocation(res.job?.location || '');
+      setEditTradeRequired(res.job?.trade_required || res.job?.category || '');
+      setEditPhotos(res.job?.photos || []);
     } catch (e) {
       console.error('Error fetching job:', e);
       Alert.alert('Error', 'Could not load job details');
@@ -79,8 +108,16 @@ export default function JobDetailScreen() {
       await api.put(`/jobs/${id}`, {
         description: editDescription.trim(),
         location: editLocation.trim(),
+        trade_required: editTradeRequired,
+        photos: editPhotos,
       });
-      setJob({ ...job, description: editDescription.trim(), location: editLocation.trim() });
+      setJob({ 
+        ...job, 
+        description: editDescription.trim(), 
+        location: editLocation.trim(),
+        trade_required: editTradeRequired,
+        photos: editPhotos,
+      });
       setIsEditing(false);
       Alert.alert('Success', 'Job updated');
     } catch (e: any) {
@@ -106,6 +143,45 @@ export default function JobDetailScreen() {
             } catch (e: any) {
               Alert.alert('Error', e.message || 'Could not delete job');
             }
+          }
+        }
+      ]
+    );
+  };
+
+  const pickImage = async () => {
+    if (editPhotos.length >= 10) {
+      Alert.alert('Limit Reached', 'You can only add up to 10 photos');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.7,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      const base64Image = `data:image/jpeg;base64,${result.assets[0].base64}`;
+      setEditPhotos([...editPhotos, base64Image]);
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    Alert.alert(
+      'Remove Photo',
+      'Are you sure you want to remove this photo?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Remove', 
+          style: 'destructive',
+          onPress: () => {
+            const newPhotos = [...editPhotos];
+            newPhotos.splice(index, 1);
+            setEditPhotos(newPhotos);
           }
         }
       ]
@@ -172,7 +248,9 @@ export default function JobDetailScreen() {
     );
   }
 
-  const iconName = tradeIcons[job.category] || 'build';
+  const tradeRequired = job.trade_required || job.category || 'General';
+  const iconName = tradeIcons[tradeRequired] || tradeIcons[job.category] || 'build';
+  const photos = isEditing ? editPhotos : (job.photos || []);
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
@@ -197,13 +275,40 @@ export default function JobDetailScreen() {
         </View>
 
         <ScrollView contentContainerStyle={s.content}>
-          {/* Job Icon & Category */}
-          <View style={s.categoryCard}>
-            <View style={s.categoryIcon}>
-              <Ionicons name={iconName as any} size={32} color={colors.primary} />
-            </View>
-            <Text style={s.categoryText}>{job.category}</Text>
-            {getStatusBadge()}
+          {/* Trade Required Section */}
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Trade Required</Text>
+            {isEditing ? (
+              <TouchableOpacity 
+                style={s.tradeSelector}
+                onPress={() => setShowTradeModal(true)}
+              >
+                <View style={s.tradeSelectorContent}>
+                  <View style={s.tradeIconSmall}>
+                    <Ionicons 
+                      name={(tradeIcons[editTradeRequired] || 'build') as any} 
+                      size={20} 
+                      color={colors.primary} 
+                    />
+                  </View>
+                  <Text style={s.tradeSelectorText}>
+                    {editTradeRequired || 'Select trade...'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+            ) : (
+              <View style={s.tradeCard}>
+                <View style={s.tradeIconBig}>
+                  <Ionicons name={iconName as any} size={32} color={colors.primary} />
+                </View>
+                <View>
+                  <Text style={s.tradeText}>{tradeRequired}</Text>
+                  <Text style={s.tradeSubtext}>Looking for this trade</Text>
+                </View>
+                {getStatusBadge()}
+              </View>
+            )}
           </View>
 
           {/* Description */}
@@ -223,6 +328,58 @@ export default function JobDetailScreen() {
               <View style={s.card}>
                 <Text style={s.descriptionText}>{job.description}</Text>
               </View>
+            )}
+          </View>
+
+          {/* Photos Section */}
+          <View style={s.section}>
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>Photos</Text>
+              <Text style={s.photoCount}>{photos.length}/10</Text>
+            </View>
+            
+            {photos.length > 0 ? (
+              <View style={s.photoGrid}>
+                {photos.map((photo: string, index: number) => (
+                  <TouchableOpacity 
+                    key={index} 
+                    style={s.photoItem}
+                    onPress={() => setPreviewImage(photo)}
+                  >
+                    <Image source={{ uri: photo }} style={s.photo} />
+                    {isEditing && (
+                      <TouchableOpacity 
+                        style={s.removePhotoBtn}
+                        onPress={() => removePhoto(index)}
+                      >
+                        <Ionicons name="close-circle" size={24} color={colors.red} />
+                      </TouchableOpacity>
+                    )}
+                  </TouchableOpacity>
+                ))}
+                {isEditing && photos.length < 10 && (
+                  <TouchableOpacity style={s.addPhotoBtn} onPress={pickImage}>
+                    <Ionicons name="add" size={28} color={colors.primary} />
+                    <Text style={s.addPhotoText}>Add Photo</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              isEditing ? (
+                <TouchableOpacity style={s.noPhotosAdd} onPress={pickImage}>
+                  <Ionicons name="images-outline" size={40} color={colors.textSecondary} />
+                  <Text style={s.noPhotosText}>Add photos to help contractors understand the job</Text>
+                  <View style={s.addPhotoBtnLarge}>
+                    <Ionicons name="add" size={18} color={colors.paper} />
+                    <Text style={s.addPhotoBtnLargeText}>Add Photos</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <View style={s.noPhotos}>
+                  <Ionicons name="images-outline" size={32} color={colors.textSecondary} />
+                  <Text style={s.noPhotosTextSmall}>No photos attached</Text>
+                </View>
+              )
             )}
           </View>
 
@@ -274,6 +431,8 @@ export default function JobDetailScreen() {
                   setIsEditing(false);
                   setEditDescription(job.description || '');
                   setEditLocation(job.location || '');
+                  setEditTradeRequired(job.trade_required || job.category || '');
+                  setEditPhotos(job.photos || []);
                 }}
               >
                 <Text style={s.cancelBtnText}>Cancel</Text>
@@ -300,6 +459,77 @@ export default function JobDetailScreen() {
             </TouchableOpacity>
           )}
         </ScrollView>
+
+        {/* Trade Selection Modal */}
+        <Modal
+          visible={showTradeModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowTradeModal(false)}
+        >
+          <View style={s.modalOverlay}>
+            <View style={s.modalContent}>
+              <View style={s.modalHeader}>
+                <Text style={s.modalTitle}>Select Trade</Text>
+                <TouchableOpacity onPress={() => setShowTradeModal(false)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={s.tradeList}>
+                {TRADE_TYPES.map((trade) => (
+                  <TouchableOpacity
+                    key={trade.label}
+                    style={[
+                      s.tradeOption,
+                      editTradeRequired === trade.label && s.tradeOptionSelected
+                    ]}
+                    onPress={() => {
+                      setEditTradeRequired(trade.label);
+                      setShowTradeModal(false);
+                    }}
+                  >
+                    <View style={s.tradeOptionIcon}>
+                      <Ionicons 
+                        name={trade.icon as any} 
+                        size={20} 
+                        color={editTradeRequired === trade.label ? colors.paper : colors.primary} 
+                      />
+                    </View>
+                    <Text style={[
+                      s.tradeOptionText,
+                      editTradeRequired === trade.label && s.tradeOptionTextSelected
+                    ]}>
+                      {trade.label}
+                    </Text>
+                    {editTradeRequired === trade.label && (
+                      <Ionicons name="checkmark" size={20} color={colors.paper} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Image Preview Modal */}
+        <Modal
+          visible={!!previewImage}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setPreviewImage(null)}
+        >
+          <View style={s.previewOverlay}>
+            <TouchableOpacity 
+              style={s.previewClose}
+              onPress={() => setPreviewImage(null)}
+            >
+              <Ionicons name="close-circle" size={36} color={colors.paper} />
+            </TouchableOpacity>
+            {previewImage && (
+              <Image source={{ uri: previewImage }} style={s.previewImage} resizeMode="contain" />
+            )}
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -314,6 +544,7 @@ const s = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   errorText: {
     fontSize: 16,
@@ -324,7 +555,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 20,
+    borderRadius: 8,
   },
   backBtnText: {
     color: colors.paper,
@@ -341,12 +572,7 @@ const s = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   headerBackBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 4,
   },
   headerTitle: {
     fontSize: 18,
@@ -354,68 +580,132 @@ const s = StyleSheet.create({
     color: colors.text,
   },
   headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    minWidth: 60,
+    alignItems: 'flex-end',
   },
   editBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     backgroundColor: colors.primaryLight,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    gap: 4,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   editBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
     color: colors.primary,
+    fontWeight: '600',
+    fontSize: 14,
   },
   content: {
     padding: 16,
     paddingBottom: 40,
   },
-  categoryCard: {
-    backgroundColor: colors.paper,
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  categoryIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  categoryText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 12,
-  },
   section: {
-    marginBottom: 16,
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.textSecondary,
-    marginBottom: 8,
-    paddingLeft: 4,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  photoCount: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
   card: {
     backgroundColor: colors.paper,
     borderRadius: 12,
     padding: 16,
   },
-  descriptionText: {
-    fontSize: 16,
+  tradeCard: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  tradeIconBig: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tradeText: {
+    fontSize: 18,
+    fontWeight: '700',
     color: colors.text,
-    lineHeight: 24,
+  },
+  tradeSubtext: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  tradeSelector: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  tradeSelectorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  tradeIconSmall: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tradeSelectorText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  descriptionText: {
+    fontSize: 15,
+    color: colors.text,
+    lineHeight: 22,
+  },
+  textArea: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    color: colors.text,
+    minHeight: 120,
+    textAlignVertical: 'top',
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  input: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    color: colors.text,
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   locationRow: {
     flexDirection: 'row',
@@ -428,58 +718,171 @@ const s = StyleSheet.create({
   },
   metaText: {
     fontSize: 15,
-    color: colors.text,
+    color: colors.textSecondary,
   },
   responseCount: {
     fontSize: 15,
-    color: colors.primary,
+    color: colors.green,
+    fontWeight: '500',
+  },
+  pendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginLeft: 'auto',
+  },
+  pendingBadgeText: {
+    fontSize: 12,
     fontWeight: '600',
+    color: colors.primary,
   },
-  textArea: {
+  confirmedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.greenLight,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginLeft: 'auto',
+  },
+  confirmedBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.green,
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.blueLight,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginLeft: 'auto',
+  },
+  completedBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.blue,
+  },
+  // Photo styles
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  photoItem: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  photo: {
+    width: '100%',
+    height: '100%',
+  },
+  removePhotoBtn: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
     backgroundColor: colors.paper,
     borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: colors.text,
-    minHeight: 120,
-    textAlignVertical: 'top',
   },
-  input: {
+  addPhotoBtn: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+  },
+  addPhotoText: {
+    fontSize: 11,
+    color: colors.primary,
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  noPhotosAdd: {
     backgroundColor: colors.paper,
     borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: colors.text,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  noPhotosText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  addPhotoBtnLarge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  addPhotoBtnLargeText: {
+    color: colors.paper,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  noPhotos: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+  },
+  noPhotosTextSmall: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 8,
   },
   editActions: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 16,
+    marginTop: 8,
   },
   cancelBtn: {
     flex: 1,
-    backgroundColor: colors.background,
     paddingVertical: 14,
     borderRadius: 12,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
   },
   cancelBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: colors.text,
   },
   saveBtn: {
     flex: 1,
-    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 12,
+    backgroundColor: colors.green,
     alignItems: 'center',
   },
   saveBtnDisabled: {
-    opacity: 0.6,
+    opacity: 0.7,
   },
   saveBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.paper,
   },
@@ -487,57 +890,88 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.redLight,
+    gap: 8,
     paddingVertical: 14,
     borderRadius: 12,
-    marginTop: 24,
-    gap: 8,
+    backgroundColor: colors.redLight,
+    marginTop: 20,
   },
   deleteBtnText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.red,
   },
-  pendingBadge: {
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.paper,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  tradeList: {
+    padding: 8,
+  },
+  tradeOption: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  tradeOptionSelected: {
+    backgroundColor: colors.primary,
+  },
+  tradeOptionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: colors.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 6,
-  },
-  pendingBadgeText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  confirmedBadge: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.greenLight,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 6,
   },
-  confirmedBadgeText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.green,
+  tradeOptionText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
   },
-  completedBadge: {
-    flexDirection: 'row',
+  tradeOptionTextSelected: {
+    color: colors.paper,
+  },
+  // Preview modal
+  previewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.blueLight,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 6,
   },
-  completedBadgeText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.blue,
+  previewClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+  },
+  previewImage: {
+    width: '100%',
+    height: '80%',
   },
 });

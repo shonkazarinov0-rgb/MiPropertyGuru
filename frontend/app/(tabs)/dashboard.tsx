@@ -516,32 +516,18 @@ export default function ContractorDashboard() {
 
               {/* Stats Cards - Only show when online */}
               {isOnline && (
-                <>
-                  <View style={styles.statsGrid}>
-                    <View style={styles.statCard}>
-                      <Text style={styles.statNumber}>{stats?.jobs_received_this_week || 0}</Text>
-                      <Text style={styles.statLabel}>Jobs this week</Text>
-                    </View>
-                    <View style={styles.statCard}>
-                      <Text style={styles.statNumber}>{stats?.profile_views || 0}</Text>
-                      <Text style={styles.statLabel}>Profile views</Text>
-                    </View>
+                <View style={styles.statsGrid}>
+                  <View style={styles.statCard}>
+                    <Ionicons name="star" size={24} color="#FFB800" />
+                    <Text style={styles.statNumber}>{stats?.rating || '0.0'}</Text>
+                    <Text style={styles.statLabel}>Avg Rating ({stats?.review_count || 0} reviews)</Text>
                   </View>
-
-                  {/* Quick Stats Row */}
-                  <View style={styles.quickStats}>
-                    <View style={styles.quickStatItem}>
-                      <Ionicons name="star" size={18} color="#FFB800" />
-                      <Text style={styles.quickStatText}>{stats?.rating || 0}</Text>
-                      <Text style={styles.quickStatLabel}>({stats?.review_count || 0} reviews)</Text>
-                    </View>
-                    <View style={styles.quickStatItem}>
-                      <Ionicons name="checkmark-circle" size={18} color={colors.green} />
-                      <Text style={styles.quickStatText}>{completedJobs.length}</Text>
-                      <Text style={styles.quickStatLabel}>completed</Text>
-                    </View>
+                  <View style={styles.statCard}>
+                    <Ionicons name="eye" size={24} color={colors.primary} />
+                    <Text style={styles.statNumber}>{stats?.profile_views || 0}</Text>
+                    <Text style={styles.statLabel}>Profile views</Text>
                   </View>
-                </>
+                </View>
               )}
             </>
           )}
