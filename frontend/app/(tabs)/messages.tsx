@@ -223,7 +223,7 @@ export default function MessagesScreen() {
         >
           <Ionicons 
             name="time-outline" 
-            size={16} 
+            size={14} 
             color={activeTab === 'pending' ? colors.primary : colors.textSecondary} 
           />
           <Text style={[s.tabText, activeTab === 'pending' && s.pendingTabText]}>
@@ -243,7 +243,7 @@ export default function MessagesScreen() {
         >
           <Ionicons 
             name="checkmark-circle" 
-            size={16} 
+            size={14} 
             color={activeTab === 'confirmed' ? colors.green : colors.textSecondary} 
           />
           <Text style={[s.tabText, activeTab === 'confirmed' && s.confirmedTabText]}>
@@ -263,7 +263,7 @@ export default function MessagesScreen() {
         >
           <Ionicons 
             name="archive" 
-            size={16} 
+            size={14} 
             color={activeTab === 'archived' ? colors.blue : colors.textSecondary} 
           />
           <Text style={[s.tabText, activeTab === 'archived' && s.archivedTabText]}>
@@ -338,21 +338,22 @@ const s = StyleSheet.create({
     backgroundColor: colors.paper,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    maxHeight: 56,
   },
   tabContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 8,
   },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 18,
     backgroundColor: colors.grayLight,
-    gap: 6,
+    gap: 5,
   },
   // Pending tab styles (Orange)
   pendingTabActive: {
@@ -382,19 +383,19 @@ const s = StyleSheet.create({
     color: colors.blue,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.textSecondary,
   },
   tabBadge: {
-    borderRadius: 10,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    minWidth: 22,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    minWidth: 18,
     alignItems: 'center',
   },
   tabBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: colors.paper,
   },
