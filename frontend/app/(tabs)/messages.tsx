@@ -66,8 +66,8 @@ export default function MessagesScreen() {
   };
 
   // Filter conversations based on current mode
-  // In client mode: only show conversations where I was the client (contacted a contractor)
-  // In contractor mode: only show conversations where I was the contractor (client contacted me)
+  // The person who STARTS a conversation (participant_1) is always the CLIENT
+  // The person who RECEIVES the conversation (participant_2) is always the CONTRACTOR
   const filterByMode = (convList: any[]) => {
     if (!user) return convList;
     
@@ -76,22 +76,19 @@ export default function MessagesScreen() {
     
     // For contractors who can switch modes
     return convList.filter(conv => {
-      const isParticipant1 = conv.participant_1 === user.id;
-      const myRoleInConv = isParticipant1 ? conv.participant_1_role : conv.participant_2_role;
+      const iAmTheInitiator = conv.participant_1 === user.id;
       
-      // If role info is not stored, use the other participant's role to determine
-      if (!myRoleInConv) {
-        const otherRole = isParticipant1 ? conv.participant_2_role : conv.participant_1_role;
-        // If other is contractor and I'm in client mode, show it (I contacted them)
-        // If other is client and I'm in contractor mode, show it (they contacted me)
-        if (isClientMode && otherRole === 'contractor') return true;
-        if (isContractorMode && otherRole === 'client') return true;
-        return false;
+      // If I started the conversation, I was acting as CLIENT
+      // If someone else started the conversation with me, I was acting as CONTRACTOR
+      if (isClientMode) {
+        // Show conversations where I was the client (I initiated)
+        return iAmTheInitiator;
       }
       
-      // If role is stored, check if it matches current mode
-      if (isClientMode && myRoleInConv === 'client') return true;
-      if (isContractorMode && myRoleInConv === 'contractor') return true;
+      if (isContractorMode) {
+        // Show conversations where I was the contractor (they initiated/contacted me)
+        return !iAmTheInitiator;
+      }
       
       return false;
     });
