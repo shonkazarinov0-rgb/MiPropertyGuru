@@ -616,12 +616,11 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
       {isContractorInClientMode && (
         <TouchableOpacity style={styles.switchModeBanner} onPress={handleSwitchToContractorMode}>
           <View style={styles.switchModeBannerContent}>
-            <Ionicons name="construct" size={20} color="#C45500" />
-            <Text style={styles.switchModeBannerText}>You're browsing as a client</Text>
+            <Text style={styles.switchModeBannerText}>👷 Switch back</Text>
           </View>
           <View style={styles.switchModeBannerBtn}>
-            <Text style={styles.switchModeBannerBtnText}>Back to Contractor Mode</Text>
-            <Ionicons name="arrow-forward" size={16} color={colors.paper} />
+            <Text style={styles.switchModeBannerBtnText}>Contractor Mode</Text>
+            <Ionicons name="arrow-forward" size={14} color={colors.paper} />
           </View>
         </TouchableOpacity>
       )}
@@ -751,7 +750,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               </View>
             )}
 
-            {/* Post a Job Button */}
+            {/* Post a Job - Compact Inline */}
             <TouchableOpacity 
               style={styles.postJobBtn}
               onPress={() => {
@@ -772,15 +771,11 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               }}
             >
               <View style={styles.postJobContent}>
-                <View style={styles.postJobIconBg}>
-                  <Ionicons name="add-circle" size={28} color={colors.primary} />
-                </View>
-                <View style={styles.postJobTextContainer}>
-                  <Text style={styles.postJobTitle}>Post a Job</Text>
-                  <Text style={styles.postJobSubtitle}>Let contractors come to you</Text>
-                </View>
+                <Ionicons name="add-circle" size={22} color={colors.primary} />
+                <Text style={styles.postJobTitle}>Post a Job</Text>
+                <Text style={styles.postJobSubtitle}>• Get quotes from pros</Text>
               </View>
-              <Ionicons name="chevron-forward" size={24} color={colors.primary} />
+              <Ionicons name="chevron-forward" size={18} color={colors.primary} />
             </TouchableOpacity>
 
             {/* Categories */}
@@ -1753,18 +1748,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#FFF8EC',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#FFE4C4',
   },
   switchModeBannerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
   },
   switchModeBannerText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
     color: '#C45500',
   },
@@ -1772,54 +1767,41 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#C45500',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    gap: 3,
   },
   switchModeBannerBtnText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: colors.paper,
   },
-  // Post Job Button
+  // Post Job Button - Compact inline style
   postJobBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.paper,
+    backgroundColor: colors.primaryLight,
     marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: colors.primaryLight,
-    borderStyle: 'dashed',
+    marginTop: 12,
+    marginBottom: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
   },
   postJobContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  postJobIconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  postJobTextContainer: {
-    gap: 2,
+    gap: 8,
   },
   postJobTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
   },
   postJobSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textSecondary,
   },
 });
