@@ -1536,7 +1536,8 @@ async def get_messages(conv_id: str):
 # Send message via API (more reliable than socket)
 class SendMessageReq(BaseModel):
     conversation_id: str
-    text: str
+    text: str = ""
+    image: Optional[str] = None  # base64 image data
 
 @api_router.post("/messages/send")
 async def send_message_api(req: SendMessageReq, user=Depends(get_current_user)):
@@ -1545,13 +1546,15 @@ async def send_message_api(req: SendMessageReq, user=Depends(get_current_user)):
         "conversation_id": req.conversation_id,
         "sender_id": user["id"],
         "text": req.text,
+        "image": req.image,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.messages.insert_one(msg.copy())
     # Update conversation last_message
+    last_msg_text = req.text if req.text else "📷 Image"
     await db.conversations.update_one(
         {"id": req.conversation_id},
-        {"$set": {"last_message": req.text, "last_message_at": msg["created_at"]}}
+        {"$set": {"last_message": last_msg_text, "last_message_at": msg["created_at"]}}
     )
     # Emit via socket if available
     try:

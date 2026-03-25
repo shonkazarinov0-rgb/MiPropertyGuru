@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Linking,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Linking, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { io, Socket } from 'socket.io-client';
 import Constants from 'expo-constants';
+import * as ImagePicker from 'expo-image-picker';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
 
@@ -39,6 +40,7 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [otherName, setOtherName] = useState('');
   const [conversation, setConversation] = useState<any>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const lastSentRef = useRef<string>('');
@@ -110,11 +112,13 @@ export default function ChatScreen() {
 
   const sendMessage = async () => {
     const trimmed = text.trim();
-    if (!trimmed || sending) return;
+    if (!trimmed && !selectedImage) return;
+    if (sending) return;
     
     // Prevent duplicate sends
-    if (lastSentRef.current === trimmed) return;
-    lastSentRef.current = trimmed;
+    const msgKey = `${trimmed}-${selectedImage ? 'img' : 'txt'}`;
+    if (lastSentRef.current === msgKey) return;
+    lastSentRef.current = msgKey;
     
     setSending(true);
     const tempId = `temp-${Date.now()}`;
@@ -123,17 +127,20 @@ export default function ChatScreen() {
       conversation_id: conversationId,
       sender_id: user?.id,
       text: trimmed,
+      image: selectedImage,
       created_at: new Date().toISOString(),
     };
     
     setMessages(prev => [...prev, tempMsg]);
     setText('');
+    setSelectedImage(null);
     
     try {
       // Send via API instead of socket for reliability
       await api.post('/messages/send', {
         conversation_id: conversationId,
         text: trimmed,
+        image: selectedImage,
       });
     } catch (e) {
       console.error('Failed to send message:', e);
@@ -142,12 +149,39 @@ export default function ChatScreen() {
         socketRef.current.emit('send_message', {
           conversation_id: conversationId,
           text: trimmed,
+          image: selectedImage,
         });
       }
     } finally {
       setSending(false);
       // Reset last sent after a delay
       setTimeout(() => { lastSentRef.current = ''; }, 2000);
+    }
+  };
+
+  // Pick image from gallery
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        const base64 = result.assets[0].base64;
+        if (base64) {
+          setSelectedImage(`data:image/jpeg;base64,${base64}`);
+        }
+      }
+    } catch (e) {
+      console.error('Image picker error:', e);
+      if (Platform.OS === 'web') {
+        window.alert('Could not access gallery');
+      } else {
+        Alert.alert('Error', 'Could not access gallery');
+      }
     }
   };
 
@@ -335,7 +369,16 @@ export default function ChatScreen() {
     return (
       <View style={[s.msgRow, isMine ? s.msgRowRight : s.msgRowLeft]}>
         <View style={[s.msgBubble, isMine ? s.myBubble : s.theirBubble]}>
-          <Text style={[s.msgText, isMine ? s.myText : s.theirText]}>{item.text}</Text>
+          {item.image && (
+            <Image 
+              source={{ uri: item.image }} 
+              style={s.msgImage}
+              resizeMode="cover"
+            />
+          )}
+          {item.text ? (
+            <Text style={[s.msgText, isMine ? s.myText : s.theirText]}>{item.text}</Text>
+          ) : null}
           <Text style={[s.msgTime, isMine ? s.myTime : s.theirTime]}>{formatTime(item.created_at)}</Text>
         </View>
       </View>
@@ -546,8 +589,24 @@ export default function ChatScreen() {
           onLayout={() => flatListRef.current?.scrollToEnd()}
         />
 
+        {/* Image Preview */}
+        {selectedImage && (
+          <View style={s.imagePreviewContainer}>
+            <Image source={{ uri: selectedImage }} style={s.imagePreview} />
+            <TouchableOpacity 
+              style={s.removeImageBtn}
+              onPress={() => setSelectedImage(null)}
+            >
+              <Ionicons name="close-circle" size={24} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Input */}
         <View style={s.inputContainer}>
+          <TouchableOpacity style={s.attachBtn} onPress={pickImage}>
+            <Ionicons name="image-outline" size={24} color={colors.primary} />
+          </TouchableOpacity>
           <TextInput
             style={s.input}
             value={text}
@@ -558,9 +617,9 @@ export default function ChatScreen() {
             maxLength={1000}
           />
           <TouchableOpacity 
-            style={[s.sendBtn, (!text.trim() || sending) && s.sendBtnDisabled]} 
+            style={[s.sendBtn, (!text.trim() && !selectedImage || sending) && s.sendBtnDisabled]} 
             onPress={sendMessage}
-            disabled={!text.trim() || sending}
+            disabled={(!text.trim() && !selectedImage) || sending}
           >
             {sending ? (
               <ActivityIndicator size="small" color={colors.paper} />
@@ -902,5 +961,37 @@ const s = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     lineHeight: 16,
+  },
+  // Image attachment styles
+  attachBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imagePreviewContainer: {
+    backgroundColor: colors.paper,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  imagePreview: {
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: 4,
+    left: 108,
+  },
+  msgImage: {
+    width: 200,
+    height: 150,
+    borderRadius: 12,
+    marginBottom: 6,
   },
 });
