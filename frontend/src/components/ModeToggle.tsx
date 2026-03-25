@@ -33,7 +33,7 @@ export default function ModeToggle() {
       <View style={[styles.option, isClientMode && styles.optionActiveClient]}>
         <Ionicons 
           name="home" 
-          size={12} 
+          size={10} 
           color={isClientMode ? colors.paper : colors.textSecondary} 
         />
         <Text style={[styles.optionText, isClientMode && styles.optionTextActive]}>
@@ -43,11 +43,11 @@ export default function ModeToggle() {
       <View style={[styles.option, isContractorMode && styles.optionActiveContractor]}>
         <Ionicons 
           name="construct" 
-          size={12} 
+          size={10} 
           color={isContractorMode ? colors.paper : colors.textSecondary} 
         />
         <Text style={[styles.optionText, isContractorMode && styles.optionTextActive]}>
-          Contractor
+          Pro
         </Text>
       </View>
     </TouchableOpacity>
@@ -57,17 +57,18 @@ export default function ModeToggle() {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 12,
     padding: 2,
   },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 14,
-    gap: 4,
+    justifyContent: 'center',
+    width: 52,
+    paddingVertical: 4,
+    borderRadius: 10,
+    gap: 3,
   },
   optionActiveClient: {
     backgroundColor: colors.primary,
@@ -76,8 +77,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.green,
   },
   optionText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 9,
+    fontWeight: '700',
     color: colors.textSecondary,
   },
   optionTextActive: {

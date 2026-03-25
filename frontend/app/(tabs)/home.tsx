@@ -649,7 +649,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               >
                 <Ionicons 
                   name={notificationsEnabled ? "notifications" : "notifications-outline"} 
-                  size={24} 
+                  size={20} 
                   color={notificationsEnabled ? '#FFD700' : colors.paper} 
                 />
               </TouchableOpacity>
@@ -1051,12 +1051,12 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   notificationBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
