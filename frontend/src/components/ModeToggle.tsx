@@ -91,7 +91,7 @@ export default function ModeToggle() {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.paper,
     borderRadius: 12,
     padding: 2,
   },
