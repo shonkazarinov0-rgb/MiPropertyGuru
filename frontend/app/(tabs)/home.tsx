@@ -160,12 +160,12 @@ export default function ClientHomeScreen() {
       const now = new Date();
       const hour = now.getHours();
       
-      // Count based on time of day
+      // Count based on time of day - more realistic numbers (20-49 range)
       let baseCount;
-      if (hour < 6) baseCount = Math.floor(Math.random() * 3) + 1;
-      else if (hour < 12) baseCount = Math.floor(Math.random() * 6) + 4;
-      else if (hour < 18) baseCount = Math.floor(Math.random() * 8) + 8;
-      else baseCount = Math.floor(Math.random() * 5) + 3;
+      if (hour < 6) baseCount = Math.floor(Math.random() * 10) + 20;      // 20-29 (early morning)
+      else if (hour < 12) baseCount = Math.floor(Math.random() * 15) + 28; // 28-42 (morning)
+      else if (hour < 18) baseCount = Math.floor(Math.random() * 15) + 35; // 35-49 (afternoon peak)
+      else baseCount = Math.floor(Math.random() * 12) + 25;                // 25-36 (evening)
       
       setEngagementStat({ count: baseCount, type: stat.type, icon: stat.icon });
     };
