@@ -1030,6 +1030,7 @@ const styles = StyleSheet.create({
   headerRightColumn: {
     alignItems: 'flex-end',
     gap: 8,
+    marginTop: 16,
   },
   logoContainer: {
     flexDirection: 'row',
