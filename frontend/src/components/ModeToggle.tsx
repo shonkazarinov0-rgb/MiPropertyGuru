@@ -36,25 +36,31 @@ export default function ModeToggle() {
   // Only show mode toggle for contractors
   if (user?.role !== 'contractor') return null;
 
-  const handleToggle = async () => {
-    if (isClientMode) {
-      await switchMode('contractor');
-      // If on posted-jobs (My Jobs), redirect to Dashboard (contractors don't use My Jobs)
-      if (pathname === '/posted-jobs' || pathname === '/(tabs)/posted-jobs') {
-        router.replace('/(tabs)/dashboard');
-      }
-    } else {
-      await switchMode('client');
-      // If on dashboard, redirect to My Jobs (clients don't have dashboard)
-      if (pathname === '/dashboard' || pathname === '/(tabs)/dashboard') {
-        router.replace('/(tabs)/posted-jobs');
-      }
+  const handleClientMode = async () => {
+    if (isClientMode) return; // Already in client mode
+    await switchMode('client');
+    // If on dashboard, redirect to My Jobs (clients don't have dashboard)
+    if (pathname === '/dashboard' || pathname === '/(tabs)/dashboard') {
+      router.replace('/(tabs)/posted-jobs');
+    }
+  };
+
+  const handleContractorMode = async () => {
+    if (isContractorMode) return; // Already in contractor mode
+    await switchMode('contractor');
+    // If on posted-jobs (My Jobs), redirect to Dashboard
+    if (pathname === '/posted-jobs' || pathname === '/(tabs)/posted-jobs') {
+      router.replace('/(tabs)/dashboard');
     }
   };
 
   return (
-    <TouchableOpacity style={styles.container} onPress={handleToggle}>
-      <View style={[styles.option, isClientMode && styles.optionActiveClient]}>
+    <View style={styles.container}>
+      <TouchableOpacity 
+        style={[styles.option, isClientMode && styles.optionActiveClient]}
+        onPress={handleClientMode}
+        activeOpacity={0.7}
+      >
         <Ionicons 
           name="home" 
           size={10} 
@@ -63,8 +69,12 @@ export default function ModeToggle() {
         <Text style={[styles.optionText, isClientMode && styles.optionTextActive]}>
           Client
         </Text>
-      </View>
-      <View style={[styles.option, isContractorMode && styles.optionActiveContractor]}>
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={[styles.option, isContractorMode && styles.optionActiveContractor]}
+        onPress={handleContractorMode}
+        activeOpacity={0.7}
+      >
         <Ionicons 
           name="construct" 
           size={10} 
@@ -73,15 +83,15 @@ export default function ModeToggle() {
         <Text style={[styles.optionText, isContractorMode && styles.optionTextActive]}>
           Contractor
         </Text>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: '#F3F4F6',
     borderRadius: 12,
     padding: 2,
   },

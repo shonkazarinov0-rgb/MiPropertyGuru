@@ -315,7 +315,7 @@ const s = StyleSheet.create({
   },
   floatingPostBtn: {
     position: 'absolute',
-    bottom: 90,
+    bottom: 100,
     right: 20,
     width: 56,
     height: 56,
