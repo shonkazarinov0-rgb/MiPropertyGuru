@@ -2,16 +2,18 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet,
   ActivityIndicator, ScrollView, RefreshControl, Platform, Dimensions,
-  Image, Linking, Animated, Modal,
+  Image, Linking, Animated, Modal, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
+import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -84,6 +86,9 @@ export default function ClientHomeScreen() {
   const [showServiceMenu, setShowServiceMenu] = useState(false);
   const menuOpacity = useRef(new Animated.Value(0)).current;
   const menuScale = useRef(new Animated.Value(0.8)).current;
+  
+  // Notifications state
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   
   // Check if contractor is in client mode (browsing as client)
   const isContractorInClientMode = user?.role === 'contractor' && isClientMode;
@@ -212,6 +217,79 @@ export default function ClientHomeScreen() {
       fetchContractors();
     }
   }, [category, userLoc]);
+
+  // Check notification status on mount
+  useEffect(() => {
+    checkNotificationStatus();
+  }, []);
+
+  const checkNotificationStatus = async () => {
+    try {
+      const savedStatus = await AsyncStorage.getItem('notificationsEnabled');
+      if (savedStatus === 'true') {
+        const { status } = await Notifications.getPermissionsAsync();
+        setNotificationsEnabled(status === 'granted');
+      }
+    } catch (error) {
+      console.log('Error checking notification status:', error);
+    }
+  };
+
+  const handleNotificationToggle = async () => {
+    try {
+      if (notificationsEnabled) {
+        // Turn off notifications
+        setNotificationsEnabled(false);
+        await AsyncStorage.setItem('notificationsEnabled', 'false');
+        Alert.alert(
+          'Notifications Disabled',
+          'You will no longer receive notifications for new jobs or messages.'
+        );
+      } else {
+        // Request permission
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        
+        if (finalStatus === 'granted') {
+          setNotificationsEnabled(true);
+          await AsyncStorage.setItem('notificationsEnabled', 'true');
+          
+          // Get push token (for future backend integration)
+          const token = await Notifications.getExpoPushTokenAsync();
+          console.log('Push token:', token.data);
+          
+          // Save token to backend if user is logged in
+          if (user) {
+            try {
+              await api.post('/users/push-token', { token: token.data });
+            } catch (e) {
+              console.log('Could not save push token');
+            }
+          }
+          
+          Alert.alert(
+            'Notifications Enabled! 🔔',
+            'You will now receive notifications when:\n\n• New jobs are posted in your trade\n• Someone sends you a message',
+            [{ text: 'Great!' }]
+          );
+        } else {
+          Alert.alert(
+            'Permission Required',
+            'Please enable notifications in your device settings to receive job alerts and messages.',
+            [{ text: 'OK' }]
+          );
+        }
+      }
+    } catch (error) {
+      console.log('Error toggling notifications:', error);
+      Alert.alert('Error', 'Could not update notification settings');
+    }
+  };
 
   const fetchContractors = async () => {
     // Only fetch contractors if user is in client mode or is a client
@@ -562,8 +640,18 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 <Text style={styles.tagline}>Your home, our experts</Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.notificationBtn}>
-              <Ionicons name="notifications-outline" size={24} color={colors.paper} />
+            <TouchableOpacity 
+              style={[
+                styles.notificationBtn, 
+                notificationsEnabled && styles.notificationBtnActive
+              ]}
+              onPress={handleNotificationToggle}
+            >
+              <Ionicons 
+                name={notificationsEnabled ? "notifications" : "notifications-outline"} 
+                size={24} 
+                color={notificationsEnabled ? '#FFD700' : colors.paper} 
+              />
             </TouchableOpacity>
           </View>
           
@@ -928,6 +1016,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  notificationBtnActive: {
+    backgroundColor: 'rgba(255,215,0,0.3)',
   },
   headerContent: {
     gap: 12,
