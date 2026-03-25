@@ -230,7 +230,7 @@ export default function MessagesScreen() {
             Pending
           </Text>
           {pendingConversations.length > 0 && (
-            <View style={[s.tabBadge, activeTab === 'pending' ? s.pendingBadgeActive : s.pendingBadgeInactive]}>
+            <View style={[s.tabBadge, s.orangeBadge]}>
               <Text style={s.tabBadgeText}>{pendingConversations.length}</Text>
             </View>
           )}
@@ -362,12 +362,6 @@ const s = StyleSheet.create({
   pendingTabText: {
     color: colors.primary,
   },
-  pendingBadgeActive: {
-    backgroundColor: colors.primary,
-  },
-  pendingBadgeInactive: {
-    backgroundColor: colors.gray,
-  },
   // Confirmed tab styles (Green)
   confirmedTabActive: {
     backgroundColor: colors.greenLight,
@@ -404,6 +398,9 @@ const s = StyleSheet.create({
   },
   blueBadge: {
     backgroundColor: colors.blue,
+  },
+  orangeBadge: {
+    backgroundColor: colors.primary,
   },
   listContent: { 
     padding: 16,

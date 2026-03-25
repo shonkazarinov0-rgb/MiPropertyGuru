@@ -112,8 +112,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return;
           }
           // Set default mode based on role
-          if (userData.role === 'contractor' && !userData.currentMode) {
-            userData.currentMode = 'contractor';
+          if (userData.role === 'contractor') {
+            // Restore saved mode preference
+            const savedMode = await AsyncStorage.getItem('user_mode');
+            if (savedMode === 'client' || savedMode === 'contractor') {
+              userData.currentMode = savedMode;
+            } else if (!userData.currentMode) {
+              userData.currentMode = 'contractor';
+            }
           }
           setUser(userData);
           // Update session time
@@ -221,8 +227,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Preserve current mode when refreshing
       if (user?.currentMode) {
         userData.currentMode = user.currentMode;
-      } else if (userData.role === 'contractor' && !userData.currentMode) {
-        userData.currentMode = 'contractor';
+      } else if (userData.role === 'contractor') {
+        // Restore saved mode preference
+        const savedMode = await AsyncStorage.getItem('user_mode');
+        if (savedMode === 'client' || savedMode === 'contractor') {
+          userData.currentMode = savedMode;
+        } else if (!userData.currentMode) {
+          userData.currentMode = 'contractor';
+        }
       }
       setUser(userData);
     } catch {}
