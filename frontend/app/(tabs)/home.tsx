@@ -746,7 +746,22 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
             {/* Post a Job Button */}
             <TouchableOpacity 
               style={styles.postJobBtn}
-              onPress={() => router.push('/post-job')}
+              onPress={() => {
+                if (!user) {
+                  // Guest user - show sign in/register prompt
+                  Alert.alert(
+                    'Sign In Required',
+                    'You need to sign in or create an account to post a job.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Register', onPress: () => router.push('/?mode=register') },
+                      { text: 'Sign In', onPress: () => router.push('/?mode=login'), style: 'default' },
+                    ]
+                  );
+                } else {
+                  router.push('/post-job');
+                }
+              }}
             >
               <View style={styles.postJobContent}>
                 <View style={styles.postJobIconBg}>
