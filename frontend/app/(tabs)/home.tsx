@@ -714,7 +714,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
             </Text>
             <TouchableOpacity 
               style={styles.switchModeBtn}
-              onPress={() => router.push('/profile')}
+              onPress={() => switchMode('client')}
             >
               <Text style={styles.switchModeBtnText}>Switch to Client Mode</Text>
             </TouchableOpacity>

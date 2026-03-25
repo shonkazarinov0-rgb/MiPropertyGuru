@@ -295,6 +295,15 @@ export default function ContractorDashboard() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Dashboard Header with Mode Indicator */}
+      <View style={styles.dashboardHeader}>
+        <Text style={styles.dashboardTitle}>Dashboard</Text>
+        <View style={styles.modeIndicator}>
+          <View style={styles.modeDot} />
+          <Text style={styles.modeText}>Contractor Mode</Text>
+        </View>
+      </View>
+      
       <FlatList
         data={incomingJobs}
         renderItem={renderJobAlert}
@@ -354,14 +363,6 @@ export default function ContractorDashboard() {
                 <Text style={styles.quickStatLabel}>completed</Text>
               </View>
             </View>
-
-            {/* Switch Mode Button */}
-            <TouchableOpacity style={styles.switchModeBtn} onPress={toggleMode}>
-              <Ionicons name="swap-horizontal" size={20} color={colors.primary} />
-              <Text style={styles.switchModeText}>
-                {isClientMode ? 'Switch to Contractor Mode' : 'Switch to Client Mode'}
-              </Text>
-            </TouchableOpacity>
 
             {/* Incoming Jobs Header */}
             <View style={styles.sectionHeader}>
@@ -447,6 +448,41 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  dashboardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.paper,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  dashboardTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  modeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+  },
+  modeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
   },
   center: {
     flex: 1,
