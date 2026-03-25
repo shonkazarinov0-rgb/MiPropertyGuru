@@ -147,20 +147,44 @@ export default function ContractorDashboard() {
     }
   };
 
-  // Filter conversations by status
+  // Filter conversations by status - only show where the other party is a CLIENT (not another contractor)
   const getInProgressJobs = () => {
     return conversations.filter(conv => {
-      const isContractorInConv = conv.participant_1 === user?.id || conv.participant_2 === user?.id;
+      const isUserInConv = conv.participant_1 === user?.id || conv.participant_2 === user?.id;
       const isConfirmed = conv.job_status === 'confirmed';
-      return isContractorInConv && isConfirmed;
+      
+      // Check if the OTHER participant is a client
+      let otherPartyRole = '';
+      if (conv.participant_1 === user?.id) {
+        otherPartyRole = conv.participant_2_role || '';
+      } else {
+        otherPartyRole = conv.participant_1_role || '';
+      }
+      
+      // Only show if other party is a client
+      const isOtherPartyClient = otherPartyRole === 'client' || otherPartyRole === '';
+      
+      return isUserInConv && isConfirmed && isOtherPartyClient;
     });
   };
 
   const getCompletedJobs = () => {
     return conversations.filter(conv => {
-      const isContractorInConv = conv.participant_1 === user?.id || conv.participant_2 === user?.id;
+      const isUserInConv = conv.participant_1 === user?.id || conv.participant_2 === user?.id;
       const isArchived = conv.job_status === 'archived';
-      return isContractorInConv && isArchived;
+      
+      // Check if the OTHER participant is a client
+      let otherPartyRole = '';
+      if (conv.participant_1 === user?.id) {
+        otherPartyRole = conv.participant_2_role || '';
+      } else {
+        otherPartyRole = conv.participant_1_role || '';
+      }
+      
+      // Only show if other party is a client
+      const isOtherPartyClient = otherPartyRole === 'client' || otherPartyRole === '';
+      
+      return isUserInConv && isArchived && isOtherPartyClient;
     });
   };
 

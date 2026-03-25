@@ -75,14 +75,21 @@ export default function MessagesScreen() {
   // Filter conversations based on current mode
   const filterByMode = (convList: any[]) => {
     if (!user) return convList;
-    if (user.role === 'client') return convList;
+    if (user.role === 'client') return convList; // Pure clients see all their conversations
     
     return convList.filter(conv => {
       const isParticipant1 = conv.participant_1 === user.id;
       const otherRole = isParticipant1 ? conv.participant_2_role : conv.participant_1_role;
       
+      // If role is missing, check if the other participant looks like a contractor
+      // (they would have contractor-specific fields or the role field)
+      if (!otherRole) {
+        // If we can't determine the role, show in both modes for safety
+        return true;
+      }
+      
       if (isClientMode && otherRole === 'contractor') return true;
-      if (isContractorMode && otherRole === 'client') return true;
+      if (isContractorMode && (otherRole === 'client' || otherRole === '')) return true;
       return false;
     });
   };
