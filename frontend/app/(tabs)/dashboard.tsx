@@ -25,6 +25,23 @@ const colors = {
   border: '#E5E7EB',
 };
 
+// Helper function to get trade-specific icon
+const getTradeIcon = (tradeType: string): keyof typeof Ionicons.glyphMap => {
+  const trade = (tradeType || '').toLowerCase();
+  if (trade.includes('hvac') || trade.includes('heating') || trade.includes('cooling')) return 'snow-outline';
+  if (trade.includes('plumb')) return 'water-outline';
+  if (trade.includes('electr')) return 'flash-outline';
+  if (trade.includes('carpenter') || trade.includes('wood')) return 'hammer-outline';
+  if (trade.includes('paint')) return 'color-palette-outline';
+  if (trade.includes('roof')) return 'home-outline';
+  if (trade.includes('landscap') || trade.includes('garden')) return 'leaf-outline';
+  if (trade.includes('clean')) return 'sparkles-outline';
+  if (trade.includes('handyman') || trade.includes('general')) return 'construct-outline';
+  if (trade.includes('tile') || trade.includes('floor')) return 'grid-outline';
+  if (trade.includes('weld')) return 'flame-outline';
+  return 'build-outline';
+};
+
 export default function ContractorDashboard() {
   const router = useRouter();
   const { user, refreshUser, switchMode, isClientMode, isContractorMode } = useAuth();
@@ -191,8 +208,9 @@ export default function ContractorDashboard() {
         <Text style={styles.jobTitle}>{item.title}</Text>
         
         <View style={styles.tradeRow}>
-          <View style={styles.tradeChip}>
-            <Text style={styles.tradeChipText}>{item.trade_required}</Text>
+          <View style={styles.tradeChipOrange}>
+            <Ionicons name={getTradeIcon(item.trade_required)} size={14} color={colors.primary} />
+            <Text style={styles.tradeChipOrangeText}>{item.trade_required}</Text>
           </View>
           {item.urgency === 'urgent' && (
             <View style={styles.urgentChip}>
@@ -647,6 +665,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#16A34A',
+  },
+  tradeChipOrange: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 5,
+  },
+  tradeChipOrangeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
   },
   urgentChip: {
     flexDirection: 'row',

@@ -163,9 +163,24 @@ export default function ChatScreen() {
               setConversation(res.conversation);
               
               if (res.conversation.job_status === 'confirmed') {
-                Alert.alert('Job Confirmed! 🎉', 'Both parties have confirmed. This conversation has been moved to Confirmed Jobs.');
+                // Both parties confirmed - show success and redirect
+                Alert.alert(
+                  'Job Confirmed! 🎉', 
+                  'Both parties have confirmed! This conversation has been moved to Confirmed Jobs.',
+                  [
+                    { 
+                      text: 'View Confirmed Jobs', 
+                      onPress: () => router.push('/(tabs)/messages')
+                    }
+                  ]
+                );
               } else {
-                Alert.alert('Confirmation Sent', 'Waiting for the other party to confirm.');
+                // Only one party confirmed so far
+                const otherType = user?.role === 'contractor' ? 'client' : 'contractor';
+                Alert.alert(
+                  'Confirmation Sent ✓', 
+                  `You've confirmed! Waiting for the ${otherType} to confirm.`
+                );
               }
             } catch (e: any) {
               Alert.alert('Error', e.message || 'Could not confirm job');
@@ -196,6 +211,11 @@ export default function ChatScreen() {
   // Determine confirmation status
   const myConfirmed = conversation?.confirmed_by?.includes(user?.id);
   const isFullyConfirmed = conversation?.job_status === 'confirmed';
+  const confirmCount = conversation?.confirmed_by?.length || 0;
+  
+  // Determine other party type
+  const isContractor = user?.role === 'contractor';
+  const otherPartyType = isContractor ? 'client' : 'contractor';
 
   if (loading) {
     return (
@@ -270,24 +290,59 @@ export default function ChatScreen() {
         {/* Job Confirmation Banner */}
         {!isFullyConfirmed && (
           <View style={s.confirmBanner}>
-            <View style={s.confirmInfo}>
-              <Ionicons name="briefcase-outline" size={20} color={colors.primary} />
-              <Text style={s.confirmText}>
-                {myConfirmed 
-                  ? 'You confirmed. Waiting for the other party...' 
-                  : 'Agreed on the job? Confirm to proceed.'}
-              </Text>
+            <View style={s.confirmIconContainer}>
+              <Ionicons 
+                name={myConfirmed ? "checkmark-circle" : "briefcase-outline"} 
+                size={20} 
+                color={myConfirmed ? colors.green : colors.primary} 
+              />
+            </View>
+            <View style={s.confirmTextContainer}>
+              {myConfirmed ? (
+                <>
+                  <Text style={s.confirmTitle}>
+                    <Text style={s.confirmCount}>{confirmCount}/2</Text> Confirmed
+                  </Text>
+                  <Text style={s.confirmSubtext}>
+                    Waiting for {otherPartyType} to confirm...
+                  </Text>
+                </>
+              ) : confirmCount > 0 ? (
+                <>
+                  <Text style={s.confirmTitle}>
+                    <Text style={s.confirmCount}>{confirmCount}/2</Text> Confirmed
+                  </Text>
+                  <Text style={s.confirmSubtext}>
+                    The {otherPartyType} has confirmed. Your turn!
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={s.confirmTitle}>Confirm the job</Text>
+                  <Text style={s.confirmSubtext}>
+                    Both parties must confirm to proceed
+                  </Text>
+                </>
+              )}
             </View>
             {!myConfirmed && (
               <TouchableOpacity style={s.confirmBtn} onPress={confirmJob}>
-                <Text style={s.confirmBtnText}>Confirm Job</Text>
+                <Text style={s.confirmBtnText}>Confirm</Text>
               </TouchableOpacity>
             )}
             {myConfirmed && (
               <View style={s.waitingBadge}>
-                <Ionicons name="hourglass-outline" size={16} color={colors.textSecondary} />
+                <ActivityIndicator size="small" color={colors.green} />
               </View>
             )}
+          </View>
+        )}
+        
+        {/* Fully Confirmed Banner */}
+        {isFullyConfirmed && (
+          <View style={s.fullyConfirmedBanner}>
+            <Ionicons name="checkmark-circle" size={22} color="#22C55E" />
+            <Text style={s.fullyConfirmedText}>Job Confirmed by both parties!</Text>
           </View>
         )}
 
@@ -399,6 +454,32 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  confirmIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.paper,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  confirmTextContainer: {
+    flex: 1,
+  },
+  confirmTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  confirmCount: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  confirmSubtext: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
   confirmInfo: {
     flex: 1,
     flexDirection: 'row',
@@ -423,6 +504,21 @@ const s = StyleSheet.create({
   },
   waitingBadge: {
     padding: 8,
+  },
+  fullyConfirmedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DCFCE7',
+    padding: 12,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#BBF7D0',
+  },
+  fullyConfirmedText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#166534',
   },
   messagesList: {
     padding: 16,
