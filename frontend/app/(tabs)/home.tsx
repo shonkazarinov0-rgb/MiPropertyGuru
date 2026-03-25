@@ -592,7 +592,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   <Text style={{ fontSize: 16 }}>📋</Text>
                 </View>
                 <Text style={styles.statNumber}>{jobsToday}</Text>
-                <Text style={styles.statLabel}>Jobs Today</Text>
+                <Text style={styles.statLabel}>Jobs completed today</Text>
               </View>
               <View style={styles.statCard}>
                 <View style={[styles.statIconBg, { backgroundColor: '#E8F5E9' }]}>
