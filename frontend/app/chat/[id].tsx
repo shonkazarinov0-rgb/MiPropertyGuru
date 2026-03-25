@@ -150,45 +150,64 @@ export default function ChatScreen() {
   };
 
   const confirmJob = async () => {
-    Alert.alert(
-      'Confirm Job',
-      'Are you sure you want to confirm this job? Both parties must confirm for the job to be marked as confirmed.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Confirm', 
-          onPress: async () => {
-            try {
-              const res = await api.post(`/conversations/${conversationId}/confirm-job`);
-              setConversation(res.conversation);
-              
-              if (res.conversation.job_status === 'confirmed') {
-                // Both parties confirmed - show success and redirect
-                Alert.alert(
-                  'Job Confirmed! 🎉', 
-                  'Both parties have confirmed! This conversation has been moved to Confirmed Jobs.',
-                  [
-                    { 
-                      text: 'View Confirmed Jobs', 
-                      onPress: () => router.push('/(tabs)/messages')
-                    }
-                  ]
-                );
-              } else {
-                // Only one party confirmed so far
-                const otherType = user?.role === 'contractor' ? 'client' : 'contractor';
-                Alert.alert(
-                  'Confirmation Sent ✓', 
-                  `You've confirmed! Waiting for the ${otherType} to confirm.`
-                );
+    // Use a simple confirmation since Alert.alert may not work on web
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to confirm this job? Both parties must confirm for the job to be marked as confirmed.');
+      if (!confirmed) return;
+      
+      try {
+        const res = await api.post(`/conversations/${conversationId}/confirm-job`);
+        setConversation(res.conversation);
+        
+        if (res.conversation.job_status === 'confirmed') {
+          window.alert('Job Confirmed! 🎉 Both parties have confirmed! This conversation has been moved to Confirmed Jobs.');
+          router.push('/(tabs)/messages');
+        } else {
+          const otherType = user?.role === 'contractor' ? 'client' : 'contractor';
+          window.alert(`Confirmation Sent ✓ You've confirmed! Waiting for the ${otherType} to confirm.`);
+        }
+      } catch (e: any) {
+        window.alert('Error: ' + (e.message || 'Could not confirm job'));
+      }
+    } else {
+      Alert.alert(
+        'Confirm Job',
+        'Are you sure you want to confirm this job? Both parties must confirm for the job to be marked as confirmed.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Confirm', 
+            onPress: async () => {
+              try {
+                const res = await api.post(`/conversations/${conversationId}/confirm-job`);
+                setConversation(res.conversation);
+                
+                if (res.conversation.job_status === 'confirmed') {
+                  Alert.alert(
+                    'Job Confirmed! 🎉', 
+                    'Both parties have confirmed! This conversation has been moved to Confirmed Jobs.',
+                    [
+                      { 
+                        text: 'View Confirmed Jobs', 
+                        onPress: () => router.push('/(tabs)/messages')
+                      }
+                    ]
+                  );
+                } else {
+                  const otherType = user?.role === 'contractor' ? 'client' : 'contractor';
+                  Alert.alert(
+                    'Confirmation Sent ✓', 
+                    `You've confirmed! Waiting for the ${otherType} to confirm.`
+                  );
+                }
+              } catch (e: any) {
+                Alert.alert('Error', e.message || 'Could not confirm job');
               }
-            } catch (e: any) {
-              Alert.alert('Error', e.message || 'Could not confirm job');
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const formatTime = (iso: string) => {
