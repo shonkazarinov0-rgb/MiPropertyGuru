@@ -250,12 +250,13 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
+      {/* Header - Outside ScrollView for consistency */}
+      <View style={s.header}>
+        <Text style={s.title}>Profile</Text>
+        <ModeToggle />
+      </View>
+      
       <ScrollView contentContainerStyle={s.scrollContent}>
-        <View style={s.header}>
-          <Text style={s.title}>Profile</Text>
-          <ModeToggle />
-        </View>
-        
         {/* Become a Contractor button for pure Clients */}
         {!isContractor && (
           <TouchableOpacity 
@@ -765,7 +766,12 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    backgroundColor: colors.paper,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    minHeight: 64,
   },
   title: {
     fontSize: 28,

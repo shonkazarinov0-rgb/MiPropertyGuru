@@ -307,6 +307,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    minHeight: 64,
   },
   title: { 
     fontSize: 28, 
@@ -315,7 +316,7 @@ const s = StyleSheet.create({
   },
   floatingPostBtn: {
     position: 'absolute',
-    bottom: 100,
+    bottom: 70,
     right: 20,
     width: 56,
     height: 56,
