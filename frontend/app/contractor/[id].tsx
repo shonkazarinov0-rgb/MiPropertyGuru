@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Linking, Alert,
+  View, Text, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Linking, Alert, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -234,12 +234,26 @@ export default function ContractorDetailScreen() {
             <Text style={s.sectionTitle}>Portfolio ({portfolio.length})</Text>
             {portfolio.map(item => (
               <View key={item.id} style={s.portfolioCard}>
-                <View style={s.portfolioIcon}>
-                  <Ionicons name="images" size={24} color={colors.primary} />
-                </View>
+                {item.images && item.images.length > 0 && (
+                  <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false}
+                    style={s.portfolioImagesScroll}
+                  >
+                    {item.images.map((img: string, idx: number) => (
+                      <Image 
+                        key={idx} 
+                        source={{ uri: img }} 
+                        style={s.portfolioImage} 
+                      />
+                    ))}
+                  </ScrollView>
+                )}
                 <View style={s.portfolioInfo}>
                   <Text style={s.portfolioTitle}>{item.title}</Text>
-                  <Text style={s.portfolioDesc} numberOfLines={2}>{item.description}</Text>
+                  {item.description && (
+                    <Text style={s.portfolioDesc} numberOfLines={2}>{item.description}</Text>
+                  )}
                 </View>
               </View>
             ))}
@@ -398,13 +412,20 @@ const s = StyleSheet.create({
     color: colors.paper,
   },
   portfolioCard: {
-    flexDirection: 'row', gap: spacing.m, backgroundColor: colors.paper,
-    borderRadius: radius.s, padding: spacing.m, marginBottom: spacing.s,
+    backgroundColor: colors.paper,
+    borderRadius: radius.s, 
+    padding: spacing.m, 
+    marginBottom: spacing.s,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
   },
-  portfolioIcon: {
-    width: 48, height: 48, borderRadius: radius.s, backgroundColor: '#FFF8EC',
-    justifyContent: 'center', alignItems: 'center',
+  portfolioImagesScroll: {
+    marginBottom: spacing.s,
+  },
+  portfolioImage: {
+    width: 140,
+    height: 100,
+    borderRadius: radius.s,
+    marginRight: spacing.s,
   },
   portfolioInfo: { flex: 1 },
   portfolioTitle: { fontSize: 15, fontWeight: '600', color: colors.secondary },

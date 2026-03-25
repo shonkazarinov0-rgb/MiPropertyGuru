@@ -35,12 +35,11 @@ export default function ProfileScreen() {
   const [showAddPortfolio, setShowAddPortfolio] = useState(false);
   const [portfolioTitle, setPortfolioTitle] = useState('');
   const [portfolioDesc, setPortfolioDesc] = useState('');
-  const [workPhotos, setWorkPhotos] = useState<string[]>([]);
+  const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
 
   useEffect(() => {
     if (user?.role === 'contractor') {
       fetchPortfolio();
-      setWorkPhotos(user?.work_photos || []);
     }
   }, [user]);
 
@@ -96,19 +95,33 @@ export default function ProfileScreen() {
   };
 
   const addPortfolioItem = async () => {
-    if (!portfolioTitle.trim()) return;
+    if (!portfolioTitle.trim()) {
+      Alert.alert('Error', 'Please enter a project title');
+      return;
+    }
+    if (portfolioImages.length === 0) {
+      Alert.alert('Error', 'Please add at least one photo');
+      return;
+    }
     setSaving(true);
     try {
-      await api.post('/portfolio', { title: portfolioTitle, description: portfolioDesc });
+      await api.post('/portfolio', { 
+        title: portfolioTitle, 
+        description: portfolioDesc,
+        images: portfolioImages 
+      });
       await fetchPortfolio();
-      setPortfolioTitle(''); setPortfolioDesc(''); setShowAddPortfolio(false);
+      setPortfolioTitle(''); 
+      setPortfolioDesc(''); 
+      setPortfolioImages([]);
+      setShowAddPortfolio(false);
     } catch (e: any) { Alert.alert('Error', e.message); }
     finally { setSaving(false); }
   };
 
-  const pickWorkPhoto = async () => {
-    if (workPhotos.length >= 6) {
-      Alert.alert('Limit reached', 'You can upload up to 6 photos');
+  const pickPortfolioImage = async () => {
+    if (portfolioImages.length >= 4) {
+      Alert.alert('Limit reached', 'You can add up to 4 photos per portfolio item');
       return;
     }
     
@@ -123,28 +136,37 @@ export default function ProfileScreen() {
 
       if (!result.canceled && result.assets[0].base64) {
         const photoUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
-        const newPhotos = [...workPhotos, photoUri];
-        setWorkPhotos(newPhotos);
-        // Save to server
-        try {
-          await api.put('/contractors/work-photos', { work_photos: newPhotos });
-        } catch (e) {
-          console.log('Could not save photos to server');
-        }
+        setPortfolioImages([...portfolioImages, photoUri]);
       }
     } catch (error) {
       console.error('Error picking image:', error);
     }
   };
 
-  const removeWorkPhoto = async (index: number) => {
-    const newPhotos = workPhotos.filter((_, i) => i !== index);
-    setWorkPhotos(newPhotos);
-    try {
-      await api.put('/contractors/work-photos', { work_photos: newPhotos });
-    } catch (e) {
-      console.log('Could not save photos to server');
-    }
+  const removePortfolioImage = (index: number) => {
+    setPortfolioImages(portfolioImages.filter((_, i) => i !== index));
+  };
+
+  const deletePortfolioItem = async (itemId: string) => {
+    Alert.alert(
+      'Delete Portfolio Item',
+      'Are you sure you want to delete this item?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/portfolio/${itemId}`);
+              await fetchPortfolio();
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Failed to delete');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleModeSwitch = async () => {
@@ -268,30 +290,51 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            {/* Work Photos Section */}
+            {/* Portfolio Section - Combined photos with title/description */}
             <View style={s.section}>
-              <Text style={s.sectionTitle}>Photos of My Work</Text>
-              <View style={s.photoGrid}>
-                {workPhotos.map((photo, index) => (
-                  <View key={index} style={s.photoItem}>
-                    <Image source={{ uri: photo }} style={s.workPhoto} />
-                    <TouchableOpacity 
-                      style={s.removePhotoBtn}
-                      onPress={() => removeWorkPhoto(index)}
-                    >
-                      <Ionicons name="close-circle" size={24} color={colors.red} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-                {workPhotos.length < 6 && (
-                  <TouchableOpacity style={s.addPhotoBtn} onPress={pickWorkPhoto}>
-                    <Ionicons name="camera-outline" size={32} color={colors.textSecondary} />
-                    <Text style={s.addPhotoText}>Add Photo</Text>
-                  </TouchableOpacity>
-                )}
+              <View style={s.sectionHeader}>
+                <Text style={s.sectionTitle}>Portfolio</Text>
+                <TouchableOpacity onPress={() => setShowAddPortfolio(true)}>
+                  <Ionicons name="add-circle" size={28} color={colors.primary} />
+                </TouchableOpacity>
               </View>
-              {workPhotos.length === 0 && (
-                <Text style={s.emptyText}>No work photos yet. Add some to showcase your skills!</Text>
+              {portfolio.map(item => (
+                <View key={item.id} style={s.portfolioItem}>
+                  {item.images && item.images.length > 0 && (
+                    <ScrollView 
+                      horizontal 
+                      showsHorizontalScrollIndicator={false}
+                      style={s.portfolioImagesScroll}
+                    >
+                      {item.images.map((img: string, idx: number) => (
+                        <Image 
+                          key={idx} 
+                          source={{ uri: img }} 
+                          style={s.portfolioImage} 
+                        />
+                      ))}
+                    </ScrollView>
+                  )}
+                  <View style={s.portfolioInfo}>
+                    <Text style={s.portfolioTitle}>{item.title}</Text>
+                    {item.description && (
+                      <Text style={s.portfolioDesc}>{item.description}</Text>
+                    )}
+                  </View>
+                  <TouchableOpacity 
+                    style={s.deletePortfolioBtn}
+                    onPress={() => deletePortfolioItem(item.id)}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.red} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {portfolio.length === 0 && (
+                <View style={s.emptyPortfolio}>
+                  <Ionicons name="images-outline" size={48} color={colors.textSecondary} />
+                  <Text style={s.emptyText}>No portfolio items yet</Text>
+                  <Text style={s.emptySubtext}>Add photos of your work to showcase your skills</Text>
+                </View>
               )}
             </View>
 
@@ -346,25 +389,6 @@ export default function ProfileScreen() {
                   </TouchableOpacity>
                 )}
               </View>
-            </View>
-
-            {/* Portfolio */}
-            <View style={s.section}>
-              <View style={s.sectionHeader}>
-                <Text style={s.sectionTitle}>Portfolio</Text>
-                <TouchableOpacity onPress={() => setShowAddPortfolio(true)}>
-                  <Ionicons name="add-circle" size={28} color={colors.primary} />
-                </TouchableOpacity>
-              </View>
-              {portfolio.map(item => (
-                <View key={item.id} style={s.portfolioItem}>
-                  <Text style={s.portfolioTitle}>{item.title}</Text>
-                  <Text style={s.portfolioDesc}>{item.description}</Text>
-                </View>
-              ))}
-              {portfolio.length === 0 && (
-                <Text style={s.emptyText}>No portfolio items yet</Text>
-              )}
             </View>
 
             {/* Contractor Settings */}
@@ -445,44 +469,97 @@ export default function ProfileScreen() {
         {/* Add Portfolio Modal */}
         <Modal visible={showAddPortfolio} transparent animationType="slide">
           <View style={s.modalOverlay}>
-            <View style={s.modalContent}>
-              <Text style={s.modalTitle}>Add Portfolio Item</Text>
-              <TextInput
-                style={s.modalInput}
-                placeholder="Project title"
-                placeholderTextColor={colors.textSecondary}
-                value={portfolioTitle}
-                onChangeText={setPortfolioTitle}
-              />
-              <TextInput
-                style={[s.modalInput, s.textArea]}
-                placeholder="Description"
-                placeholderTextColor={colors.textSecondary}
-                value={portfolioDesc}
-                onChangeText={setPortfolioDesc}
-                multiline
-                numberOfLines={4}
-              />
-              <View style={s.modalActions}>
-                <TouchableOpacity 
-                  style={s.modalCancelBtn} 
-                  onPress={() => setShowAddPortfolio(false)}
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={s.modalKeyboard}
+            >
+              <View style={s.modalContent}>
+                <View style={s.modalHeader}>
+                  <Text style={s.modalTitle}>Add Portfolio Item</Text>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      setShowAddPortfolio(false);
+                      setPortfolioTitle('');
+                      setPortfolioDesc('');
+                      setPortfolioImages([]);
+                    }}
+                  >
+                    <Ionicons name="close" size={24} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+                
+                {/* Photo Selection */}
+                <Text style={s.inputLabel}>Photos (up to 4)</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={s.portfolioImagesPicker}
                 >
-                  <Text style={s.modalCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={s.modalConfirmBtn} 
-                  onPress={addPortfolioItem}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <ActivityIndicator color={colors.paper} />
-                  ) : (
-                    <Text style={s.modalConfirmText}>Add</Text>
+                  {portfolioImages.map((img, idx) => (
+                    <View key={idx} style={s.pickedImageContainer}>
+                      <Image source={{ uri: img }} style={s.pickedImage} />
+                      <TouchableOpacity 
+                        style={s.removeImageBtn}
+                        onPress={() => removePortfolioImage(idx)}
+                      >
+                        <Ionicons name="close-circle" size={22} color={colors.red} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {portfolioImages.length < 4 && (
+                    <TouchableOpacity style={s.addImageBtn} onPress={pickPortfolioImage}>
+                      <Ionicons name="camera-outline" size={28} color={colors.textSecondary} />
+                      <Text style={s.addImageText}>Add</Text>
+                    </TouchableOpacity>
                   )}
-                </TouchableOpacity>
+                </ScrollView>
+
+                <Text style={s.inputLabel}>Project Title *</Text>
+                <TextInput
+                  style={s.modalInput}
+                  placeholder="e.g., Kitchen Renovation"
+                  placeholderTextColor={colors.textSecondary}
+                  value={portfolioTitle}
+                  onChangeText={setPortfolioTitle}
+                />
+                
+                <Text style={s.inputLabel}>Description (optional)</Text>
+                <TextInput
+                  style={[s.modalInput, s.textArea]}
+                  placeholder="Describe the project..."
+                  placeholderTextColor={colors.textSecondary}
+                  value={portfolioDesc}
+                  onChangeText={setPortfolioDesc}
+                  multiline
+                  numberOfLines={3}
+                />
+                
+                <View style={s.modalActions}>
+                  <TouchableOpacity 
+                    style={s.modalCancelBtn} 
+                    onPress={() => {
+                      setShowAddPortfolio(false);
+                      setPortfolioTitle('');
+                      setPortfolioDesc('');
+                      setPortfolioImages([]);
+                    }}
+                  >
+                    <Text style={s.modalCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[s.modalConfirmBtn, (!portfolioTitle.trim() || portfolioImages.length === 0) && s.modalConfirmBtnDisabled]} 
+                    onPress={addPortfolioItem}
+                    disabled={saving || !portfolioTitle.trim() || portfolioImages.length === 0}
+                  >
+                    {saving ? (
+                      <ActivityIndicator color={colors.paper} />
+                    ) : (
+                      <Text style={s.modalConfirmText}>Add to Portfolio</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            </KeyboardAvoidingView>
           </View>
         </Modal>
       </ScrollView>
@@ -787,8 +864,21 @@ const s = StyleSheet.create({
   portfolioItem: {
     backgroundColor: colors.paper,
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  portfolioImagesScroll: {
     marginBottom: 10,
+  },
+  portfolioImage: {
+    width: 120,
+    height: 90,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  portfolioInfo: {
+    flex: 1,
   },
   portfolioTitle: {
     fontSize: 16,
@@ -800,12 +890,31 @@ const s = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 4,
   },
+  deletePortfolioBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    padding: 6,
+    backgroundColor: colors.background,
+    borderRadius: 20,
+  },
+  emptyPortfolio: {
+    alignItems: 'center',
+    padding: 30,
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+  },
   emptyText: {
-    fontSize: 14,
+    fontSize: 15,
     color: colors.textSecondary,
-    fontStyle: 'italic',
+    marginTop: 12,
+    fontWeight: '500',
+  },
+  emptySubtext: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 4,
     textAlign: 'center',
-    padding: 20,
   },
   settingsBtn: {
     flexDirection: 'row',
@@ -911,10 +1020,65 @@ const s = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
   },
+  modalConfirmBtnDisabled: {
+    backgroundColor: colors.border,
+  },
   modalConfirmText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.paper,
+  },
+  modalKeyboard: {
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  portfolioImagesPicker: {
+    marginBottom: 16,
+  },
+  pickedImageContainer: {
+    position: 'relative',
+    marginRight: 10,
+  },
+  pickedImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+  },
+  removeImageBtn: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+  },
+  addImageBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+  addImageText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
   },
   // Languages display
   languagesRow: {

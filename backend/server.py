@@ -143,8 +143,9 @@ class ReviewCreate(BaseModel):
 
 class PortfolioCreate(BaseModel):
     title: str
-    description: str
+    description: Optional[str] = ""
     image_base64: Optional[str] = None
+    images: Optional[List[str]] = []  # Array of base64 images
 
 class ConversationCreate(BaseModel):
     participant_id: str
@@ -1434,12 +1435,22 @@ async def add_portfolio(req: PortfolioCreate, user=Depends(get_current_user)):
         "id": str(uuid.uuid4()), 
         "contractor_id": user["id"],
         "title": req.title, 
-        "description": req.description,
+        "description": req.description or "",
         "image_base64": req.image_base64,
+        "images": req.images or [],  # Array of images
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.portfolio.insert_one(item.copy())
     return item
+
+@api_router.delete("/portfolio/{item_id}")
+async def delete_portfolio(item_id: str, user=Depends(get_current_user)):
+    if user["role"] != "contractor":
+        raise HTTPException(403, "Contractors only")
+    result = await db.portfolio.delete_one({"id": item_id, "contractor_id": user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Portfolio item not found")
+    return {"message": "Deleted"}
 
 @api_router.get("/portfolio/{cid}")
 async def get_portfolio(cid: str):
