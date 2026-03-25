@@ -253,6 +253,78 @@ export default function ChatScreen() {
     }
   };
 
+  // Move job back to pending (from confirmed/in progress)
+  const handleBackToPending = async () => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Move this job back to Pending? This will reset the confirmation status.');
+      if (!confirmed) return;
+      
+      try {
+        const res = await api.post(`/conversations/${conversationId}/reset-to-pending`);
+        setConversation(res.conversation);
+        window.alert('Job moved back to Pending.');
+      } catch (e: any) {
+        window.alert('Error: ' + (e.message || 'Could not move job'));
+      }
+    } else {
+      Alert.alert(
+        'Move to Pending',
+        'Move this job back to Pending? This will reset the confirmation status.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Move', 
+            onPress: async () => {
+              try {
+                const res = await api.post(`/conversations/${conversationId}/reset-to-pending`);
+                setConversation(res.conversation);
+                Alert.alert('Done', 'Job moved back to Pending.');
+              } catch (e: any) {
+                Alert.alert('Error', e.message || 'Could not move job');
+              }
+            }
+          }
+        ]
+      );
+    }
+  };
+
+  // Move job back to in progress (from archived/completed)
+  const handleBackToInProgress = async () => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Move this job back to In Progress?');
+      if (!confirmed) return;
+      
+      try {
+        const res = await api.post(`/conversations/${conversationId}/reset-to-confirmed`);
+        setConversation(res.conversation);
+        window.alert('Job moved back to In Progress.');
+      } catch (e: any) {
+        window.alert('Error: ' + (e.message || 'Could not move job'));
+      }
+    } else {
+      Alert.alert(
+        'Move to In Progress',
+        'Move this job back to In Progress?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Move', 
+            onPress: async () => {
+              try {
+                const res = await api.post(`/conversations/${conversationId}/reset-to-confirmed`);
+                setConversation(res.conversation);
+                Alert.alert('Done', 'Job moved back to In Progress.');
+              } catch (e: any) {
+                Alert.alert('Error', e.message || 'Could not move job');
+              }
+            }
+          }
+        ]
+      );
+    }
+  };
+
   const formatTime = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -422,25 +494,37 @@ export default function ChatScreen() {
           </View>
         )}
         
-        {/* Fully Confirmed Banner with Archive Option */}
+        {/* Fully Confirmed Banner with options */}
         {isFullyConfirmed && (
           <View style={s.fullyConfirmedBanner}>
             <View style={s.confirmedInfo}>
-              <Ionicons name="checkmark-circle" size={22} color="#22C55E" />
-              <Text style={s.fullyConfirmedText}>Job In Progress</Text>
+              <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
+              <Text style={s.fullyConfirmedText}>In Progress</Text>
             </View>
-            <TouchableOpacity style={s.archiveBtn} onPress={handleArchiveJob}>
-              <Ionicons name="archive" size={16} color={colors.blue} />
-              <Text style={s.archiveBtnText}>Mark Complete</Text>
-            </TouchableOpacity>
+            <View style={s.bannerActions}>
+              <TouchableOpacity style={s.backToPendingBtn} onPress={handleBackToPending}>
+                <Ionicons name="arrow-undo" size={14} color={colors.primary} />
+                <Text style={s.backToPendingText}>Back to Pending</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.archiveBtn} onPress={handleArchiveJob}>
+                <Ionicons name="archive" size={14} color={colors.blue} />
+                <Text style={s.archiveBtnText}>Complete</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
-        {/* Archived Banner */}
+        {/* Archived Banner with option to bring back */}
         {isArchived && (
           <View style={s.archivedBanner}>
-            <Ionicons name="archive" size={22} color={colors.blue} />
-            <Text style={s.archivedBannerText}>Job Completed</Text>
+            <View style={s.confirmedInfo}>
+              <Ionicons name="archive" size={20} color={colors.blue} />
+              <Text style={s.archivedBannerText}>Completed</Text>
+            </View>
+            <TouchableOpacity style={s.backToProgressBtn} onPress={handleBackToInProgress}>
+              <Ionicons name="arrow-undo" size={14} color={colors.green} />
+              <Text style={s.backToProgressText}>Back to In Progress</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -624,48 +708,82 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#DCFCE7',
-    padding: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#BBF7D0',
   },
   confirmedInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
+  },
+  bannerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   fullyConfirmedText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#166534',
+  },
+  backToPendingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 3,
+  },
+  backToPendingText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
   },
   archiveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.blueLight,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 3,
   },
   archiveBtnText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: colors.blue,
   },
   archivedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     backgroundColor: colors.blueLight,
-    padding: 12,
-    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#93C5FD',
   },
   archivedBannerText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.blue,
+  },
+  backToProgressBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.greenLight,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 3,
+  },
+  backToProgressText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.green,
   },
   messagesList: {
     padding: 16,

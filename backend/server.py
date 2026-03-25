@@ -1636,6 +1636,50 @@ async def archive_job(conv_id: str, user=Depends(get_current_user)):
     
     return {"conversation": updated_conv}
 
+@api_router.post("/conversations/{conv_id}/reset-to-pending")
+async def reset_to_pending(conv_id: str, user=Depends(get_current_user)):
+    """Reset job status back to pending (from confirmed)"""
+    conv = await db.conversations.find_one({"id": conv_id})
+    if not conv:
+        raise HTTPException(404, "Conversation not found")
+    
+    if user["id"] not in [conv["participant_1"], conv["participant_2"]]:
+        raise HTTPException(403, "Not authorized")
+    
+    await db.conversations.update_one(
+        {"id": conv_id},
+        {"$set": {
+            "job_status": None,
+            "confirmed_by": [],
+            "confirmed_at": None
+        }}
+    )
+    
+    updated_conv = await db.conversations.find_one({"id": conv_id}, {"_id": 0})
+    return {"conversation": updated_conv}
+
+@api_router.post("/conversations/{conv_id}/reset-to-confirmed")
+async def reset_to_confirmed(conv_id: str, user=Depends(get_current_user)):
+    """Reset job status back to confirmed/in-progress (from archived)"""
+    conv = await db.conversations.find_one({"id": conv_id})
+    if not conv:
+        raise HTTPException(404, "Conversation not found")
+    
+    if user["id"] not in [conv["participant_1"], conv["participant_2"]]:
+        raise HTTPException(403, "Not authorized")
+    
+    await db.conversations.update_one(
+        {"id": conv_id},
+        {"$set": {
+            "job_status": "confirmed",
+            "archived_at": None,
+            "archived_by": None
+        }}
+    )
+    
+    updated_conv = await db.conversations.find_one({"id": conv_id}, {"_id": 0})
+    return {"conversation": updated_conv}
+
 # ── Contracts ──
 
 @api_router.post("/contracts/generate")
