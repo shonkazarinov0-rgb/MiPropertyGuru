@@ -232,9 +232,30 @@ export default function ChatScreen() {
   const isFullyConfirmed = conversation?.job_status === 'confirmed';
   const confirmCount = conversation?.confirmed_by?.length || 0;
   
-  // Determine other party type
-  const isContractor = user?.role === 'contractor';
-  const otherPartyType = isContractor ? 'client' : 'contractor';
+  // Determine who is client and who is contractor in this conversation
+  // The other party type is based on the conversation context, not just the user's role
+  const getOtherPartyType = () => {
+    if (!conversation) return 'other party';
+    
+    // Check if I'm participant_1 or participant_2
+    const isParticipant1 = conversation.participant_1 === user?.id;
+    
+    // Get the other participant's role from conversation data
+    const otherRole = isParticipant1 
+      ? conversation.participant_2_role 
+      : conversation.participant_1_role;
+    
+    // If we have the role info, use it
+    if (otherRole) {
+      return otherRole === 'contractor' ? 'contractor' : 'client';
+    }
+    
+    // Fallback: if I'm a contractor looking at this, the other is likely a client and vice versa
+    // But also consider mode - if I'm in client mode, I'm acting as client
+    return user?.role === 'contractor' ? 'client' : 'contractor';
+  };
+  
+  const otherPartyType = getOtherPartyType();
 
   if (loading) {
     return (

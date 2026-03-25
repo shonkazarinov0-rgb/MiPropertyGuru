@@ -31,6 +31,13 @@ export default function MessagesScreen() {
 
   useEffect(() => { fetchConversations(); }, []);
 
+  // Re-fetch when mode changes
+  useEffect(() => { 
+    if (user?.role === 'contractor') {
+      fetchConversations(); 
+    }
+  }, [isClientMode, isContractorMode]);
+
   const fetchConversations = async () => {
     try {
       const res = await api.get('/conversations');
@@ -58,9 +65,42 @@ export default function MessagesScreen() {
     return `${Math.floor(diffHr / 24)}d`;
   };
 
-  // Split conversations into confirmed and pending
-  const confirmedConversations = conversations.filter(c => c.job_status === 'confirmed');
-  const pendingConversations = conversations.filter(c => c.job_status !== 'confirmed');
+  // Filter conversations based on current mode
+  // In client mode: only show conversations where I was the client (contacted a contractor)
+  // In contractor mode: only show conversations where I was the contractor (client contacted me)
+  const filterByMode = (convList: any[]) => {
+    if (!user) return convList;
+    
+    // If user is a pure client (not a contractor), show all their conversations
+    if (user.role === 'client') return convList;
+    
+    // For contractors who can switch modes
+    return convList.filter(conv => {
+      const isParticipant1 = conv.participant_1 === user.id;
+      const myRoleInConv = isParticipant1 ? conv.participant_1_role : conv.participant_2_role;
+      
+      // If role info is not stored, use the other participant's role to determine
+      if (!myRoleInConv) {
+        const otherRole = isParticipant1 ? conv.participant_2_role : conv.participant_1_role;
+        // If other is contractor and I'm in client mode, show it (I contacted them)
+        // If other is client and I'm in contractor mode, show it (they contacted me)
+        if (isClientMode && otherRole === 'contractor') return true;
+        if (isContractorMode && otherRole === 'client') return true;
+        return false;
+      }
+      
+      // If role is stored, check if it matches current mode
+      if (isClientMode && myRoleInConv === 'client') return true;
+      if (isContractorMode && myRoleInConv === 'contractor') return true;
+      
+      return false;
+    });
+  };
+
+  // Split conversations into confirmed and pending, then filter by mode
+  const modeFilteredConversations = filterByMode(conversations);
+  const confirmedConversations = modeFilteredConversations.filter(c => c.job_status === 'confirmed');
+  const pendingConversations = modeFilteredConversations.filter(c => c.job_status !== 'confirmed');
 
   const currentConversations = activeTab === 'confirmed' ? confirmedConversations : pendingConversations;
 
