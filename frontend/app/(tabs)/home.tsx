@@ -604,16 +604,6 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
 
   // Check if user is contractor in contractor mode - use authIsContractorMode from context
   const isContractorMode = authIsContractorMode;
-  
-  // Debug logging
-  console.log('HOME SCREEN - Mode check:', { 
-    userRole: user?.role, 
-    userCurrentMode: user?.currentMode, 
-    isClientMode, 
-    authIsContractorMode,
-    isContractorMode,
-    isContractorInClientMode
-  });
 
   const handleSwitchToContractorMode = async () => {
     await switchMode('contractor');

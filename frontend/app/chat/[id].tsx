@@ -310,11 +310,11 @@ export default function ChatScreen() {
             )}
           </View>
           <View style={s.headerActions}>
-            <TouchableOpacity style={s.headerActionBtn} onPress={handleCall}>
-              <Ionicons name="call" size={22} color={colors.green} />
+            <TouchableOpacity style={s.callBtn} onPress={handleCall}>
+              <Ionicons name="call" size={20} color="#FFFFFF" />
             </TouchableOpacity>
-            <TouchableOpacity style={s.headerActionBtn} onPress={handleEmail}>
-              <Ionicons name="mail" size={22} color={colors.primary} />
+            <TouchableOpacity style={s.emailBtn} onPress={handleEmail}>
+              <Ionicons name="mail" size={20} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
@@ -476,6 +476,22 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  callBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#22C55E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emailBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerActionBtn: {
     width: 40,

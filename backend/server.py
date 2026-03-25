@@ -1496,6 +1496,10 @@ async def create_conversation(req: ConversationCreate, user=Depends(get_current_
         "participant_2_name": other["name"],
         "participant_1_role": user["role"], 
         "participant_2_role": other["role"],
+        "participant_1_phone": user.get("phone", ""),
+        "participant_2_phone": other.get("phone", ""),
+        "participant_1_email": user.get("email", ""),
+        "participant_2_email": other.get("email", ""),
         "last_message": "", 
         "last_message_at": datetime.now(timezone.utc).isoformat(),
         "created_at": datetime.now(timezone.utc).isoformat()
@@ -1505,10 +1509,25 @@ async def create_conversation(req: ConversationCreate, user=Depends(get_current_
 
 @api_router.get("/conversations")
 async def list_conversations(user=Depends(get_current_user)):
-    return {"conversations": await db.conversations.find(
+    convs = await db.conversations.find(
         {"$or": [{"participant_1": user["id"]}, {"participant_2": user["id"]}]},
         {"_id": 0}
-    ).sort("last_message_at", -1).to_list(50)}
+    ).sort("last_message_at", -1).to_list(50)
+    
+    # Enrich with phone/email if missing (for backwards compatibility)
+    for conv in convs:
+        # Check if phone/email are missing and fetch from users
+        if not conv.get("participant_1_phone") or not conv.get("participant_2_phone"):
+            p1 = await db.users.find_one({"id": conv["participant_1"]}, {"phone": 1, "email": 1})
+            p2 = await db.users.find_one({"id": conv["participant_2"]}, {"phone": 1, "email": 1})
+            if p1:
+                conv["participant_1_phone"] = p1.get("phone", "")
+                conv["participant_1_email"] = p1.get("email", "")
+            if p2:
+                conv["participant_2_phone"] = p2.get("phone", "")
+                conv["participant_2_email"] = p2.get("email", "")
+    
+    return {"conversations": convs}
 
 @api_router.get("/messages/{conv_id}")
 async def get_messages(conv_id: str):
