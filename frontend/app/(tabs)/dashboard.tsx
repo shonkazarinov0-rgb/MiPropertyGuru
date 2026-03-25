@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet,
-  ActivityIndicator, RefreshControl, Switch, Alert, Linking, Modal,
+  ActivityIndicator, RefreshControl, Switch, Alert, Modal, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -24,7 +24,11 @@ const colors = {
   redLight: '#FEE2E2',
   yellow: '#F59E0B',
   border: '#E5E7EB',
+  blue: '#3B82F6',
+  blueLight: '#DBEAFE',
 };
+
+type TabType = 'incoming' | 'inProgress' | 'completed';
 
 // Helper function to get trade-specific icon
 const getTradeIcon = (tradeType: string): keyof typeof Ionicons.glyphMap => {
@@ -49,14 +53,18 @@ export default function ContractorDashboard() {
   const [isOnline, setIsOnline] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [incomingJobs, setIncomingJobs] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [togglingStatus, setTogglingStatus] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('incoming');
   
   // Confirmation modal state
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [jobToRemove, setJobToRemove] = useState<any>(null);
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [jobToComplete, setJobToComplete] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
@@ -68,7 +76,7 @@ export default function ContractorDashboard() {
   useEffect(() => {
     if (isOnline) {
       updateLocation();
-      const interval = setInterval(updateLocation, 60000); // Update every minute when online
+      const interval = setInterval(updateLocation, 60000);
       return () => clearInterval(interval);
     }
   }, [isOnline]);
@@ -87,12 +95,14 @@ export default function ContractorDashboard() {
 
   const fetchData = async () => {
     try {
-      const [statsRes, jobsRes] = await Promise.all([
+      const [statsRes, jobsRes, convsRes] = await Promise.all([
         api.get('/contractors/stats').catch(() => null),
-        api.get('/jobs/available'),  // Use available jobs endpoint - excludes own posts
+        api.get('/jobs/available'),
+        api.get('/conversations'),
       ]);
       if (statsRes) setStats(statsRes);
       setIncomingJobs(jobsRes.jobs || []);
+      setConversations(convsRes.conversations || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -125,7 +135,7 @@ export default function ContractorDashboard() {
       if (refreshUser) refreshUser();
       
       Alert.alert(
-        !isOnline ? 'You are now LIVE! 🟢' : 'You are now offline',
+        !isOnline ? 'You are now LIVE!' : 'You are now offline',
         !isOnline 
           ? 'Clients can now see you on the map and send you job requests.'
           : 'You won\'t receive new job alerts while offline.'
@@ -137,22 +147,43 @@ export default function ContractorDashboard() {
     }
   };
 
+  // Filter conversations by status
+  const getInProgressJobs = () => {
+    return conversations.filter(conv => {
+      const isContractorInConv = conv.participant_1 === user?.id || conv.participant_2 === user?.id;
+      const isConfirmed = conv.job_status === 'confirmed';
+      return isContractorInConv && isConfirmed;
+    });
+  };
+
+  const getCompletedJobs = () => {
+    return conversations.filter(conv => {
+      const isContractorInConv = conv.participant_1 === user?.id || conv.participant_2 === user?.id;
+      const isArchived = conv.job_status === 'archived';
+      return isContractorInConv && isArchived;
+    });
+  };
+
+  // Get the client name from conversation
+  const getClientName = (conv: any) => {
+    if (conv.participant_1 === user?.id) {
+      return conv.participant_2_name || 'Client';
+    }
+    return conv.participant_1_name || 'Client';
+  };
+
   const handleJobResponse = async (jobId: string, action: 'accept' | 'ignore') => {
     if (action === 'ignore') {
-      // Show confirmation modal for "Not Interested"
       const job = incomingJobs.find(j => j.id === jobId);
       setJobToRemove(job);
       setShowRemoveModal(true);
       return;
     }
     
-    // For "Contact" action - navigate to chat with the client
     const job = incomingJobs.find(j => j.id === jobId);
     if (job && job.posted_by) {
       try {
-        // Create or get conversation with the job poster
         const conv = await api.post('/conversations', { participant_id: job.posted_by });
-        // Navigate to chat
         router.push(`/chat/${conv.id}`);
       } catch (e: any) {
         Alert.alert('Error', e.message || 'Failed to start conversation');
@@ -164,12 +195,7 @@ export default function ContractorDashboard() {
     if (!jobToRemove) return;
     
     try {
-      // Mark job as ignored/dismissed
-      await api.post(`/jobs/${jobToRemove.id}/dismiss`).catch(() => {
-        // If endpoint doesn't exist, just remove locally
-      });
-      
-      // Remove job from list
+      await api.post(`/jobs/${jobToRemove.id}/dismiss`).catch(() => {});
       setIncomingJobs(incomingJobs.filter(j => j.id !== jobToRemove.id));
       setShowRemoveModal(false);
       setJobToRemove(null);
@@ -178,25 +204,46 @@ export default function ContractorDashboard() {
     }
   };
 
-  const toggleMode = async () => {
+  const handleCompleteJob = (conv: any) => {
+    setJobToComplete(conv);
+    setShowCompleteModal(true);
+  };
+
+  const confirmCompleteJob = async () => {
+    if (!jobToComplete) return;
+    
     try {
-      const newMode = isClientMode ? 'contractor' : 'client';
-      await switchMode(newMode);
-      if (newMode === 'client') {
-        router.push('/(tabs)/home');
-      }
-    } catch (e) {
-      console.error(e);
+      await api.post(`/conversations/${jobToComplete.id}/archive-job`);
+      // Refresh data
+      fetchData();
+      setShowCompleteModal(false);
+      setJobToComplete(null);
+      Alert.alert('Job Completed!', 'This job has been marked as completed.');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to complete job');
     }
   };
 
-  const renderJobAlert = ({ item }: { item: any }) => {
+  const getTimeAgo = (date: Date | string) => {
+    const now = new Date();
+    const then = new Date(date);
+    const diffMs = now.getTime() - then.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
+
+  const renderIncomingJob = ({ item }: { item: any }) => {
     const createdAt = new Date(item.created_at);
     const timeAgo = getTimeAgo(createdAt);
 
     return (
       <View style={styles.jobCard}>
-        {/* Top row with badge and time */}
         <View style={styles.jobTopRow}>
           <View style={styles.newIndicator}>
             <View style={styles.newDot} />
@@ -205,7 +252,6 @@ export default function ContractorDashboard() {
           <Text style={styles.jobTime}>{timeAgo}</Text>
         </View>
         
-        {/* Job title and trade */}
         <Text style={styles.jobTitle}>{item.title}</Text>
         
         <View style={styles.tradeRow}>
@@ -221,10 +267,8 @@ export default function ContractorDashboard() {
           )}
         </View>
         
-        {/* Description */}
         <Text style={styles.jobDescription} numberOfLines={2}>{item.description}</Text>
         
-        {/* Location & Budget row */}
         {(item.location || item.budget) && (
           <View style={styles.detailsRow}>
             {item.location && (
@@ -242,7 +286,6 @@ export default function ContractorDashboard() {
           </View>
         )}
         
-        {/* Client info */}
         <View style={styles.clientRow}>
           <View style={styles.clientAvatar}>
             <Text style={styles.clientAvatarText}>
@@ -252,7 +295,6 @@ export default function ContractorDashboard() {
           <Text style={styles.clientName}>{item.posted_by_name}</Text>
         </View>
         
-        {/* Action buttons */}
         <View style={styles.jobActions}>
           <TouchableOpacity 
             style={styles.declineBtn}
@@ -273,15 +315,99 @@ export default function ContractorDashboard() {
     );
   };
 
-  const getTimeAgo = (date: Date) => {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
+  const renderInProgressJob = ({ item }: { item: any }) => {
+    const clientName = getClientName(item);
+    const timeAgo = getTimeAgo(item.confirmed_at || item.updated_at || item.created_at);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    return `${diffHours}h ago`;
+    return (
+      <View style={styles.jobCard}>
+        <View style={styles.jobTopRow}>
+          <View style={[styles.newIndicator, { backgroundColor: colors.greenLight }]}>
+            <View style={[styles.newDot, { backgroundColor: colors.green }]} />
+            <Text style={[styles.newText, { color: colors.green }]}>In Progress</Text>
+          </View>
+          <Text style={styles.jobTime}>{timeAgo}</Text>
+        </View>
+        
+        <Text style={styles.jobTitle}>{item.job_title || 'Job with ' + clientName}</Text>
+        
+        <View style={styles.clientRow}>
+          <View style={[styles.clientAvatar, { backgroundColor: colors.greenLight }]}>
+            <Text style={[styles.clientAvatarText, { color: colors.green }]}>
+              {clientName?.charAt(0) || 'C'}
+            </Text>
+          </View>
+          <View>
+            <Text style={styles.clientName}>{clientName}</Text>
+            <Text style={styles.clientSubtext}>Both parties confirmed</Text>
+          </View>
+        </View>
+        
+        <View style={styles.jobActions}>
+          <TouchableOpacity 
+            style={styles.messageBtn}
+            onPress={() => router.push(`/chat/${item.id}`)}
+          >
+            <Ionicons name="chatbubble-outline" size={16} color={colors.primary} />
+            <Text style={styles.messageBtnText}>Message</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.completeBtn}
+            onPress={() => handleCompleteJob(item)}
+          >
+            <Ionicons name="checkmark-circle" size={16} color={colors.paper} />
+            <Text style={styles.completeBtnText}>Complete Job</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const renderCompletedJob = ({ item }: { item: any }) => {
+    const clientName = getClientName(item);
+    const timeAgo = getTimeAgo(item.archived_at || item.updated_at);
+
+    return (
+      <View style={[styles.jobCard, { opacity: 0.8 }]}>
+        <View style={styles.jobTopRow}>
+          <View style={[styles.newIndicator, { backgroundColor: colors.blueLight }]}>
+            <Ionicons name="checkmark-done" size={14} color={colors.blue} />
+            <Text style={[styles.newText, { color: colors.blue, marginLeft: 4 }]}>Completed</Text>
+          </View>
+          <Text style={styles.jobTime}>{timeAgo}</Text>
+        </View>
+        
+        <Text style={styles.jobTitle}>{item.job_title || 'Job with ' + clientName}</Text>
+        
+        <View style={styles.clientRow}>
+          <View style={[styles.clientAvatar, { backgroundColor: colors.blueLight }]}>
+            <Text style={[styles.clientAvatarText, { color: colors.blue }]}>
+              {clientName?.charAt(0) || 'C'}
+            </Text>
+          </View>
+          <Text style={styles.clientName}>{clientName}</Text>
+        </View>
+        
+        <TouchableOpacity 
+          style={styles.viewChatBtn}
+          onPress={() => router.push(`/chat/${item.id}`)}
+        >
+          <Ionicons name="eye-outline" size={16} color={colors.textSecondary} />
+          <Text style={styles.viewChatBtnText}>View Chat History</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  const inProgressJobs = getInProgressJobs();
+  const completedJobs = getCompletedJobs();
+
+  const getTabCount = (tab: TabType) => {
+    switch (tab) {
+      case 'incoming': return incomingJobs.length;
+      case 'inProgress': return inProgressJobs.length;
+      case 'completed': return completedJobs.length;
+    }
   };
 
   if (loading) {
@@ -302,99 +428,184 @@ export default function ContractorDashboard() {
         <ModeToggle />
       </View>
       
-      <FlatList
-        data={incomingJobs}
-        renderItem={renderJobAlert}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-        }
-        ListHeaderComponent={() => (
-          <>
-            {/* Online Status Toggle */}
-            <View style={[styles.statusCard, isOnline ? styles.statusOnline : styles.statusOffline]}>
-              <View style={styles.statusLeft}>
-                <View style={[styles.statusDot, isOnline ? styles.dotOnline : styles.dotOffline]} />
-                <View>
-                  <Text style={styles.statusTitle}>
-                    {isOnline ? 'You are LIVE' : 'You are offline'}
-                  </Text>
-                  <Text style={styles.statusSubtitle}>
-                    {isOnline 
-                      ? 'Clients can find you on the map' 
-                      : 'Go online to receive job alerts'}
-                  </Text>
+      {/* Tab Navigation */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'incoming' && styles.tabActiveOrange]}
+          onPress={() => setActiveTab('incoming')}
+        >
+          <Text style={[styles.tabText, activeTab === 'incoming' && styles.tabTextActiveOrange]}>
+            Incoming
+          </Text>
+          {incomingJobs.length > 0 && (
+            <View style={[styles.tabBadge, activeTab === 'incoming' && styles.tabBadgeActiveOrange]}>
+              <Text style={[styles.tabBadgeText, activeTab === 'incoming' && styles.tabBadgeTextActive]}>
+                {incomingJobs.length}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'inProgress' && styles.tabActiveGreen]}
+          onPress={() => setActiveTab('inProgress')}
+        >
+          <Text style={[styles.tabText, activeTab === 'inProgress' && styles.tabTextActiveGreen]}>
+            In Progress
+          </Text>
+          {inProgressJobs.length > 0 && (
+            <View style={[styles.tabBadge, activeTab === 'inProgress' && styles.tabBadgeActiveGreen]}>
+              <Text style={[styles.tabBadgeText, activeTab === 'inProgress' && styles.tabBadgeTextActive]}>
+                {inProgressJobs.length}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'completed' && styles.tabActiveBlue]}
+          onPress={() => setActiveTab('completed')}
+        >
+          <Text style={[styles.tabText, activeTab === 'completed' && styles.tabTextActiveBlue]}>
+            Completed
+          </Text>
+          {completedJobs.length > 0 && (
+            <View style={[styles.tabBadge, activeTab === 'completed' && styles.tabBadgeActiveBlue]}>
+              <Text style={[styles.tabBadgeText, activeTab === 'completed' && styles.tabBadgeTextActive]}>
+                {completedJobs.length}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+      
+      {activeTab === 'incoming' && (
+        <FlatList
+          data={incomingJobs}
+          renderItem={renderIncomingJob}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          }
+          ListHeaderComponent={() => (
+            <>
+              {/* Online Status Toggle */}
+              <View style={[styles.statusCard, isOnline ? styles.statusOnline : styles.statusOffline]}>
+                <View style={styles.statusLeft}>
+                  <View style={[styles.statusDot, isOnline ? styles.dotOnline : styles.dotOffline]} />
+                  <View>
+                    <Text style={styles.statusTitle}>
+                      {isOnline ? 'You are LIVE' : 'You are offline'}
+                    </Text>
+                    <Text style={styles.statusSubtitle}>
+                      {isOnline 
+                        ? 'Clients can find you on the map' 
+                        : 'Go online to receive job alerts'}
+                    </Text>
+                  </View>
+                </View>
+                <Switch
+                  value={isOnline}
+                  onValueChange={toggleOnlineStatus}
+                  trackColor={{ false: '#E5E7EB', true: colors.green }}
+                  thumbColor={colors.paper}
+                  disabled={togglingStatus}
+                />
+              </View>
+
+              {/* Stats Cards */}
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats?.jobs_received_this_week || 0}</Text>
+                  <Text style={styles.statLabel}>Jobs this week</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{stats?.profile_views || 0}</Text>
+                  <Text style={styles.statLabel}>Profile views</Text>
                 </View>
               </View>
-              <Switch
-                value={isOnline}
-                onValueChange={toggleOnlineStatus}
-                trackColor={{ false: '#E5E7EB', true: colors.green }}
-                thumbColor={colors.paper}
-                disabled={togglingStatus}
-              />
-            </View>
 
-            {/* Stats Cards */}
-            <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>{stats?.jobs_received_this_week || 0}</Text>
-                <Text style={styles.statLabel}>Jobs this week</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statNumber}>{stats?.profile_views || 0}</Text>
-                <Text style={styles.statLabel}>Profile views</Text>
-              </View>
-            </View>
-
-            {/* Quick Stats Row */}
-            <View style={styles.quickStats}>
-              <View style={styles.quickStatItem}>
-                <Ionicons name="star" size={18} color="#FFB800" />
-                <Text style={styles.quickStatText}>{stats?.rating || 0}</Text>
-                <Text style={styles.quickStatLabel}>({stats?.review_count || 0} reviews)</Text>
-              </View>
-              <View style={styles.quickStatItem}>
-                <Ionicons name="checkmark-circle" size={18} color={colors.green} />
-                <Text style={styles.quickStatText}>{stats?.jobs_completed || 0}</Text>
-                <Text style={styles.quickStatLabel}>completed</Text>
-              </View>
-            </View>
-
-            {/* Incoming Jobs Header */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Incoming Jobs</Text>
-              {incomingJobs.length > 0 && (
-                <View style={styles.countBadge}>
-                  <Text style={styles.countText}>{incomingJobs.length}</Text>
+              {/* Quick Stats Row */}
+              <View style={styles.quickStats}>
+                <View style={styles.quickStatItem}>
+                  <Ionicons name="star" size={18} color="#FFB800" />
+                  <Text style={styles.quickStatText}>{stats?.rating || 0}</Text>
+                  <Text style={styles.quickStatLabel}>({stats?.review_count || 0} reviews)</Text>
                 </View>
+                <View style={styles.quickStatItem}>
+                  <Ionicons name="checkmark-circle" size={18} color={colors.green} />
+                  <Text style={styles.quickStatText}>{completedJobs.length}</Text>
+                  <Text style={styles.quickStatLabel}>completed</Text>
+                </View>
+              </View>
+            </>
+          )}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyState}>
+              {isOnline ? (
+                <>
+                  <Ionicons name="hourglass-outline" size={48} color={colors.textSecondary} />
+                  <Text style={styles.emptyTitle}>Waiting for jobs...</Text>
+                  <Text style={styles.emptySubtitle}>
+                    New job alerts will appear here when clients post jobs matching your skills
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="cloud-offline-outline" size={48} color={colors.textSecondary} />
+                  <Text style={styles.emptyTitle}>You're offline</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Go online to start receiving job alerts from clients near you
+                  </Text>
+                </>
               )}
             </View>
-          </>
-        )}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyState}>
-            {isOnline ? (
-              <>
-                <Ionicons name="hourglass-outline" size={48} color={colors.textSecondary} />
-                <Text style={styles.emptyTitle}>Waiting for jobs...</Text>
-                <Text style={styles.emptySubtitle}>
-                  New job alerts will appear here when clients post jobs matching your skills
-                </Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="cloud-offline-outline" size={48} color={colors.textSecondary} />
-                <Text style={styles.emptyTitle}>You're offline</Text>
-                <Text style={styles.emptySubtitle}>
-                  Go online to start receiving job alerts from clients near you
-                </Text>
-              </>
-            )}
-          </View>
-        )}
-      />
+          )}
+        />
+      )}
+
+      {activeTab === 'inProgress' && (
+        <FlatList
+          data={inProgressJobs}
+          renderItem={renderInProgressJob}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />
+          }
+          ListEmptyComponent={() => (
+            <View style={styles.emptyState}>
+              <Ionicons name="construct-outline" size={48} color={colors.textSecondary} />
+              <Text style={styles.emptyTitle}>No jobs in progress</Text>
+              <Text style={styles.emptySubtitle}>
+                Jobs will appear here once both you and the client confirm in Messages
+              </Text>
+            </View>
+          )}
+        />
+      )}
+
+      {activeTab === 'completed' && (
+        <FlatList
+          data={completedJobs}
+          renderItem={renderCompletedJob}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.blue} />
+          }
+          ListEmptyComponent={() => (
+            <View style={styles.emptyState}>
+              <Ionicons name="trophy-outline" size={48} color={colors.textSecondary} />
+              <Text style={styles.emptyTitle}>No completed jobs yet</Text>
+              <Text style={styles.emptySubtitle}>
+                Your completed jobs will be shown here
+              </Text>
+            </View>
+          )}
+        />
+      )}
       
       {/* Remove Job Confirmation Modal */}
       <Modal
@@ -438,6 +649,49 @@ export default function ContractorDashboard() {
           </View>
         </View>
       </Modal>
+
+      {/* Complete Job Confirmation Modal */}
+      <Modal
+        visible={showCompleteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowCompleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={[styles.modalIconContainer, { backgroundColor: colors.greenLight }]}>
+              <Ionicons name="checkmark-circle" size={40} color={colors.green} />
+            </View>
+            <Text style={styles.modalTitle}>Complete This Job?</Text>
+            <Text style={styles.modalMessage}>
+              Mark this job as completed? This will move it to your Completed section.
+            </Text>
+            {jobToComplete && (
+              <View style={styles.modalJobPreview}>
+                <Text style={styles.modalJobTitle}>{jobToComplete.job_title || 'Job with ' + getClientName(jobToComplete)}</Text>
+                <Text style={styles.modalJobTrade}>Client: {getClientName(jobToComplete)}</Text>
+              </View>
+            )}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={styles.modalCancelBtn}
+                onPress={() => {
+                  setShowCompleteModal(false);
+                  setJobToComplete(null);
+                }}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalConfirmBtn, { backgroundColor: colors.green }]}
+                onPress={confirmCompleteJob}
+              >
+                <Text style={styles.modalConfirmText}>Complete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -463,23 +717,79 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-  modeIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  modeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Tab styles
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.paper,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    gap: 6,
+  },
+  tabActiveOrange: {
+    backgroundColor: colors.primaryLight,
+  },
+  tabActiveGreen: {
+    backgroundColor: colors.greenLight,
+  },
+  tabActiveBlue: {
+    backgroundColor: colors.blueLight,
+  },
+  tabText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  tabTextActiveOrange: {
+    color: colors.primary,
+  },
+  tabTextActiveGreen: {
+    color: colors.green,
+  },
+  tabTextActiveBlue: {
+    color: colors.blue,
+  },
+  tabBadge: {
+    backgroundColor: colors.textSecondary,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  tabBadgeActiveOrange: {
+    backgroundColor: colors.primary,
+  },
+  tabBadgeActiveGreen: {
+    backgroundColor: colors.green,
+  },
+  tabBadgeActiveBlue: {
+    backgroundColor: colors.blue,
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  tabBadgeTextActive: {
+    color: colors.paper,
   },
   listContent: {
     padding: 16,
@@ -574,43 +884,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   },
-  switchModeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primaryLight,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 24,
-    gap: 8,
-  },
-  switchModeText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  countBadge: {
-    backgroundColor: colors.red,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  countText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.paper,
-  },
   jobCard: {
     backgroundColor: colors.paper,
     borderRadius: 16,
@@ -632,6 +905,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    backgroundColor: colors.greenLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   newDot: {
     width: 8,
@@ -644,32 +921,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#22C55E',
   },
-  jobHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  newBadge: {
-    backgroundColor: colors.red,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  newBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.paper,
-  },
   jobTime: {
     fontSize: 12,
     color: colors.textSecondary,
-  },
-  jobCategory: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
   },
   jobTitle: {
     fontSize: 17,
@@ -682,17 +936,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 10,
-  },
-  tradeChip: {
-    backgroundColor: '#F0FDF4',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  tradeChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#16A34A',
   },
   tradeChipOrange: {
     flexDirection: 'row',
@@ -721,19 +964,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#EF4444',
-  },
-  tradeBadge: {
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  tradeBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
   },
   jobDescription: {
     fontSize: 14,
@@ -783,45 +1013,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.text,
   },
-  postedByRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  postedByText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  jobMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    gap: 16,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.primary,
-  },
-  urgentBadge: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  urgentText: {
+  clientSubtext: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#D97706',
+    color: colors.green,
+    marginTop: 2,
   },
   jobActions: {
     flexDirection: 'row',
@@ -857,33 +1052,49 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.paper,
   },
-  ignoreBtn: {
+  messageBtn: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: colors.primaryLight,
+    gap: 6,
   },
-  ignoreBtnText: {
-    fontSize: 15,
+  messageBtnText: {
+    fontSize: 14,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: colors.primary,
   },
-  acceptBtn: {
+  completeBtn: {
     flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 10,
     backgroundColor: colors.green,
     gap: 6,
   },
-  acceptBtnText: {
-    fontSize: 15,
+  completeBtnText: {
+    fontSize: 14,
     fontWeight: '700',
     color: colors.paper,
+  },
+  viewChatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    gap: 6,
+  },
+  viewChatBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   emptyState: {
     alignItems: 'center',
