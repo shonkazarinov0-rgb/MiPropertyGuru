@@ -444,7 +444,7 @@ export default function ChatScreen() {
         </View>
 
         {/* Job Confirmation Banner */}
-        {!isFullyConfirmed && (
+        {!isFullyConfirmed && !isArchived && (
           <View style={s.confirmBanner}>
             <View style={s.confirmIconContainer}>
               <Ionicons 
@@ -498,8 +498,15 @@ export default function ChatScreen() {
         {isFullyConfirmed && (
           <View style={s.fullyConfirmedBanner}>
             <View style={s.confirmedInfo}>
-              <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
-              <Text style={s.fullyConfirmedText}>In Progress</Text>
+              <View style={s.confirmedIconCircle}>
+                <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+              </View>
+              <View>
+                <Text style={s.fullyConfirmedTitle}>
+                  <Text style={s.confirmCount}>2/2</Text> Confirmed
+                </Text>
+                <Text style={s.fullyConfirmedSubtext}>Job In Progress</Text>
+              </View>
             </View>
             <View style={s.bannerActions}>
               <TouchableOpacity style={s.backToPendingBtn} onPress={handleBackToPending}>
@@ -716,7 +723,25 @@ const s = StyleSheet.create({
   confirmedInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+  },
+  confirmedIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.green,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullyConfirmedTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#166534',
+  },
+  fullyConfirmedSubtext: {
+    fontSize: 11,
+    color: '#166534',
+    marginTop: 1,
   },
   bannerActions: {
     flexDirection: 'row',
