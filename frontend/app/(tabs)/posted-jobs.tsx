@@ -184,15 +184,14 @@ export default function PostedJobsScreen() {
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
-        <View style={s.headerLeft}>
-          <Text style={s.title}>My Jobs</Text>
-          <ModeToggle />
-        </View>
-        <TouchableOpacity style={s.postBtn} onPress={() => router.push('/post-job')}>
-          <Ionicons name="add" size={18} color={colors.paper} />
-          <Text style={s.postBtnText}>Post</Text>
-        </TouchableOpacity>
+        <Text style={s.title}>My Jobs</Text>
+        <ModeToggle />
       </View>
+
+      {/* Floating Post Button */}
+      <TouchableOpacity style={s.floatingPostBtn} onPress={() => router.push('/post-job')}>
+        <Ionicons name="add" size={24} color={colors.paper} />
+      </TouchableOpacity>
 
       {/* 3 Tabs: Pending, Confirmed, Completed */}
       <ScrollView 
@@ -301,7 +300,7 @@ const s = StyleSheet.create({
   },
   header: { 
     paddingHorizontal: 16, 
-    paddingVertical: 12, 
+    paddingVertical: 16, 
     backgroundColor: colors.paper, 
     borderBottomWidth: 1, 
     borderBottomColor: colors.border,
@@ -309,29 +308,27 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
   title: { 
-    fontSize: 24, 
+    fontSize: 28, 
     fontWeight: '700', 
     color: colors.text,
   },
-  postBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  floatingPostBtn: {
+    position: 'absolute',
+    bottom: 90,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 4,
-  },
-  postBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.paper,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+    zIndex: 100,
   },
   tabScrollContainer: {
     backgroundColor: colors.paper,
