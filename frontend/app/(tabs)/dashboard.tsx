@@ -299,8 +299,7 @@ export default function ContractorDashboard() {
       <View style={styles.dashboardHeader}>
         <Text style={styles.dashboardTitle}>Dashboard</Text>
         <View style={styles.modeIndicator}>
-          <View style={styles.modeDot} />
-          <Text style={styles.modeText}>Contractor Mode</Text>
+          <Text style={styles.modeText}>👷 Contractor Mode</Text>
         </View>
       </View>
       
@@ -470,17 +469,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
-  },
-  modeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
+    borderRadius: 16,
   },
   modeText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.primary,
   },

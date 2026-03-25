@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet,
   ActivityIndicator, ScrollView, RefreshControl, Platform, Dimensions,
-  Image, Linking, Animated, Modal, Alert, TextInput,
+  Image, Linking, Animated, Modal, Alert, TextInput, Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -602,8 +602,18 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
     </TouchableOpacity>
   );
 
-  // Check if user is contractor in contractor mode
-  const isContractorMode = user?.role === 'contractor' && user?.currentMode !== 'client';
+  // Check if user is contractor in contractor mode - use authIsContractorMode from context
+  const isContractorMode = authIsContractorMode;
+  
+  // Debug logging
+  console.log('HOME SCREEN - Mode check:', { 
+    userRole: user?.role, 
+    userCurrentMode: user?.currentMode, 
+    isClientMode, 
+    authIsContractorMode,
+    isContractorMode,
+    isContractorInClientMode
+  });
 
   const handleSwitchToContractorMode = async () => {
     await switchMode('contractor');
@@ -712,12 +722,20 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
             <Text style={styles.contractorModeText}>
               Switch to Client Mode to browse and hire contractors for your own projects.
             </Text>
-            <TouchableOpacity 
+            <Pressable 
               style={styles.switchModeBtn}
-              onPress={() => switchMode('client')}
+              onPress={async () => {
+                console.log('Switching mode to client...');
+                await switchMode('client');
+                console.log('Mode switched, navigating...');
+                // Small delay then navigate to force refresh
+                setTimeout(() => {
+                  router.push('/(tabs)/home');
+                }, 100);
+              }}
             >
               <Text style={styles.switchModeBtnText}>Switch to Client Mode</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         ) : (
           <>
