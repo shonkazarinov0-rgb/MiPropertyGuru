@@ -66,10 +66,10 @@ export default function ContractorDashboard() {
   const fetchData = async () => {
     try {
       const [statsRes, jobsRes] = await Promise.all([
-        api.get('/contractors/stats'),
-        api.get('/jobs/incoming'),
+        api.get('/contractors/stats').catch(() => null),
+        api.get('/jobs/available'),  // Use available jobs endpoint - excludes own posts
       ]);
-      setStats(statsRes);
+      if (statsRes) setStats(statsRes);
       setIncomingJobs(jobsRes.jobs || []);
     } catch (e) {
       console.error(e);
@@ -156,14 +156,23 @@ export default function ContractorDashboard() {
           <Text style={styles.jobTime}>{timeAgo}</Text>
         </View>
         
-        <Text style={styles.jobCategory}>{item.category}</Text>
-        <Text style={styles.jobDescription} numberOfLines={2}>{item.description}</Text>
+        <Text style={styles.jobTitle}>{item.title}</Text>
+        <View style={styles.tradeBadge}>
+          <Text style={styles.tradeBadgeText}>{item.trade_required}</Text>
+        </View>
+        <Text style={styles.jobDescription} numberOfLines={3}>{item.description}</Text>
         
         <View style={styles.jobMeta}>
-          {item.distance_km && (
+          {item.location && (
             <View style={styles.metaItem}>
               <Ionicons name="location" size={16} color={colors.primary} />
-              <Text style={styles.metaText}>{item.distance_km} km away</Text>
+              <Text style={styles.metaText}>{item.location}</Text>
+            </View>
+          )}
+          {item.budget && (
+            <View style={styles.metaItem}>
+              <Ionicons name="cash" size={16} color={colors.green} />
+              <Text style={styles.metaText}>{item.budget}</Text>
             </View>
           )}
           {item.urgency === 'urgent' && (
@@ -173,19 +182,24 @@ export default function ContractorDashboard() {
           )}
         </View>
         
+        <View style={styles.postedByRow}>
+          <Ionicons name="person-circle" size={18} color={colors.textSecondary} />
+          <Text style={styles.postedByText}>Posted by {item.posted_by_name}</Text>
+        </View>
+        
         <View style={styles.jobActions}>
           <TouchableOpacity 
             style={styles.ignoreBtn}
             onPress={() => handleJobResponse(item.id, 'ignore')}
           >
-            <Text style={styles.ignoreBtnText}>Ignore</Text>
+            <Text style={styles.ignoreBtnText}>Not Interested</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.acceptBtn}
             onPress={() => handleJobResponse(item.id, 'accept')}
           >
-            <Ionicons name="checkmark" size={20} color={colors.paper} />
-            <Text style={styles.acceptBtnText}>Accept</Text>
+            <Ionicons name="chatbubble" size={18} color={colors.paper} />
+            <Text style={styles.acceptBtnText}>Contact</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -495,10 +509,42 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 4,
   },
+  jobTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  tradeBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  tradeBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
   jobDescription: {
     fontSize: 14,
     color: colors.textSecondary,
     lineHeight: 20,
+  },
+  postedByRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  postedByText: {
+    fontSize: 13,
+    color: colors.textSecondary,
   },
   jobMeta: {
     flexDirection: 'row',

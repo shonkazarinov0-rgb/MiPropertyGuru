@@ -579,6 +579,23 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               </View>
             )}
 
+            {/* Post a Job Button */}
+            <TouchableOpacity 
+              style={styles.postJobBtn}
+              onPress={() => router.push('/post-job')}
+            >
+              <View style={styles.postJobContent}>
+                <View style={styles.postJobIconBg}>
+                  <Ionicons name="add-circle" size={28} color={colors.primary} />
+                </View>
+                <View style={styles.postJobTextContainer}>
+                  <Text style={styles.postJobTitle}>Post a Job</Text>
+                  <Text style={styles.postJobSubtitle}>Let contractors come to you</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color={colors.primary} />
+            </TouchableOpacity>
+
             {/* Categories */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -1472,5 +1489,45 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: colors.paper,
+  },
+  // Post Job Button
+  postJobBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.paper,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.primaryLight,
+    borderStyle: 'dashed',
+  },
+  postJobContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  postJobIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  postJobTextContainer: {
+    gap: 2,
+  },
+  postJobTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  postJobSubtitle: {
+    fontSize: 13,
+    color: colors.textSecondary,
   },
 });

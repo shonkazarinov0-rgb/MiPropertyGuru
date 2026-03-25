@@ -121,6 +121,14 @@ class LocationInfo(BaseModel):
     ip_address: Optional[str] = None
     device_info: Optional[str] = None
 
+class JobPostCreate(BaseModel):
+    title: str
+    description: str
+    trade_required: str
+    location: Optional[str] = None
+    budget: Optional[str] = None
+    urgency: Optional[str] = "normal"  # normal, urgent
+
 class LocationUpdate(BaseModel):
     live_location_enabled: bool
     current_lat: Optional[float] = None
@@ -778,6 +786,90 @@ async def get_admin_stats(admin_secret: str = Header(None, alias="X-Admin-Secret
         "suspicious_activity_flags": suspicious_flags,
         "registrations_last_7_days": recent_users
     }
+
+# ── Job Posting Routes ──
+
+@api_router.post("/jobs/post")
+async def post_job(req: JobPostCreate, user=Depends(get_current_user)):
+    """Post a new job - clients can post jobs for contractors to see"""
+    job_id = str(uuid.uuid4())
+    
+    job = {
+        "id": job_id,
+        "title": req.title,
+        "description": req.description,
+        "trade_required": req.trade_required,
+        "location": req.location,
+        "budget": req.budget,
+        "urgency": req.urgency or "normal",
+        "status": "open",  # open, in_progress, completed, cancelled
+        "posted_by": user["id"],
+        "posted_by_name": user.get("name", "Client"),
+        "posted_by_email": user.get("email"),
+        "posted_by_phone": user.get("phone"),
+        "responses": [],  # Contractors who responded
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.posted_jobs.insert_one(job.copy())
+    return {"job": job, "message": "Job posted successfully"}
+
+@api_router.get("/jobs/posted")
+async def get_my_posted_jobs(user=Depends(get_current_user)):
+    """Get jobs posted by the current user"""
+    jobs = await db.posted_jobs.find(
+        {"posted_by": user["id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    return {"jobs": jobs}
+
+@api_router.get("/jobs/available")
+async def get_available_jobs(user=Depends(get_current_user)):
+    """Get jobs available for the contractor based on their trades - excludes their own posted jobs"""
+    user_trades = user.get("trades", [])
+    if user.get("contractor_type"):
+        user_trades.append(user["contractor_type"])
+    
+    # Get open jobs that match contractor's trades, excluding jobs they posted themselves
+    jobs = await db.posted_jobs.find(
+        {
+            "status": "open",
+            "trade_required": {"$in": user_trades},
+            "posted_by": {"$ne": user["id"]}  # Exclude jobs posted by this user
+        },
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    
+    return {"jobs": jobs}
+
+@api_router.post("/jobs/{job_id}/respond")
+async def respond_to_job(job_id: str, user=Depends(get_current_user)):
+    """Contractor responds/applies to a job"""
+    job = await db.posted_jobs.find_one({"id": job_id})
+    if not job:
+        raise HTTPException(404, "Job not found")
+    
+    if job["posted_by"] == user["id"]:
+        raise HTTPException(400, "You cannot respond to your own job")
+    
+    # Check if already responded
+    existing_responses = job.get("responses", [])
+    if any(r["contractor_id"] == user["id"] for r in existing_responses):
+        raise HTTPException(400, "You have already responded to this job")
+    
+    response = {
+        "contractor_id": user["id"],
+        "contractor_name": user.get("name"),
+        "contractor_type": user.get("contractor_type"),
+        "responded_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.posted_jobs.update_one(
+        {"id": job_id},
+        {"$push": {"responses": response}}
+    )
+    
+    return {"message": "Response sent successfully"}
 
 # ── Categories ──
 
