@@ -37,6 +37,11 @@ export default function ProfileScreen() {
   const [portfolioTitle, setPortfolioTitle] = useState('');
   const [portfolioDesc, setPortfolioDesc] = useState('');
   const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
+  const [showLicenseModal, setShowLicenseModal] = useState(false);
+  const [licenseNumber, setLicenseNumber] = useState(user?.license_number || '');
+  const [licenseType, setLicenseType] = useState(user?.license_type || '');
+  const [licenseExpiry, setLicenseExpiry] = useState(user?.license_expiry || '');
+  const [licenseImage, setLicenseImage] = useState<string | null>(user?.license_image || null);
 
   // Helper function to get trade-specific icon
   const getTradeIcon = (tradeType: string | null | undefined): keyof typeof Ionicons.glyphMap => {
@@ -185,6 +190,48 @@ export default function ProfileScreen() {
     );
   };
 
+  // License functions
+  const pickLicenseImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0].base64) {
+        setLicenseImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (error) {
+      console.error('Error picking license image:', error);
+    }
+  };
+
+  const saveLicense = async () => {
+    if (!licenseNumber.trim()) {
+      Alert.alert('Error', 'Please enter a license number');
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      await api.put('/auth/profile', {
+        license_number: licenseNumber.trim(),
+        license_type: licenseType.trim(),
+        license_expiry: licenseExpiry.trim(),
+        license_image: licenseImage,
+      });
+      await refreshUser();
+      setShowLicenseModal(false);
+      Alert.alert('Success', 'License information saved');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to save license');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleModeSwitch = async () => {
     if (user?.role !== 'contractor') return;
     
@@ -302,6 +349,53 @@ export default function ProfileScreen() {
                 </View>
               </View>
             )}
+
+            {/* License Section */}
+            <View style={s.section}>
+              <View style={s.sectionHeader}>
+                <Text style={s.sectionTitle}>License</Text>
+                <TouchableOpacity onPress={() => setShowLicenseModal(true)}>
+                  <Ionicons name={user?.license_number ? "create-outline" : "add-circle"} size={24} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+              {user?.license_number ? (
+                <View style={s.licenseCard}>
+                  <View style={s.licenseHeader}>
+                    <Ionicons name="ribbon" size={24} color={colors.green} />
+                    <View style={s.licenseBadge}>
+                      <Text style={s.licenseBadgeText}>Verified</Text>
+                    </View>
+                  </View>
+                  <View style={s.licenseDetails}>
+                    <View style={s.licenseRow}>
+                      <Text style={s.licenseLabel}>License #</Text>
+                      <Text style={s.licenseValue}>{user.license_number}</Text>
+                    </View>
+                    {user.license_type && (
+                      <View style={s.licenseRow}>
+                        <Text style={s.licenseLabel}>Type</Text>
+                        <Text style={s.licenseValue}>{user.license_type}</Text>
+                      </View>
+                    )}
+                    {user.license_expiry && (
+                      <View style={s.licenseRow}>
+                        <Text style={s.licenseLabel}>Expires</Text>
+                        <Text style={s.licenseValue}>{user.license_expiry}</Text>
+                      </View>
+                    )}
+                  </View>
+                  {user.license_image && (
+                    <Image source={{ uri: user.license_image }} style={s.licenseImage} />
+                  )}
+                </View>
+              ) : (
+                <TouchableOpacity style={s.addLicenseBtn} onPress={() => setShowLicenseModal(true)}>
+                  <Ionicons name="document-text-outline" size={32} color={colors.primary} />
+                  <Text style={s.addLicenseText}>Add your license</Text>
+                  <Text style={s.addLicenseSubtext}>Build trust with clients</Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
             {/* Portfolio Section - Combined photos with title/description */}
             <View style={s.section}>
@@ -568,6 +662,84 @@ export default function ProfileScreen() {
                       <ActivityIndicator color={colors.paper} />
                     ) : (
                       <Text style={s.modalConfirmText}>Add to Portfolio</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        </Modal>
+
+        {/* License Modal */}
+        <Modal visible={showLicenseModal} transparent animationType="slide">
+          <View style={s.modalOverlay}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={s.modalKeyboard}
+            >
+              <View style={s.modalContent}>
+                <View style={s.modalHeader}>
+                  <Text style={s.modalTitle}>License Information</Text>
+                  <TouchableOpacity onPress={() => setShowLicenseModal(false)}>
+                    <Ionicons name="close" size={24} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+                
+                <Text style={s.inputLabel}>License Number *</Text>
+                <TextInput
+                  style={s.modalInput}
+                  placeholder="e.g., LIC-12345678"
+                  placeholderTextColor={colors.textSecondary}
+                  value={licenseNumber}
+                  onChangeText={setLicenseNumber}
+                />
+                
+                <Text style={s.inputLabel}>License Type</Text>
+                <TextInput
+                  style={s.modalInput}
+                  placeholder="e.g., General Contractor, Electrician"
+                  placeholderTextColor={colors.textSecondary}
+                  value={licenseType}
+                  onChangeText={setLicenseType}
+                />
+                
+                <Text style={s.inputLabel}>Expiration Date</Text>
+                <TextInput
+                  style={s.modalInput}
+                  placeholder="e.g., 12/2025"
+                  placeholderTextColor={colors.textSecondary}
+                  value={licenseExpiry}
+                  onChangeText={setLicenseExpiry}
+                />
+                
+                <Text style={s.inputLabel}>License Photo (optional)</Text>
+                <TouchableOpacity style={s.licenseImagePicker} onPress={pickLicenseImage}>
+                  {licenseImage ? (
+                    <Image source={{ uri: licenseImage }} style={s.licensePickedImage} />
+                  ) : (
+                    <View style={s.licenseImagePlaceholder}>
+                      <Ionicons name="camera-outline" size={32} color={colors.textSecondary} />
+                      <Text style={s.addImageText}>Upload Photo</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                
+                <View style={s.modalActions}>
+                  <TouchableOpacity 
+                    style={s.modalCancelBtn} 
+                    onPress={() => setShowLicenseModal(false)}
+                  >
+                    <Text style={s.modalCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[s.modalSaveBtn, saving && s.modalSaveBtnDisabled]} 
+                    onPress={saveLicense}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <ActivityIndicator size="small" color={colors.paper} />
+                    ) : (
+                      <Text style={s.modalSaveText}>Save</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -1137,5 +1309,90 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#166534',
+  },
+  // License section styles
+  licenseCard: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#DCFCE7',
+  },
+  licenseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  licenseBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  licenseBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#166534',
+  },
+  licenseDetails: {
+    gap: 8,
+  },
+  licenseRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  licenseLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  licenseValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  licenseImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  addLicenseBtn: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.primaryLight,
+    borderStyle: 'dashed',
+  },
+  addLicenseText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 8,
+  },
+  addLicenseSubtext: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  licenseImagePicker: {
+    width: '100%',
+    height: 120,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.background,
+    marginBottom: 16,
+  },
+  licensePickedImage: {
+    width: '100%',
+    height: '100%',
+  },
+  licenseImagePlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

@@ -170,6 +170,10 @@ class ProfileUpdate(BaseModel):
     service_radius: Optional[int] = None
     availability_hours: Optional[dict] = None
     profile_photo: Optional[str] = None
+    license_number: Optional[str] = None
+    license_type: Optional[str] = None
+    license_expiry: Optional[str] = None
+    license_image: Optional[str] = None
 
 class SubscriptionReq(BaseModel):
     origin_url: str
