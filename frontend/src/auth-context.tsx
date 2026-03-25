@@ -138,6 +138,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string, keepLoggedIn: boolean = true) => {
+    // Clear guest mode when logging in
+    setIsGuest(false);
+    await AsyncStorage.removeItem('guest_mode');
+    
     // Try to get device location for security tracking
     let locationData: { lat?: number; lng?: number } = {};
     try {
@@ -185,6 +189,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (data: any) => {
+    // Clear guest mode when registering
+    setIsGuest(false);
+    await AsyncStorage.removeItem('guest_mode');
+    
     const res = await api.post('/auth/register', data);
     await AsyncStorage.setItem('auth_token', res.token);
     // Set default mode
