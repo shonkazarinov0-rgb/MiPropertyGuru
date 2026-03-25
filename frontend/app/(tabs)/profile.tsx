@@ -37,6 +37,21 @@ export default function ProfileScreen() {
   const [portfolioDesc, setPortfolioDesc] = useState('');
   const [portfolioImages, setPortfolioImages] = useState<string[]>([]);
 
+  // Helper function to get trade-specific icon
+  const getTradeIcon = (tradeType: string | null | undefined): keyof typeof Ionicons.glyphMap => {
+    const trade = (tradeType || '').toLowerCase();
+    if (trade.includes('hvac') || trade.includes('heating') || trade.includes('cooling')) return 'snow-outline';
+    if (trade.includes('plumb')) return 'water-outline';
+    if (trade.includes('electr')) return 'flash-outline';
+    if (trade.includes('carpenter') || trade.includes('wood')) return 'hammer-outline';
+    if (trade.includes('paint')) return 'color-palette-outline';
+    if (trade.includes('roof')) return 'home-outline';
+    if (trade.includes('landscap') || trade.includes('garden')) return 'leaf-outline';
+    if (trade.includes('clean')) return 'sparkles-outline';
+    if (trade.includes('handyman') || trade.includes('general')) return 'construct-outline';
+    return 'build-outline';
+  };
+
   useEffect(() => {
     if (user?.role === 'contractor') {
       fetchPortfolio();
@@ -230,9 +245,14 @@ export default function ProfileScreen() {
           </View>
           <Text style={s.profileName}>{user?.name}</Text>
           
-          {/* Show trade badge only in contractor mode */}
+          {/* Show trade badge with icon only in contractor mode */}
           {isContractor && isContractorMode && (
             <View style={s.typeBadge}>
+              <Ionicons 
+                name={getTradeIcon(user?.contractor_type)} 
+                size={16} 
+                color={colors.primary} 
+              />
               <Text style={s.typeText}>{user?.contractor_type}</Text>
             </View>
           )}
@@ -240,22 +260,31 @@ export default function ProfileScreen() {
           <Text style={s.profileEmail}>{user?.email}</Text>
           <Text style={s.profilePhone}>{user?.phone}</Text>
           
-          {/* Show stats only in contractor mode */}
+          {/* Show stats only in contractor mode - improved layout */}
           {isContractor && isContractorMode && (
             <View style={s.statsRow}>
               <View style={s.stat}>
-                <Text style={s.statValue}>{user?.rating || 0}</Text>
+                <View style={s.statIconRow}>
+                  <Text style={s.statValue}>{user?.rating || 0}</Text>
+                  <Ionicons name="star" size={18} color="#F59E0B" />
+                </View>
                 <Text style={s.statLabel}>Rating</Text>
               </View>
               <View style={s.statDivider} />
               <View style={s.stat}>
-                <Text style={s.statValue}>{user?.review_count || 0}</Text>
+                <View style={s.statIconRow}>
+                  <Text style={s.statValue}>{user?.review_count || 0}</Text>
+                  <Ionicons name="chatbubble" size={16} color="#6366F1" />
+                </View>
                 <Text style={s.statLabel}>Reviews</Text>
               </View>
               <View style={s.statDivider} />
               <View style={s.stat}>
-                <Text style={s.statValue}>{user?.experience_years || 0}</Text>
-                <Text style={s.statLabel}>Years Exp</Text>
+                <View style={s.statIconRow}>
+                  <Text style={s.statValue}>{user?.experience_years || 0}</Text>
+                  <Ionicons name="briefcase" size={16} color="#10B981" />
+                </View>
+                <Text style={s.statLabel}>Yrs Exp</Text>
               </View>
             </View>
           )}
@@ -263,8 +292,7 @@ export default function ProfileScreen() {
           {/* Languages Spoken - show for contractors */}
           {isContractor && isContractorMode && user?.languages && user.languages.length > 0 && (
             <View style={s.languagesRow}>
-              <Ionicons name="globe-outline" size={16} color={colors.primary} />
-              <Text style={s.languagesLabel}>Languages: </Text>
+              <Ionicons name="earth" size={18} color="#4A90D9" />
               <Text style={s.languagesText}>{user.languages.join(', ')}</Text>
             </View>
           )}
@@ -657,21 +685,24 @@ const s = StyleSheet.create({
     color: colors.text,
   },
   typeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 10,
+    gap: 6,
   },
   typeText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.primary,
   },
   profileEmail: {
     fontSize: 14,
     color: colors.textSecondary,
-    marginTop: 8,
+    marginTop: 10,
   },
   profilePhone: {
     fontSize: 14,
@@ -681,28 +712,41 @@ const s = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-around',
     marginTop: 20,
     paddingTop: 20,
+    paddingHorizontal: 10,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    width: '100%',
   },
   stat: {
     alignItems: 'center',
     flex: 1,
+    paddingHorizontal: 8,
+  },
+  statIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: colors.text,
+  },
+  statEmoji: {
+    fontSize: 16,
   },
   statLabel: {
     fontSize: 12,
     color: colors.textSecondary,
     marginTop: 4,
+    fontWeight: '500',
   },
   statDivider: {
     width: 1,
-    height: 30,
+    height: 40,
     backgroundColor: colors.border,
   },
   section: {
@@ -1084,21 +1128,17 @@ const s = StyleSheet.create({
   languagesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12,
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  languagesLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginLeft: 6,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#EBF5FF',
+    borderRadius: 20,
+    gap: 8,
   },
   languagesText: {
     fontSize: 14,
-    color: colors.primary,
-    fontWeight: '500',
+    color: '#1E40AF',
+    fontWeight: '600',
   },
   // License badge on profile
   licenseBadgeProfile: {
