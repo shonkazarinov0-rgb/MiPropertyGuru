@@ -809,10 +809,14 @@ async def post_job(req: JobPostCreate, user=Depends(get_current_user)):
         "posted_by_email": user.get("email"),
         "posted_by_phone": user.get("phone"),
         "responses": [],  # Contractors who responded
+        "dismissed_by": [],  # Initialize dismissed_by array
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
     await db.posted_jobs.insert_one(job.copy())
+    
+    logger.info(f"Job posted: {job['title']} for {job['trade_required']} by {user.get('name')}")
+    
     return {"job": job, "message": "Job posted successfully"}
 
 @api_router.get("/jobs/posted")
@@ -831,6 +835,11 @@ async def get_available_jobs(user=Depends(get_current_user)):
     if user.get("contractor_type"):
         user_trades.append(user["contractor_type"])
     
+    # Remove duplicates
+    user_trades = list(set(user_trades))
+    
+    logger.info(f"User {user.get('name')} looking for jobs. Trades: {user_trades}")
+    
     # Get open jobs that match contractor's trades, excluding:
     # 1. Jobs they posted themselves
     # 2. Jobs they've dismissed
@@ -839,10 +848,15 @@ async def get_available_jobs(user=Depends(get_current_user)):
             "status": "open",
             "trade_required": {"$in": user_trades},
             "posted_by": {"$ne": user["id"]},  # Exclude jobs posted by this user
-            "dismissed_by": {"$nin": [user["id"]]}  # Exclude jobs they dismissed
+            "$or": [
+                {"dismissed_by": {"$exists": False}},
+                {"dismissed_by": {"$nin": [user["id"]]}}
+            ]
         },
         {"_id": 0}
     ).sort("created_at", -1).to_list(50)
+    
+    logger.info(f"Found {len(jobs)} jobs for {user.get('name')}")
     
     return {"jobs": jobs}
 
