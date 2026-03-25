@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator, RefreshControl,
-  SectionList,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -18,8 +18,14 @@ const colors = {
   textSecondary: '#6B7280',
   green: '#22C55E',
   greenLight: '#DCFCE7',
+  blue: '#3B82F6',
+  blueLight: '#DBEAFE',
+  gray: '#6B7280',
+  grayLight: '#F3F4F6',
   border: '#E5E7EB',
 };
+
+type TabType = 'pending' | 'confirmed' | 'archived';
 
 export default function MessagesScreen() {
   const router = useRouter();
@@ -27,7 +33,7 @@ export default function MessagesScreen() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'pending' | 'confirmed'>('pending');
+  const [activeTab, setActiveTab] = useState<TabType>('pending');
 
   useEffect(() => { fetchConversations(); }, []);
 
@@ -66,77 +72,98 @@ export default function MessagesScreen() {
   };
 
   // Filter conversations based on current mode
-  // In CLIENT mode: Show chats where the OTHER person is a CONTRACTOR (I'm talking to contractors)
-  // In CONTRACTOR mode: Show chats where the OTHER person is a CLIENT (clients are talking to me)
   const filterByMode = (convList: any[]) => {
     if (!user) return convList;
-    
-    // If user is a pure client (not a contractor), show all their conversations
     if (user.role === 'client') return convList;
     
-    // For contractors who can switch modes
     return convList.filter(conv => {
       const isParticipant1 = conv.participant_1 === user.id;
+      const otherRole = isParticipant1 ? conv.participant_2_role : conv.participant_1_role;
       
-      // Get the OTHER person's role
-      const otherRole = isParticipant1 
-        ? conv.participant_2_role 
-        : conv.participant_1_role;
-      
-      // In CLIENT mode: show if other person is a contractor
       if (isClientMode && otherRole === 'contractor') return true;
-      
-      // In CONTRACTOR mode: show if other person is a client
       if (isContractorMode && otherRole === 'client') return true;
-      
       return false;
     });
   };
 
-  // Split conversations into confirmed and pending, then filter by mode
+  // Split conversations into 3 categories
   const modeFilteredConversations = filterByMode(conversations);
+  const pendingConversations = modeFilteredConversations.filter(c => 
+    c.job_status !== 'confirmed' && c.job_status !== 'archived'
+  );
   const confirmedConversations = modeFilteredConversations.filter(c => c.job_status === 'confirmed');
-  const pendingConversations = modeFilteredConversations.filter(c => c.job_status !== 'confirmed');
+  const archivedConversations = modeFilteredConversations.filter(c => c.job_status === 'archived');
 
-  const currentConversations = activeTab === 'confirmed' ? confirmedConversations : pendingConversations;
+  const getConversationsForTab = () => {
+    switch (activeTab) {
+      case 'confirmed': return confirmedConversations;
+      case 'archived': return archivedConversations;
+      default: return pendingConversations;
+    }
+  };
+
+  const getAvatarStyle = (status: string) => {
+    if (status === 'confirmed') return s.confirmedAvatar;
+    if (status === 'archived') return s.archivedAvatar;
+    return {};
+  };
+
+  const getStatusBadge = (conv: any) => {
+    const isConfirmed = conv.job_status === 'confirmed';
+    const isArchived = conv.job_status === 'archived';
+    const isPendingConfirmation = conv.confirmed_by?.length > 0 && !isConfirmed && !isArchived;
+
+    if (isArchived) {
+      return (
+        <View style={s.archivedBadge}>
+          <Ionicons name="archive" size={12} color={colors.blue} />
+          <Text style={s.archivedBadgeText}>Completed</Text>
+        </View>
+      );
+    }
+    if (isConfirmed) {
+      return (
+        <View style={s.confirmedBadge}>
+          <Ionicons name="checkmark-circle" size={12} color={colors.green} />
+          <Text style={s.confirmedBadgeText}>In Progress</Text>
+        </View>
+      );
+    }
+    if (isPendingConfirmation) {
+      return (
+        <View style={s.pendingBadge}>
+          <Ionicons name="hourglass-outline" size={12} color={colors.primary} />
+          <Text style={s.pendingBadgeText}>Awaiting Confirmation</Text>
+        </View>
+      );
+    }
+    return null;
+  };
 
   const renderConversation = ({ item }: { item: any }) => {
     const otherName = getOtherName(item);
     const initials = otherName.split(' ').map((n: string) => n[0]).join('').slice(0, 2);
-    const isConfirmed = item.job_status === 'confirmed';
-    const isPendingConfirmation = item.confirmed_by?.length > 0 && item.job_status !== 'confirmed';
+    const isArchived = item.job_status === 'archived';
     
     return (
       <TouchableOpacity 
         testID={`conversation-${item.id}`} 
-        style={s.convCard}
+        style={[s.convCard, isArchived && s.archivedCard]}
         onPress={() => router.push(`/chat/${item.id}`)}
       >
-        <View style={[s.convAvatar, isConfirmed && s.confirmedAvatar]}>
+        <View style={[s.convAvatar, getAvatarStyle(item.job_status)]}>
           <Text style={s.convAvatarText}>{initials}</Text>
         </View>
         <View style={s.convInfo}>
           <View style={s.convTopRow}>
-            <Text style={s.convName} numberOfLines={1}>{otherName}</Text>
+            <Text style={[s.convName, isArchived && s.archivedText]} numberOfLines={1}>{otherName}</Text>
             <Text style={s.convTime}>{getTimestamp(item)}</Text>
           </View>
           <Text style={s.convMessage} numberOfLines={1}>
             {item.last_message || 'Start a conversation...'}
           </Text>
-          {/* Status badges */}
           <View style={s.statusRow}>
-            {isConfirmed && (
-              <View style={s.confirmedBadge}>
-                <Ionicons name="checkmark-circle" size={12} color={colors.green} />
-                <Text style={s.confirmedBadgeText}>Job Confirmed</Text>
-              </View>
-            )}
-            {isPendingConfirmation && (
-              <View style={s.pendingBadge}>
-                <Ionicons name="hourglass-outline" size={12} color={colors.primary} />
-                <Text style={s.pendingBadgeText}>Awaiting Confirmation</Text>
-              </View>
-            )}
+            {getStatusBadge(item)}
           </View>
         </View>
         <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
@@ -144,58 +171,111 @@ export default function MessagesScreen() {
     );
   };
 
+  const getEmptyContent = () => {
+    switch (activeTab) {
+      case 'confirmed':
+        return {
+          icon: "briefcase-outline" as const,
+          title: 'No active jobs',
+          text: 'Jobs will appear here once both parties confirm'
+        };
+      case 'archived':
+        return {
+          icon: "archive-outline" as const,
+          title: 'No completed jobs',
+          text: 'Completed jobs will be archived here'
+        };
+      default:
+        return {
+          icon: "chatbubbles-outline" as const,
+          title: 'No pending conversations',
+          text: 'Start by finding a contractor'
+        };
+    }
+  };
+
+  const emptyContent = getEmptyContent();
+
   return (
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
         <Text style={s.title}>Messages</Text>
         {user?.role === 'contractor' && (
-          <Text style={s.modeLabel}>
-            {isClientMode ? '🏠 Client Mode' : '👷 Contractor Mode'}
-          </Text>
+          <View style={s.modeBadge}>
+            <Text style={s.modeText}>
+              {isClientMode ? '🏠 Client Mode' : '👷 Contractor Mode'}
+            </Text>
+          </View>
         )}
       </View>
 
-      {/* Tabs for Pending / Confirmed */}
-      <View style={s.tabContainer}>
+      {/* 3 Tabs: Pending, Confirmed, Archived */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={s.tabScrollContainer}
+        contentContainerStyle={s.tabContainer}
+      >
+        {/* Pending Tab - Orange */}
         <TouchableOpacity 
-          style={[s.tab, activeTab === 'pending' && s.activeTab]}
+          style={[s.tab, activeTab === 'pending' && s.pendingTabActive]}
           onPress={() => setActiveTab('pending')}
         >
-          <Text style={[s.tabText, activeTab === 'pending' && s.activeTabText]}>
+          <Ionicons 
+            name="time-outline" 
+            size={16} 
+            color={activeTab === 'pending' ? colors.primary : colors.textSecondary} 
+          />
+          <Text style={[s.tabText, activeTab === 'pending' && s.pendingTabText]}>
             Pending
           </Text>
           {pendingConversations.length > 0 && (
-            <View style={[s.tabBadge, activeTab === 'pending' && s.activeTabBadge]}>
-              <Text style={[s.tabBadgeText, activeTab === 'pending' && s.activeTabBadgeText]}>
-                {pendingConversations.length}
-              </Text>
+            <View style={[s.tabBadge, activeTab === 'pending' ? s.pendingBadgeActive : s.pendingBadgeInactive]}>
+              <Text style={s.tabBadgeText}>{pendingConversations.length}</Text>
             </View>
           )}
         </TouchableOpacity>
         
+        {/* Confirmed Tab - Green */}
         <TouchableOpacity 
-          style={[s.tab, activeTab === 'confirmed' && s.activeTab]}
+          style={[s.tab, activeTab === 'confirmed' && s.confirmedTabActive]}
           onPress={() => setActiveTab('confirmed')}
         >
-          <View style={s.tabContent}>
-            <Ionicons 
-              name="checkmark-circle" 
-              size={16} 
-              color={activeTab === 'confirmed' ? colors.green : colors.textSecondary} 
-            />
-            <Text style={[s.tabText, activeTab === 'confirmed' && s.activeTabTextGreen]}>
-              Confirmed Jobs
-            </Text>
-          </View>
+          <Ionicons 
+            name="checkmark-circle" 
+            size={16} 
+            color={activeTab === 'confirmed' ? colors.green : colors.textSecondary} 
+          />
+          <Text style={[s.tabText, activeTab === 'confirmed' && s.confirmedTabText]}>
+            In Progress
+          </Text>
           {confirmedConversations.length > 0 && (
             <View style={[s.tabBadge, s.greenBadge]}>
-              <Text style={s.greenBadgeText}>
-                {confirmedConversations.length}
-              </Text>
+              <Text style={s.tabBadgeText}>{confirmedConversations.length}</Text>
             </View>
           )}
         </TouchableOpacity>
-      </View>
+
+        {/* Archived Tab - Blue/Gray */}
+        <TouchableOpacity 
+          style={[s.tab, activeTab === 'archived' && s.archivedTabActive]}
+          onPress={() => setActiveTab('archived')}
+        >
+          <Ionicons 
+            name="archive" 
+            size={16} 
+            color={activeTab === 'archived' ? colors.blue : colors.textSecondary} 
+          />
+          <Text style={[s.tabText, activeTab === 'archived' && s.archivedTabText]}>
+            Completed
+          </Text>
+          {archivedConversations.length > 0 && (
+            <View style={[s.tabBadge, s.blueBadge]}>
+              <Text style={s.tabBadgeText}>{archivedConversations.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
 
       {loading ? (
         <View style={s.center}>
@@ -203,34 +283,18 @@ export default function MessagesScreen() {
         </View>
       ) : (
         <FlatList
-          data={currentConversations}
+          data={getConversationsForTab()}
           renderItem={renderConversation}
           keyExtractor={item => item.id}
           contentContainerStyle={s.listContent}
           refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={onRefresh} 
-              tintColor={colors.primary} 
-            />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
           ListEmptyComponent={
             <View style={s.emptyContainer}>
-              <Ionicons 
-                name={activeTab === 'confirmed' ? "checkmark-done-circle-outline" : "chatbubbles-outline"} 
-                size={64} 
-                color={colors.textSecondary} 
-              />
-              <Text style={s.emptyTitle}>
-                {activeTab === 'confirmed' 
-                  ? 'No confirmed jobs yet' 
-                  : 'No pending conversations'}
-              </Text>
-              <Text style={s.emptyText}>
-                {activeTab === 'confirmed'
-                  ? 'Jobs will appear here once both parties confirm'
-                  : 'Start by finding a contractor'}
-              </Text>
+              <Ionicons name={emptyContent.icon} size={64} color={colors.textSecondary} />
+              <Text style={s.emptyTitle}>{emptyContent.title}</Text>
+              <Text style={s.emptyText}>{emptyContent.text}</Text>
             </View>
           }
         />
@@ -259,82 +323,90 @@ const s = StyleSheet.create({
     fontWeight: '700', 
     color: colors.text,
   },
-  modeLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
+  modeBadge: {
     backgroundColor: colors.primaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  modeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  tabScrollContainer: {
+    backgroundColor: colors.paper,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: colors.paper,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     gap: 8,
   },
   tab: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     borderRadius: 20,
-    backgroundColor: colors.background,
+    backgroundColor: colors.grayLight,
     gap: 6,
   },
-  activeTab: {
+  // Pending tab styles (Orange)
+  pendingTabActive: {
     backgroundColor: colors.primaryLight,
   },
-  tabContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  pendingTabText: {
+    color: colors.primary,
+  },
+  pendingBadgeActive: {
+    backgroundColor: colors.primary,
+  },
+  pendingBadgeInactive: {
+    backgroundColor: colors.gray,
+  },
+  // Confirmed tab styles (Green)
+  confirmedTabActive: {
+    backgroundColor: colors.greenLight,
+  },
+  confirmedTabText: {
+    color: colors.green,
+  },
+  // Archived tab styles (Blue)
+  archivedTabActive: {
+    backgroundColor: colors.blueLight,
+  },
+  archivedTabText: {
+    color: colors.blue,
   },
   tabText: {
     fontSize: 14,
     fontWeight: '600',
     color: colors.textSecondary,
   },
-  activeTabText: {
-    color: colors.primary,
-  },
-  activeTabTextGreen: {
-    color: colors.green,
-  },
   tabBadge: {
-    backgroundColor: colors.textSecondary,
     borderRadius: 10,
-    paddingHorizontal: 6,
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    minWidth: 20,
+    minWidth: 22,
     alignItems: 'center',
-  },
-  activeTabBadge: {
-    backgroundColor: colors.primary,
-  },
-  greenBadge: {
-    backgroundColor: colors.green,
   },
   tabBadgeText: {
     fontSize: 11,
     fontWeight: '700',
     color: colors.paper,
   },
-  activeTabBadgeText: {
-    color: colors.paper,
+  greenBadge: {
+    backgroundColor: colors.green,
   },
-  greenBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.paper,
+  blueBadge: {
+    backgroundColor: colors.blue,
   },
   listContent: { 
     padding: 16,
+    paddingBottom: 100,
   },
   convCard: {
     flexDirection: 'row', 
@@ -350,6 +422,9 @@ const s = StyleSheet.create({
     shadowRadius: 2, 
     elevation: 1,
   },
+  archivedCard: {
+    opacity: 0.85,
+  },
   convAvatar: {
     width: 50, 
     height: 50, 
@@ -360,6 +435,9 @@ const s = StyleSheet.create({
   },
   confirmedAvatar: {
     backgroundColor: colors.green,
+  },
+  archivedAvatar: {
+    backgroundColor: colors.blue,
   },
   convAvatarText: { 
     fontSize: 16, 
@@ -380,6 +458,9 @@ const s = StyleSheet.create({
     color: colors.text, 
     flex: 1, 
     marginRight: 8,
+  },
+  archivedText: {
+    color: colors.textSecondary,
   },
   convTime: { 
     fontSize: 12, 
@@ -408,6 +489,20 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: colors.green,
+  },
+  archivedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.blueLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 4,
+  },
+  archivedBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.blue,
   },
   pendingBadge: {
     flexDirection: 'row',

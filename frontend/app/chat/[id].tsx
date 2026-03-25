@@ -24,6 +24,8 @@ const colors = {
   textSecondary: '#6B7280',
   green: '#22C55E',
   greenLight: '#DCFCE7',
+  blue: '#3B82F6',
+  blueLight: '#DBEAFE',
   border: '#E5E7EB',
 };
 
@@ -210,6 +212,47 @@ export default function ChatScreen() {
     }
   };
 
+  // Archive job (mark as completed)
+  const handleArchiveJob = async () => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Mark this job as completed? The conversation will be moved to your Completed Jobs archive.');
+      if (!confirmed) return;
+      
+      try {
+        const res = await api.post(`/conversations/${conversationId}/archive-job`);
+        setConversation(res.conversation);
+        window.alert('Job Completed! 🎉 This conversation has been moved to Completed Jobs.');
+        router.push('/(tabs)/messages');
+      } catch (e: any) {
+        window.alert('Error: ' + (e.message || 'Could not archive job'));
+      }
+    } else {
+      Alert.alert(
+        'Mark Job Complete',
+        'Mark this job as completed? The conversation will be moved to your Completed Jobs archive.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Complete', 
+            onPress: async () => {
+              try {
+                const res = await api.post(`/conversations/${conversationId}/archive-job`);
+                setConversation(res.conversation);
+                Alert.alert(
+                  'Job Completed! 🎉', 
+                  'This conversation has been moved to Completed Jobs.',
+                  [{ text: 'OK', onPress: () => router.push('/(tabs)/messages') }]
+                );
+              } catch (e: any) {
+                Alert.alert('Error', e.message || 'Could not archive job');
+              }
+            }
+          }
+        ]
+      );
+    }
+  };
+
   const formatTime = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -230,6 +273,7 @@ export default function ChatScreen() {
   // Determine confirmation status
   const myConfirmed = conversation?.confirmed_by?.includes(user?.id);
   const isFullyConfirmed = conversation?.job_status === 'confirmed';
+  const isArchived = conversation?.job_status === 'archived';
   const confirmCount = conversation?.confirmed_by?.length || 0;
   
   // Determine who is client and who is contractor in this conversation
@@ -378,11 +422,25 @@ export default function ChatScreen() {
           </View>
         )}
         
-        {/* Fully Confirmed Banner */}
+        {/* Fully Confirmed Banner with Archive Option */}
         {isFullyConfirmed && (
           <View style={s.fullyConfirmedBanner}>
-            <Ionicons name="checkmark-circle" size={22} color="#22C55E" />
-            <Text style={s.fullyConfirmedText}>Job Confirmed by both parties!</Text>
+            <View style={s.confirmedInfo}>
+              <Ionicons name="checkmark-circle" size={22} color="#22C55E" />
+              <Text style={s.fullyConfirmedText}>Job In Progress</Text>
+            </View>
+            <TouchableOpacity style={s.archiveBtn} onPress={handleArchiveJob}>
+              <Ionicons name="archive" size={16} color={colors.blue} />
+              <Text style={s.archiveBtnText}>Mark Complete</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Archived Banner */}
+        {isArchived && (
+          <View style={s.archivedBanner}>
+            <Ionicons name="archive" size={22} color={colors.blue} />
+            <Text style={s.archivedBannerText}>Job Completed</Text>
           </View>
         )}
 
@@ -564,17 +622,50 @@ const s = StyleSheet.create({
   fullyConfirmedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#DCFCE7',
     padding: 12,
-    gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#BBF7D0',
+  },
+  confirmedInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   fullyConfirmedText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#166534',
+  },
+  archiveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.blueLight,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  archiveBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.blue,
+  },
+  archivedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.blueLight,
+    padding: 12,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#93C5FD',
+  },
+  archivedBannerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.blue,
   },
   messagesList: {
     padding: 16,

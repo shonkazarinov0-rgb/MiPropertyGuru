@@ -1603,6 +1603,39 @@ async def confirm_job(conv_id: str, user=Depends(get_current_user)):
     
     return {"conversation": updated_conv}
 
+@api_router.post("/conversations/{conv_id}/archive-job")
+async def archive_job(conv_id: str, user=Depends(get_current_user)):
+    """Mark a job as completed and archive the conversation"""
+    conv = await db.conversations.find_one({"id": conv_id})
+    if not conv:
+        raise HTTPException(404, "Conversation not found")
+    
+    # Verify user is a participant
+    if user["id"] not in [conv["participant_1"], conv["participant_2"]]:
+        raise HTTPException(403, "Not authorized")
+    
+    await db.conversations.update_one(
+        {"id": conv_id},
+        {"$set": {
+            "job_status": "archived",
+            "archived_at": datetime.now(timezone.utc).isoformat(),
+            "archived_by": user["id"]
+        }}
+    )
+    
+    updated_conv = await db.conversations.find_one({"id": conv_id}, {"_id": 0})
+    
+    # Notify both parties via socket
+    try:
+        await sio.emit('job_archived', {
+            "conversation_id": conv_id,
+            "archived_by": user["id"]
+        }, room=conv_id)
+    except:
+        pass
+    
+    return {"conversation": updated_conv}
+
 # ── Contracts ──
 
 @api_router.post("/contracts/generate")
