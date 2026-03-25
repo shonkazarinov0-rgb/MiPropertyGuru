@@ -1057,7 +1057,8 @@ const styles = StyleSheet.create({
   },
   modeToggleRow: {
     alignItems: 'flex-end',
-    marginTop: 8,
+    marginTop: 4,
+    marginBottom: -4,
   },
   notificationBtn: {
     width: 32,
