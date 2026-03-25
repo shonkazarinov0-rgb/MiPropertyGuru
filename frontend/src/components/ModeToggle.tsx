@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter, usePathname } from 'expo-router';
 import { useAuth } from '../auth-context';
 
 const colors = {
@@ -16,6 +17,8 @@ const colors = {
 
 export default function ModeToggle() {
   const { user, switchMode, isClientMode, isContractorMode } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
 
   // Only show for contractors
   if (user?.role !== 'contractor') return null;
@@ -25,6 +28,10 @@ export default function ModeToggle() {
       await switchMode('contractor');
     } else {
       await switchMode('client');
+      // If on dashboard, redirect to explore (clients don't have dashboard)
+      if (pathname === '/dashboard' || pathname === '/(tabs)/dashboard') {
+        router.replace('/(tabs)/home');
+      }
     }
   };
 
@@ -47,7 +54,7 @@ export default function ModeToggle() {
           color={isContractorMode ? colors.paper : colors.textSecondary} 
         />
         <Text style={[styles.optionText, isContractorMode && styles.optionTextActive]}>
-          Pro
+          Contractor
         </Text>
       </View>
     </TouchableOpacity>
@@ -65,7 +72,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 52,
+    width: 68,
     paddingVertical: 4,
     borderRadius: 10,
     gap: 3,
