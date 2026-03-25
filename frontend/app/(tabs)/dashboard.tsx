@@ -178,57 +178,76 @@ export default function ContractorDashboard() {
 
     return (
       <View style={styles.jobCard}>
-        <View style={styles.jobHeader}>
-          <View style={styles.newBadge}>
-            <Text style={styles.newBadgeText}>NEW</Text>
+        {/* Top row with badge and time */}
+        <View style={styles.jobTopRow}>
+          <View style={styles.newIndicator}>
+            <View style={styles.newDot} />
+            <Text style={styles.newText}>New Job</Text>
           </View>
           <Text style={styles.jobTime}>{timeAgo}</Text>
         </View>
         
+        {/* Job title and trade */}
         <Text style={styles.jobTitle}>{item.title}</Text>
-        <View style={styles.tradeBadge}>
-          <Text style={styles.tradeBadgeText}>{item.trade_required}</Text>
-        </View>
-        <Text style={styles.jobDescription} numberOfLines={3}>{item.description}</Text>
         
-        <View style={styles.jobMeta}>
-          {item.location && (
-            <View style={styles.metaItem}>
-              <Ionicons name="location" size={16} color={colors.primary} />
-              <Text style={styles.metaText}>{item.location}</Text>
-            </View>
-          )}
-          {item.budget && (
-            <View style={styles.metaItem}>
-              <Ionicons name="cash" size={16} color={colors.green} />
-              <Text style={styles.metaText}>{item.budget}</Text>
-            </View>
-          )}
+        <View style={styles.tradeRow}>
+          <View style={styles.tradeChip}>
+            <Text style={styles.tradeChipText}>{item.trade_required}</Text>
+          </View>
           {item.urgency === 'urgent' && (
-            <View style={styles.urgentBadge}>
-              <Text style={styles.urgentText}>🔥 Urgent</Text>
+            <View style={styles.urgentChip}>
+              <Ionicons name="flame" size={12} color="#EF4444" />
+              <Text style={styles.urgentChipText}>Urgent</Text>
             </View>
           )}
         </View>
         
-        <View style={styles.postedByRow}>
-          <Ionicons name="person-circle" size={18} color={colors.textSecondary} />
-          <Text style={styles.postedByText}>Posted by {item.posted_by_name}</Text>
+        {/* Description */}
+        <Text style={styles.jobDescription} numberOfLines={2}>{item.description}</Text>
+        
+        {/* Location & Budget row */}
+        {(item.location || item.budget) && (
+          <View style={styles.detailsRow}>
+            {item.location && (
+              <View style={styles.detailItem}>
+                <Ionicons name="location-outline" size={14} color="#6B7280" />
+                <Text style={styles.detailText}>{item.location}</Text>
+              </View>
+            )}
+            {item.budget && (
+              <View style={styles.detailItem}>
+                <Ionicons name="wallet-outline" size={14} color="#6B7280" />
+                <Text style={styles.detailText}>{item.budget}</Text>
+              </View>
+            )}
+          </View>
+        )}
+        
+        {/* Client info */}
+        <View style={styles.clientRow}>
+          <View style={styles.clientAvatar}>
+            <Text style={styles.clientAvatarText}>
+              {item.posted_by_name?.charAt(0) || 'C'}
+            </Text>
+          </View>
+          <Text style={styles.clientName}>{item.posted_by_name}</Text>
         </View>
         
+        {/* Action buttons */}
         <View style={styles.jobActions}>
           <TouchableOpacity 
-            style={styles.ignoreBtn}
+            style={styles.declineBtn}
             onPress={() => handleJobResponse(item.id, 'ignore')}
           >
-            <Text style={styles.ignoreBtnText}>Not Interested</Text>
+            <Ionicons name="close" size={18} color="#6B7280" />
+            <Text style={styles.declineBtnText}>Pass</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.acceptBtn}
+            style={styles.respondBtn}
             onPress={() => handleJobResponse(item.id, 'accept')}
           >
-            <Ionicons name="chatbubble" size={18} color={colors.paper} />
-            <Text style={styles.acceptBtnText}>Contact</Text>
+            <Ionicons name="chatbubble" size={16} color={colors.paper} />
+            <Text style={styles.respondBtnText}>Respond</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -548,11 +567,36 @@ const styles = StyleSheet.create({
   },
   jobCard: {
     backgroundColor: colors.paper,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 16,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  jobTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
-    borderWidth: 2,
-    borderColor: colors.primary,
+  },
+  newIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  newDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22C55E',
+  },
+  newText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#22C55E',
   },
   jobHeader: {
     flexDirection: 'row',
@@ -582,10 +626,41 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   jobTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 8,
+  },
+  tradeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  tradeChip: {
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  tradeChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#16A34A',
+  },
+  urgentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
+  },
+  urgentChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#EF4444',
   },
   tradeBadge: {
     backgroundColor: colors.primaryLight,
@@ -604,6 +679,49 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     lineHeight: 20,
+    marginBottom: 12,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 14,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  detailText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  clientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  clientAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E0E7FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clientAvatarText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4F46E5',
+  },
+  clientName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
   },
   postedByRow: {
     flexDirection: 'row',
@@ -647,8 +765,37 @@ const styles = StyleSheet.create({
   },
   jobActions: {
     flexDirection: 'row',
-    marginTop: 16,
-    gap: 12,
+    gap: 10,
+  },
+  declineBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    gap: 6,
+  },
+  declineBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  respondBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    gap: 6,
+  },
+  respondBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.paper,
   },
   ignoreBtn: {
     flex: 1,
