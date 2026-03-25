@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet,
   ActivityIndicator, ScrollView, RefreshControl, Platform, Dimensions,
-  Image, Linking, Animated, Modal, Alert,
+  Image, Linking, Animated, Modal, Alert, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -81,6 +81,8 @@ export default function ClientHomeScreen() {
   const [filterLicenseOnly, setFilterLicenseOnly] = useState(false);
   const [filterMinRating, setFilterMinRating] = useState(0); // 0 = no filter
   const [filterLanguage, setFilterLanguage] = useState('All');
+  const [customLanguage, setCustomLanguage] = useState('');
+  const [showCustomLanguageInput, setShowCustomLanguageInput] = useState(false);
   
   // FAB Menu State - Click to open
   const [showServiceMenu, setShowServiceMenu] = useState(false);
@@ -326,6 +328,10 @@ export default function ClientHomeScreen() {
           if (filterLanguage === 'Chinese (Mandarin)') {
             return langs.some((l: string) => l.toLowerCase().includes('chinese') || l.toLowerCase().includes('mandarin'));
           }
+          // Handle custom "Other" language search
+          if (filterLanguage === 'Other' && customLanguage.trim()) {
+            return langs.some((l: string) => l.toLowerCase().includes(customLanguage.toLowerCase().trim()));
+          }
           return langs.includes(filterLanguage);
         });
       }
@@ -345,7 +351,7 @@ export default function ClientHomeScreen() {
     if (userLoc) {
       fetchContractors();
     }
-  }, [filterLicenseOnly, filterMinRating, filterLanguage]);
+  }, [filterLicenseOnly, filterMinRating, filterLanguage, customLanguage]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -852,17 +858,44 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                     <Text style={styles.filterLabel}>Language</Text>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                       <View style={styles.languageOptions}>
-                        {['All', 'English', 'French', 'Spanish', 'Portuguese', 'Chinese (Mandarin)', 'Hindi', 'Arabic', 'Tagalog', 'Vietnamese', 'Korean', 'Italian', 'German', 'Polish', 'Ukrainian', 'Russian', 'Punjabi'].map((lang) => (
+                        {['All', 'English', 'French', 'Spanish', 'Portuguese', 'Chinese (Mandarin)', 'Hindi', 'Arabic', 'Tagalog', 'Vietnamese', 'Korean', 'Italian', 'German', 'Polish', 'Ukrainian', 'Russian', 'Punjabi', 'Other'].map((lang) => (
                           <TouchableOpacity
                             key={lang}
                             style={[styles.langChip, filterLanguage === lang && styles.langChipActive]}
-                            onPress={() => setFilterLanguage(lang)}
+                            onPress={() => {
+                              setFilterLanguage(lang);
+                              if (lang !== 'Other') {
+                                setCustomLanguage('');
+                              }
+                            }}
                           >
                             <Text style={[styles.langChipText, filterLanguage === lang && styles.langChipTextActive]}>{lang}</Text>
                           </TouchableOpacity>
                         ))}
                       </View>
                     </ScrollView>
+                    
+                    {/* Custom Language Input - shown when "Other" is selected */}
+                    {filterLanguage === 'Other' && (
+                      <View style={styles.customLanguageContainer}>
+                        <TextInput
+                          style={styles.customLanguageInput}
+                          placeholder="Type language to search..."
+                          placeholderTextColor={colors.textSecondary}
+                          value={customLanguage}
+                          onChangeText={setCustomLanguage}
+                          autoCapitalize="words"
+                        />
+                        {customLanguage.length > 0 && (
+                          <TouchableOpacity 
+                            style={styles.clearCustomBtn}
+                            onPress={() => setCustomLanguage('')}
+                          >
+                            <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
                   </View>
                   
                   {/* Clear Filters */}
@@ -873,6 +906,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                         setFilterLicenseOnly(false);
                         setFilterMinRating(0);
                         setFilterLanguage('All');
+                        setCustomLanguage('');
                       }}
                     >
                       <Text style={styles.clearFiltersBtnText}>Clear all filters</Text>
@@ -1632,6 +1666,25 @@ const styles = StyleSheet.create({
   },
   langChipTextActive: {
     color: '#fff',
+  },
+  customLanguageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    backgroundColor: colors.paper,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+  },
+  customLanguageInput: {
+    flex: 1,
+    height: 44,
+    fontSize: 15,
+    color: colors.text,
+  },
+  clearCustomBtn: {
+    padding: 4,
   },
   clearFiltersBtn: {
     marginTop: 16,
