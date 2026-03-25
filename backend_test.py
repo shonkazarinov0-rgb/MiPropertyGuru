@@ -1,327 +1,376 @@
 #!/usr/bin/env python3
 """
-MiPropertyGuru Backend API Testing Script
-Tests Stripe subscription and Admin bypass features
+Backend API Testing for MiPropertyGuru Job Interaction Flow
+Testing the specific APIs mentioned in the review request
 """
 
 import requests
 import json
-import uuid
 import sys
-from typing import Dict, Any, Optional
+from datetime import datetime
 
-# Test configuration
-BACKEND_URL = "https://local-trades-12.preview.emergentagent.com/api"
-ADMIN_SECRET = "mipg-admin-2024"
+# Configuration
+BASE_URL = "https://local-trades-12.preview.emergentagent.com/api"
 
 # Test credentials
-TEST_CLIENT = {
-    "email": "client@demo.com",
-    "password": "demo123"
-}
+CLIENT_EMAIL = "client@demo.com"
+CLIENT_PASSWORD = "demo123"
+CONTRACTOR_EMAIL = "carlos.rodriguez@demo.com"
+CONTRACTOR_PASSWORD = "demo123"
 
-# Global variables for test session
-client_token = None
-test_contractor_id = None
-test_contractor_token = None
-
-def make_request(method: str, endpoint: str, data: Dict[Any, Any] = None, 
-                headers: Dict[str, str] = None, params: Dict[str, str] = None) -> tuple:
-    """Make HTTP request and return response data and status code"""
-    url = f"{BACKEND_URL}{endpoint}"
-    default_headers = {"Content-Type": "application/json"}
+class APITester:
+    def __init__(self):
+        self.client_token = None
+        self.contractor_token = None
+        self.client_user_id = None
+        self.contractor_user_id = None
+        self.job_id = None
+        self.conversation_id = None
+        self.test_results = []
+        
+    def log_result(self, test_name, success, message, details=None):
+        """Log test result"""
+        status = "✅ PASS" if success else "❌ FAIL"
+        print(f"{status} {test_name}: {message}")
+        if details:
+            print(f"   Details: {details}")
+        
+        self.test_results.append({
+            "test": test_name,
+            "success": success,
+            "message": message,
+            "details": details,
+            "timestamp": datetime.now().isoformat()
+        })
     
-    if headers:
-        default_headers.update(headers)
-    
-    try:
-        if method.upper() == "GET":
-            response = requests.get(url, headers=default_headers, params=params, timeout=30)
-        elif method.upper() == "POST":
-            response = requests.post(url, json=data, headers=default_headers, params=params, timeout=30)
-        elif method.upper() == "PUT":
-            response = requests.put(url, json=data, headers=default_headers, params=params, timeout=30)
-        else:
-            return None, 500
+    def make_request(self, method, endpoint, data=None, token=None, expected_status=200):
+        """Make HTTP request with error handling"""
+        url = f"{BASE_URL}{endpoint}"
+        headers = {"Content-Type": "application/json"}
+        
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         
         try:
-            return response.json(), response.status_code
-        except:
-            return {"message": response.text}, response.status_code
-    except requests.exceptions.RequestException as e:
-        print(f"Request failed: {str(e)}")
-        return {"error": str(e)}, 500
-
-def auth_headers(token: str) -> Dict[str, str]:
-    """Create authorization headers"""
-    return {"Authorization": f"Bearer {token}"}
-
-def test_user_registration():
-    """Test 1: User Registration (Contractor with pending status)"""
-    print("🧪 Testing user registration (contractor with pending status)...")
-    
-    # Create unique test contractor
-    test_email = f"test.contractor.{str(uuid.uuid4())[:8]}@test.com"
-    test_data = {
-        "name": "Test Contractor",
-        "email": test_email,
-        "phone": "+15551234567",
-        "password": "test123",
-        "role": "contractor",
-        "contractor_type": "Electrician",
-        "bio": "Test electrician for API testing",
-        "hourly_rate": 75.0
-    }
-    
-    response, status = make_request("POST", "/auth/register", test_data)
-    
-    if status == 200:
-        global test_contractor_id, test_contractor_token
-        test_contractor_id = response["user"]["id"]
-        test_contractor_token = response["token"]
-        subscription_status = response["user"]["subscription_status"]
-        
-        if subscription_status == "pending":
-            print("✅ Registration successful - contractor has pending subscription status")
-            return True
-        else:
-            print(f"❌ Registration failed - expected pending status, got: {subscription_status}")
-            return False
-    else:
-        print(f"❌ Registration failed with status {status}: {response}")
-        return False
-
-def test_user_login():
-    """Test 2: User Login (Existing client)"""
-    print("🧪 Testing user login (existing client)...")
-    
-    response, status = make_request("POST", "/auth/login", TEST_CLIENT)
-    
-    if status == 200:
-        global client_token
-        client_token = response["token"]
-        user_data = response["user"]
-        
-        if user_data["role"] == "client" and user_data["email"] == TEST_CLIENT["email"]:
-            print("✅ Client login successful")
-            return True
-        else:
-            print(f"❌ Login failed - unexpected user data: {user_data}")
-            return False
-    else:
-        print(f"❌ Login failed with status {status}: {response}")
-        return False
-
-def test_admin_verification():
-    """Test 3: Admin Verification"""
-    print("🧪 Testing admin verification...")
-    
-    if not client_token:
-        print("❌ Skipping admin verification - no auth token available")
-        return False
-    
-    headers = auth_headers(client_token)
-    
-    # Test with correct admin secret
-    print("  Testing with correct admin secret...")
-    correct_data = {"admin_secret": ADMIN_SECRET}
-    response, status = make_request("POST", "/admin/verify", correct_data, headers)
-    
-    if status == 200 and response.get("verified") == True:
-        print("✅ Admin verification successful with correct secret")
-    else:
-        print(f"❌ Admin verification failed with correct secret: {status} - {response}")
-        return False
-    
-    # Test with wrong admin secret
-    print("  Testing with wrong admin secret...")
-    wrong_data = {"admin_secret": "wrong-secret"}
-    response, status = make_request("POST", "/admin/verify", wrong_data, headers)
-    
-    if status == 403:
-        print("✅ Admin verification correctly rejected wrong secret")
-        return True
-    else:
-        print(f"❌ Admin verification should reject wrong secret, got: {status} - {response}")
-        return False
-
-def test_admin_list_contractors():
-    """Test 4: Admin List Contractors"""
-    print("🧪 Testing admin list contractors...")
-    
-    if not client_token:
-        print("❌ Skipping admin list contractors - no auth token available")
-        return False
-    
-    headers = auth_headers(client_token)
-    params = {"admin_secret": ADMIN_SECRET}
-    
-    response, status = make_request("GET", "/admin/contractors", headers=headers, params=params)
-    
-    if status == 200:
-        contractors = response.get("contractors", [])
-        print(f"✅ Admin list contractors successful - found {len(contractors)} contractors")
-        
-        # Check if our test contractor is in the list
-        if test_contractor_id:
-            found = any(c["id"] == test_contractor_id for c in contractors)
-            if found:
-                print("✅ Test contractor found in admin list")
+            if method.upper() == "GET":
+                response = requests.get(url, headers=headers, timeout=30)
+            elif method.upper() == "POST":
+                response = requests.post(url, headers=headers, json=data, timeout=30)
+            elif method.upper() == "PUT":
+                response = requests.put(url, headers=headers, json=data, timeout=30)
             else:
-                print("⚠️ Test contractor not found in admin list")
-        
-        return True
-    else:
-        print(f"❌ Admin list contractors failed: {status} - {response}")
-        return False
-
-def test_admin_activate_contractor():
-    """Test 5: Admin Activate Contractor"""
-    print("🧪 Testing admin activate contractor...")
-    
-    if not client_token or not test_contractor_id:
-        print("❌ Skipping admin activate - missing auth token or contractor ID")
-        return False
-    
-    headers = auth_headers(client_token)
-    activate_data = {"admin_secret": ADMIN_SECRET}
-    
-    response, status = make_request("POST", f"/admin/activate/{test_contractor_id}", activate_data, headers)
-    
-    if status == 200:
-        print("✅ Admin activate contractor successful")
-        
-        # Verify the contractor is now activated by logging in and checking status
-        if test_contractor_token:
-            me_response, me_status = make_request("GET", "/auth/me", headers=auth_headers(test_contractor_token))
+                return None, f"Unsupported method: {method}"
             
-            if me_status == 200:
-                subscription_status = me_response.get("subscription_status")
-                subscription_fee = me_response.get("subscription_fee")
-                
-                if subscription_status == "active" and subscription_fee == 0:
-                    print("✅ Contractor successfully activated with free access")
-                    return True
-                else:
-                    print(f"❌ Contractor activation incomplete - status: {subscription_status}, fee: {subscription_fee}")
-                    return False
-            else:
-                print(f"⚠️ Could not verify contractor activation: {me_status} - {me_response}")
-                return True  # Still count as success since activation API worked
-        else:
-            print("⚠️ No contractor token available for verification")
-            return True  # Still count as success since activation API worked
-    else:
-        print(f"❌ Admin activate contractor failed: {status} - {response}")
-        return False
-
-def test_stripe_checkout():
-    """Test 6: Stripe Checkout (Skip actual payment but verify endpoint)"""
-    print("🧪 Testing Stripe checkout endpoint...")
+            if response.status_code != expected_status:
+                return None, f"Expected {expected_status}, got {response.status_code}: {response.text}"
+            
+            return response.json(), None
+        except requests.exceptions.RequestException as e:
+            return None, f"Request failed: {str(e)}"
+        except json.JSONDecodeError as e:
+            return None, f"Invalid JSON response: {str(e)}"
     
-    if not test_contractor_token:
-        print("❌ Skipping Stripe checkout - no contractor token available")
-        return False
-    
-    headers = auth_headers(test_contractor_token)
-    checkout_data = {
-        "origin_url": "https://local-trades-12.preview.emergentagent.com"
-    }
-    
-    response, status = make_request("POST", "/payments/create-subscription", checkout_data, headers)
-    
-    if status == 200:
-        checkout_url = response.get("url")
-        session_id = response.get("session_id")
+    def test_client_login(self):
+        """Test client login"""
+        print("\n=== Testing Client Login ===")
         
-        if checkout_url and session_id:
-            print("✅ Stripe checkout endpoint working - received checkout URL and session ID")
-            print(f"   Session ID: {session_id}")
-            return True
-        else:
-            print(f"❌ Stripe checkout missing required fields: {response}")
+        data = {
+            "email": CLIENT_EMAIL,
+            "password": CLIENT_PASSWORD
+        }
+        
+        response, error = self.make_request("POST", "/auth/login", data)
+        
+        if error:
+            self.log_result("Client Login", False, f"Login failed: {error}")
             return False
-    else:
-        print(f"❌ Stripe checkout failed: {status} - {response}")
-        # Check if it's a Stripe configuration issue
-        if "stripe" in str(response).lower() or "api" in str(response).lower():
-            print("⚠️ This might be a Stripe API configuration issue (expected in test environment)")
-            return True  # Count as success since endpoint exists
-        return False
-
-def test_contractor_listing_filter():
-    """Test 7: Contractor Listing with Subscription Filter"""
-    print("🧪 Testing contractor listing with subscription filter...")
-    
-    response, status = make_request("GET", "/contractors")
-    
-    if status == 200:
-        contractors = response.get("contractors", [])
-        print(f"✅ Contractor listing successful - found {len(contractors)} active contractors")
         
-        # Verify all contractors have active subscription status
-        all_active = all(c.get("subscription_status") == "active" for c in contractors)
-        
-        if all_active:
-            print("✅ All listed contractors have active subscription status")
-            return True
-        else:
-            inactive_count = sum(1 for c in contractors if c.get("subscription_status") != "active")
-            print(f"❌ Found {inactive_count} contractors without active subscription in listing")
+        if "token" not in response or "user" not in response:
+            self.log_result("Client Login", False, "Missing token or user in response")
             return False
-    else:
-        print(f"❌ Contractor listing failed: {status} - {response}")
-        return False
-
-def run_tests():
-    """Run all backend tests"""
-    print("🚀 Starting MiPropertyGuru Backend API Tests")
-    print(f"Backend URL: {BACKEND_URL}")
-    print("=" * 60)
-    
-    tests = [
-        ("User Registration", test_user_registration),
-        ("User Login", test_user_login),
-        ("Admin Verification", test_admin_verification),
-        ("Admin List Contractors", test_admin_list_contractors),
-        ("Admin Activate Contractor", test_admin_activate_contractor),
-        ("Stripe Checkout", test_stripe_checkout),
-        ("Contractor Listing Filter", test_contractor_listing_filter),
-    ]
-    
-    results = []
-    
-    for test_name, test_func in tests:
-        print()
-        try:
-            success = test_func()
-            results.append((test_name, success))
-            status = "✅ PASSED" if success else "❌ FAILED"
-            print(f"{status}: {test_name}")
-        except Exception as e:
-            print(f"❌ ERROR in {test_name}: {str(e)}")
-            results.append((test_name, False))
-    
-    print("\n" + "=" * 60)
-    print("📊 TEST SUMMARY")
-    print("=" * 60)
-    
-    passed = sum(1 for _, success in results if success)
-    total = len(results)
-    
-    for test_name, success in results:
-        status = "✅ PASSED" if success else "❌ FAILED"
-        print(f"{status}: {test_name}")
-    
-    print(f"\nOverall: {passed}/{total} tests passed ({passed/total*100:.1f}%)")
-    
-    if passed == total:
-        print("🎉 All tests passed!")
+        
+        self.client_token = response["token"]
+        self.client_user_id = response["user"]["id"]
+        
+        self.log_result("Client Login", True, f"Successfully logged in as {CLIENT_EMAIL}")
+        print(f"   Client User ID: {self.client_user_id}")
         return True
-    else:
-        print(f"⚠️ {total - passed} tests failed")
-        return False
+    
+    def test_contractor_login(self):
+        """Test contractor login"""
+        print("\n=== Testing Contractor Login ===")
+        
+        data = {
+            "email": CONTRACTOR_EMAIL,
+            "password": CONTRACTOR_PASSWORD
+        }
+        
+        response, error = self.make_request("POST", "/auth/login", data)
+        
+        if error:
+            self.log_result("Contractor Login", False, f"Login failed: {error}")
+            return False
+        
+        if "token" not in response or "user" not in response:
+            self.log_result("Contractor Login", False, "Missing token or user in response")
+            return False
+        
+        self.contractor_token = response["token"]
+        self.contractor_user_id = response["user"]["id"]
+        contractor_type = response["user"].get("contractor_type", "Unknown")
+        
+        self.log_result("Contractor Login", True, f"Successfully logged in as {CONTRACTOR_EMAIL}")
+        print(f"   Contractor User ID: {self.contractor_user_id}")
+        print(f"   Contractor Type: {contractor_type}")
+        return True
+    
+    def test_post_job(self):
+        """Test POST /api/jobs/post - Client posts a job"""
+        print("\n=== Testing Job Posting ===")
+        
+        if not self.client_token:
+            self.log_result("Job Posting", False, "No client token available")
+            return False
+        
+        job_data = {
+            "title": "Plumbing Repair Needed",
+            "trade_required": "Plumber",
+            "description": "Kitchen sink is leaking and needs immediate repair. Water damage is getting worse.",
+            "location": "Toronto, ON",
+            "budget": "$500"
+        }
+        
+        response, error = self.make_request("POST", "/jobs/post", job_data, self.client_token)
+        
+        if error:
+            self.log_result("Job Posting", False, f"Failed to post job: {error}")
+            return False
+        
+        if "job" not in response or "id" not in response["job"]:
+            self.log_result("Job Posting", False, "Missing job or job ID in response")
+            return False
+        
+        self.job_id = response["job"]["id"]
+        job_title = response["job"]["title"]
+        trade_required = response["job"]["trade_required"]
+        
+        self.log_result("Job Posting", True, f"Successfully posted job: {job_title}")
+        print(f"   Job ID: {self.job_id}")
+        print(f"   Trade Required: {trade_required}")
+        print(f"   Posted by: {response['job']['posted_by_name']}")
+        return True
+    
+    def test_get_available_jobs(self):
+        """Test GET /api/jobs/available - Contractor sees available jobs"""
+        print("\n=== Testing Available Jobs ===")
+        
+        if not self.contractor_token:
+            self.log_result("Available Jobs", False, "No contractor token available")
+            return False
+        
+        response, error = self.make_request("GET", "/jobs/available", token=self.contractor_token)
+        
+        if error:
+            self.log_result("Available Jobs", False, f"Failed to get available jobs: {error}")
+            return False
+        
+        if "jobs" not in response:
+            self.log_result("Available Jobs", False, "Missing jobs in response")
+            return False
+        
+        jobs = response["jobs"]
+        job_found = False
+        
+        # Check if our posted job appears in the list
+        for job in jobs:
+            if job.get("id") == self.job_id:
+                job_found = True
+                print(f"   Found posted job: {job['title']}")
+                print(f"   Trade Required: {job['trade_required']}")
+                print(f"   Posted by: {job['posted_by_name']}")
+                break
+        
+        if not job_found and self.job_id:
+            self.log_result("Available Jobs", False, f"Posted job {self.job_id} not found in available jobs")
+            return False
+        
+        self.log_result("Available Jobs", True, f"Retrieved {len(jobs)} available jobs")
+        if job_found:
+            print(f"   ✅ Posted job appears in contractor's available jobs")
+        return True
+    
+    def test_dismiss_job(self):
+        """Test POST /api/jobs/{job_id}/dismiss - Contractor dismisses a job"""
+        print("\n=== Testing Job Dismissal ===")
+        
+        if not self.contractor_token or not self.job_id:
+            self.log_result("Job Dismissal", False, "Missing contractor token or job ID")
+            return False
+        
+        response, error = self.make_request("POST", f"/jobs/{self.job_id}/dismiss", {}, self.contractor_token)
+        
+        if error:
+            self.log_result("Job Dismissal", False, f"Failed to dismiss job: {error}")
+            return False
+        
+        if "message" not in response:
+            self.log_result("Job Dismissal", False, "Missing message in response")
+            return False
+        
+        self.log_result("Job Dismissal", True, f"Successfully dismissed job: {response['message']}")
+        return True
+    
+    def test_available_jobs_after_dismiss(self):
+        """Test that dismissed job no longer appears in available jobs"""
+        print("\n=== Testing Available Jobs After Dismissal ===")
+        
+        if not self.contractor_token:
+            self.log_result("Jobs After Dismissal", False, "No contractor token available")
+            return False
+        
+        response, error = self.make_request("GET", "/jobs/available", token=self.contractor_token)
+        
+        if error:
+            self.log_result("Jobs After Dismissal", False, f"Failed to get available jobs: {error}")
+            return False
+        
+        if "jobs" not in response:
+            self.log_result("Jobs After Dismissal", False, "Missing jobs in response")
+            return False
+        
+        jobs = response["jobs"]
+        job_found = False
+        
+        # Check if our dismissed job still appears in the list
+        for job in jobs:
+            if job.get("id") == self.job_id:
+                job_found = True
+                break
+        
+        if job_found:
+            self.log_result("Jobs After Dismissal", False, "Dismissed job still appears in available jobs")
+            return False
+        
+        self.log_result("Jobs After Dismissal", True, f"Dismissed job correctly excluded from {len(jobs)} available jobs")
+        return True
+    
+    def test_post_another_job(self):
+        """Post another job for conversation testing"""
+        print("\n=== Testing Second Job Posting ===")
+        
+        if not self.client_token:
+            self.log_result("Second Job Posting", False, "No client token available")
+            return False
+        
+        job_data = {
+            "title": "Bathroom Plumbing Installation",
+            "trade_required": "Plumber",
+            "description": "Need to install new bathroom fixtures including toilet, sink, and shower.",
+            "location": "Toronto, ON",
+            "budget": "$1200"
+        }
+        
+        response, error = self.make_request("POST", "/jobs/post", job_data, self.client_token)
+        
+        if error:
+            self.log_result("Second Job Posting", False, f"Failed to post second job: {error}")
+            return False
+        
+        if "job" not in response or "id" not in response["job"]:
+            self.log_result("Second Job Posting", False, "Missing job or job ID in response")
+            return False
+        
+        # Update job_id to the new job for conversation testing
+        self.job_id = response["job"]["id"]
+        job_title = response["job"]["title"]
+        
+        self.log_result("Second Job Posting", True, f"Successfully posted second job: {job_title}")
+        print(f"   New Job ID: {self.job_id}")
+        return True
+    
+    def test_create_conversation(self):
+        """Test POST /api/conversations - Contractor contacts client"""
+        print("\n=== Testing Conversation Creation ===")
+        
+        if not self.contractor_token or not self.client_user_id:
+            self.log_result("Conversation Creation", False, "Missing contractor token or client user ID")
+            return False
+        
+        conversation_data = {
+            "participant_id": self.client_user_id
+        }
+        
+        response, error = self.make_request("POST", "/conversations", conversation_data, self.contractor_token)
+        
+        if error:
+            self.log_result("Conversation Creation", False, f"Failed to create conversation: {error}")
+            return False
+        
+        if "id" not in response:
+            self.log_result("Conversation Creation", False, "Missing conversation ID in response")
+            return False
+        
+        self.conversation_id = response["id"]
+        participant_1_name = response.get("participant_1_name", "Unknown")
+        participant_2_name = response.get("participant_2_name", "Unknown")
+        
+        self.log_result("Conversation Creation", True, f"Successfully created conversation")
+        print(f"   Conversation ID: {self.conversation_id}")
+        print(f"   Participants: {participant_1_name} <-> {participant_2_name}")
+        return True
+    
+    def run_all_tests(self):
+        """Run all tests in sequence"""
+        print("🚀 Starting Job Interaction Flow API Tests")
+        print("=" * 60)
+        
+        # Test sequence as specified in review request
+        tests = [
+            ("Client Login", self.test_client_login),
+            ("Contractor Login", self.test_contractor_login),
+            ("Job Posting", self.test_post_job),
+            ("Available Jobs", self.test_get_available_jobs),
+            ("Job Dismissal", self.test_dismiss_job),
+            ("Jobs After Dismissal", self.test_available_jobs_after_dismiss),
+            ("Second Job Posting", self.test_post_another_job),
+            ("Conversation Creation", self.test_create_conversation),
+        ]
+        
+        passed = 0
+        failed = 0
+        
+        for test_name, test_func in tests:
+            try:
+                if test_func():
+                    passed += 1
+                else:
+                    failed += 1
+            except Exception as e:
+                self.log_result(test_name, False, f"Test crashed: {str(e)}")
+                failed += 1
+        
+        # Summary
+        print("\n" + "=" * 60)
+        print("🏁 TEST SUMMARY")
+        print("=" * 60)
+        print(f"✅ Passed: {passed}")
+        print(f"❌ Failed: {failed}")
+        print(f"📊 Total: {passed + failed}")
+        
+        if failed == 0:
+            print("\n🎉 ALL TESTS PASSED! Job Interaction Flow APIs are working correctly.")
+        else:
+            print(f"\n⚠️  {failed} test(s) failed. Please check the details above.")
+        
+        return failed == 0
+
+def main():
+    """Main test execution"""
+    tester = APITester()
+    success = tester.run_all_tests()
+    
+    # Exit with appropriate code
+    sys.exit(0 if success else 1)
 
 if __name__ == "__main__":
-    success = run_tests()
-    sys.exit(0 if success else 1)
+    main()
