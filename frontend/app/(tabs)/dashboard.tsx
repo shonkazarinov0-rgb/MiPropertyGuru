@@ -437,7 +437,7 @@ export default function ContractorDashboard() {
           <Text style={[styles.tabText, activeTab === 'incoming' && styles.tabTextActiveOrange]}>
             Incoming
           </Text>
-          {incomingJobs.length > 0 && (
+          {isOnline && incomingJobs.length > 0 && (
             <View style={[styles.tabBadge, activeTab === 'incoming' && styles.tabBadgeActiveOrange]}>
               <Text style={[styles.tabBadgeText, activeTab === 'incoming' && styles.tabBadgeTextActive]}>
                 {incomingJobs.length}
@@ -481,7 +481,7 @@ export default function ContractorDashboard() {
       
       {activeTab === 'incoming' && (
         <FlatList
-          data={incomingJobs}
+          data={isOnline ? incomingJobs : []}
           renderItem={renderIncomingJob}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
@@ -514,31 +514,35 @@ export default function ContractorDashboard() {
                 />
               </View>
 
-              {/* Stats Cards */}
-              <View style={styles.statsGrid}>
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>{stats?.jobs_received_this_week || 0}</Text>
-                  <Text style={styles.statLabel}>Jobs this week</Text>
-                </View>
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>{stats?.profile_views || 0}</Text>
-                  <Text style={styles.statLabel}>Profile views</Text>
-                </View>
-              </View>
+              {/* Stats Cards - Only show when online */}
+              {isOnline && (
+                <>
+                  <View style={styles.statsGrid}>
+                    <View style={styles.statCard}>
+                      <Text style={styles.statNumber}>{stats?.jobs_received_this_week || 0}</Text>
+                      <Text style={styles.statLabel}>Jobs this week</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                      <Text style={styles.statNumber}>{stats?.profile_views || 0}</Text>
+                      <Text style={styles.statLabel}>Profile views</Text>
+                    </View>
+                  </View>
 
-              {/* Quick Stats Row */}
-              <View style={styles.quickStats}>
-                <View style={styles.quickStatItem}>
-                  <Ionicons name="star" size={18} color="#FFB800" />
-                  <Text style={styles.quickStatText}>{stats?.rating || 0}</Text>
-                  <Text style={styles.quickStatLabel}>({stats?.review_count || 0} reviews)</Text>
-                </View>
-                <View style={styles.quickStatItem}>
-                  <Ionicons name="checkmark-circle" size={18} color={colors.green} />
-                  <Text style={styles.quickStatText}>{completedJobs.length}</Text>
-                  <Text style={styles.quickStatLabel}>completed</Text>
-                </View>
-              </View>
+                  {/* Quick Stats Row */}
+                  <View style={styles.quickStats}>
+                    <View style={styles.quickStatItem}>
+                      <Ionicons name="star" size={18} color="#FFB800" />
+                      <Text style={styles.quickStatText}>{stats?.rating || 0}</Text>
+                      <Text style={styles.quickStatLabel}>({stats?.review_count || 0} reviews)</Text>
+                    </View>
+                    <View style={styles.quickStatItem}>
+                      <Ionicons name="checkmark-circle" size={18} color={colors.green} />
+                      <Text style={styles.quickStatText}>{completedJobs.length}</Text>
+                      <Text style={styles.quickStatLabel}>completed</Text>
+                    </View>
+                  </View>
+                </>
+              )}
             </>
           )}
           ListEmptyComponent={() => (
