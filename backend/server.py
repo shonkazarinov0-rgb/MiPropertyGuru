@@ -824,6 +824,7 @@ async def post_job(req: JobPostCreate, user=Depends(get_current_user)):
     return {"job": job, "message": "Job posted successfully"}
 
 @api_router.get("/jobs/posted")
+@api_router.get("/jobs/my-posted")
 async def get_my_posted_jobs(user=Depends(get_current_user)):
     """Get jobs posted by the current user"""
     jobs = await db.posted_jobs.find(

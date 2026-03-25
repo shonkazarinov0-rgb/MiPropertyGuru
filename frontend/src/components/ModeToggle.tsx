@@ -20,7 +20,20 @@ export default function ModeToggle() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // Only show for contractors
+  // For pure clients (not contractors), show "Become a Contractor" button
+  if (user?.role === 'client') {
+    return (
+      <TouchableOpacity 
+        style={styles.becomeContractorBtn} 
+        onPress={() => router.push('/?mode=register&role=contractor')}
+      >
+        <Ionicons name="construct" size={12} color={colors.green} />
+        <Text style={styles.becomeContractorText}>Become a Pro</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // Only show mode toggle for contractors
   if (user?.role !== 'contractor') return null;
 
   const handleToggle = async () => {
@@ -90,5 +103,19 @@ const styles = StyleSheet.create({
   },
   optionTextActive: {
     color: colors.paper,
+  },
+  becomeContractorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.greenLight,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 4,
+  },
+  becomeContractorText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.green,
   },
 });

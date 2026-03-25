@@ -20,6 +20,9 @@ export default function TabLayout() {
   // Hide Dashboard tab when user is in client mode or is a guest
   const showDashboard = user?.role === 'contractor' && isContractorMode;
   
+  // Show Posted Jobs for clients or when contractor is in client mode
+  const showPostedJobs = user?.role === 'client' || (user?.role === 'contractor' && isClientMode);
+  
   // Hide Messages and Profile for guests
   const showMessagesAndProfile = !isGuest;
 
@@ -40,6 +43,14 @@ export default function TabLayout() {
         title: 'Explore',
         tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
       }} />
+      <Tabs.Screen 
+        name="posted-jobs" 
+        options={{
+          title: 'My Jobs',
+          tabBarIcon: ({ color, size }) => <Ionicons name="briefcase" size={size} color={color} />,
+          href: showPostedJobs ? undefined : null, // Only show for clients/client mode
+        }} 
+      />
       <Tabs.Screen 
         name="dashboard" 
         options={{
