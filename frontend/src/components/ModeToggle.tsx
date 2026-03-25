@@ -55,7 +55,11 @@ export default function ModeToggle() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container, 
+      // Use white background on Explore (orange gradient), light gray on other pages
+      (pathname === '/home' || pathname === '/(tabs)/home') ? styles.containerWhite : styles.containerGray
+    ]}>
       <TouchableOpacity 
         style={[styles.option, isClientMode && styles.optionActiveClient]}
         onPress={handleClientMode}
@@ -91,9 +95,14 @@ export default function ModeToggle() {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: colors.paper,
     borderRadius: 12,
     padding: 2,
+  },
+  containerWhite: {
+    backgroundColor: colors.paper,
+  },
+  containerGray: {
+    backgroundColor: '#F3F4F6',
   },
   option: {
     flexDirection: 'row',
