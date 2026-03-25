@@ -189,7 +189,8 @@ export default function JobDetailScreen() {
           <View style={s.headerActions}>
             {!isEditing && job.status !== 'completed' && (
               <TouchableOpacity onPress={() => setIsEditing(true)} style={s.editBtn}>
-                <Ionicons name="create-outline" size={20} color={colors.primary} />
+                <Ionicons name="create-outline" size={18} color={colors.primary} />
+                <Text style={s.editBtnText}>Edit</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -353,16 +354,22 @@ const s = StyleSheet.create({
     color: colors.text,
   },
   headerActions: {
-    width: 40,
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   editBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    gap: 4,
+  },
+  editBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
   },
   content: {
     padding: 16,
