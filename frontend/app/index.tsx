@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, Modal, FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../src/auth-context';
@@ -47,6 +47,7 @@ function Logo({ size = 'large' }: { size?: 'large' | 'small' }) {
 
 export default function AuthScreen() {
   const { user, loading, login, register, setGuestMode } = useAuth();
+  const params = useLocalSearchParams<{ mode?: string }>();
   const [mode, setMode] = useState<'welcome' | 'login' | 'register' | 'choose'>('welcome');
   const [role, setRole] = useState<'client' | 'contractor'>('client');
   const [name, setName] = useState('');
@@ -61,6 +62,16 @@ export default function AuthScreen() {
   const [typeSearch, setTypeSearch] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true); // Keep me logged in option
+
+  // Handle direct navigation to login or register
+  useEffect(() => {
+    if (params.mode === 'login') {
+      setMode('login');
+    } else if (params.mode === 'register') {
+      setMode('register');
+      setRole('client');
+    }
+  }, [params.mode]);
 
   if (loading) {
     return (

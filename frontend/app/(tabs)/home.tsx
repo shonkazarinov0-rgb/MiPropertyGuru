@@ -481,14 +481,14 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               <Text style={styles.guestPromptText}>
                 <Text 
                   style={styles.guestPromptLink} 
-                  onPress={(e) => { e.stopPropagation(); router.push('/'); }}
+                  onPress={(e) => { e.stopPropagation(); router.push('/?mode=login'); }}
                 >
                   Sign in
                 </Text>
                 {' or '}
                 <Text 
                   style={styles.guestPromptLink}
-                  onPress={(e) => { e.stopPropagation(); router.push('/'); }}
+                  onPress={(e) => { e.stopPropagation(); router.push('/?mode=register'); }}
                 >
                   Register
                 </Text>

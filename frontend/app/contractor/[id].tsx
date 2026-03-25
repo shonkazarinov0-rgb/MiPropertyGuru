@@ -219,15 +219,23 @@ export default function ContractorDetailScreen() {
         {/* Not logged in banner */}
         {!user && (
           <View style={s.signInBanner}>
-            <View style={s.signInBannerLeft}>
-              <Ionicons name="information-circle" size={22} color={colors.primary} />
-              <Text style={s.signInBannerText}>
-                Sign in or create an account to contact this contractor
+            <Ionicons name="information-circle" size={20} color={colors.primary} />
+            <Text style={s.signInBannerText}>
+              <Text 
+                style={s.signInLink} 
+                onPress={() => router.push('/?mode=login')}
+              >
+                Sign in
               </Text>
-            </View>
-            <TouchableOpacity style={s.signInBannerBtn} onPress={() => router.push('/')}>
-              <Text style={s.signInBannerBtnText}>Sign In</Text>
-            </TouchableOpacity>
+              {' or '}
+              <Text 
+                style={s.signInLink}
+                onPress={() => router.push('/?mode=register')}
+              >
+                Register
+              </Text>
+              {' to contact'}
+            </Text>
           </View>
         )}
 
@@ -433,9 +441,15 @@ const s = StyleSheet.create({
   },
   signInBannerText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.text,
     fontWeight: '500',
+    marginLeft: spacing.s,
+  },
+  signInLink: {
+    color: colors.primary,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   signInBannerBtn: {
     backgroundColor: colors.primary,
