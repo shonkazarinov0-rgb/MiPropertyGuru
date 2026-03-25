@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
+import ModeToggle from '../../src/components/ModeToggle';
 
 const colors = {
   primary: '#FF6A00',
@@ -295,12 +296,10 @@ export default function ContractorDashboard() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Dashboard Header with Mode Indicator */}
+      {/* Dashboard Header with Mode Toggle */}
       <View style={styles.dashboardHeader}>
         <Text style={styles.dashboardTitle}>Dashboard</Text>
-        <View style={styles.modeIndicator}>
-          <Text style={styles.modeText}>👷 Contractor Mode</Text>
-        </View>
+        <ModeToggle />
       </View>
       
       <FlatList

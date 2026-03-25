@@ -37,7 +37,7 @@ export default function TabLayout() {
       tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
     }}>
       <Tabs.Screen name="home" options={{
-        title: isContractorMode ? 'Find Work' : 'Explore',
+        title: 'Explore',
         tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
       }} />
       <Tabs.Screen 

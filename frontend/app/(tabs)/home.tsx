@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ModeToggle from '../../src/components/ModeToggle';
 
 const { width, height } = Dimensions.get('window');
 
@@ -612,19 +613,6 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Switch to Contractor Mode Banner */}
-      {isContractorInClientMode && (
-        <TouchableOpacity style={styles.switchModeBanner} onPress={handleSwitchToContractorMode}>
-          <View style={styles.switchModeBannerContent}>
-            <Text style={styles.switchModeBannerText}>👷 Switch back</Text>
-          </View>
-          <View style={styles.switchModeBannerBtn}>
-            <Text style={styles.switchModeBannerBtnText}>Contractor Mode</Text>
-            <Ionicons name="arrow-forward" size={14} color={colors.paper} />
-          </View>
-        </TouchableOpacity>
-      )}
-      
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
@@ -650,19 +638,22 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 <Text style={styles.tagline}>Your home, our experts</Text>
               </View>
             </View>
-            <TouchableOpacity 
-              style={[
-                styles.notificationBtn, 
-                notificationsEnabled && styles.notificationBtnActive
-              ]}
-              onPress={handleNotificationToggle}
-            >
-              <Ionicons 
-                name={notificationsEnabled ? "notifications" : "notifications-outline"} 
-                size={24} 
-                color={notificationsEnabled ? '#FFD700' : colors.paper} 
-              />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <ModeToggle />
+              <TouchableOpacity 
+                style={[
+                  styles.notificationBtn, 
+                  notificationsEnabled && styles.notificationBtnActive
+                ]}
+                onPress={handleNotificationToggle}
+              >
+                <Ionicons 
+                  name={notificationsEnabled ? "notifications" : "notifications-outline"} 
+                  size={24} 
+                  color={notificationsEnabled ? '#FFD700' : colors.paper} 
+                />
+              </TouchableOpacity>
+            </View>
           </View>
           
           <View style={styles.headerContent}>
@@ -703,54 +694,32 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
           </View>
         </LinearGradient>
 
-        {/* Show message if contractor is in contractor mode */}
-        {isContractorMode ? (
-          <View style={styles.contractorModeMessage}>
-            <Ionicons name="information-circle" size={48} color={colors.primary} />
-            <Text style={styles.contractorModeTitle}>You're in Contractor Mode</Text>
-            <Text style={styles.contractorModeText}>
-              Switch to Client Mode to browse and hire contractors for your own projects.
-            </Text>
-            <Pressable 
-              style={styles.switchModeBtn}
-              onPress={async () => {
-                console.log('Switching mode to client...');
-                await switchMode('client');
-                console.log('Mode switched, navigating...');
-                // Small delay then navigate to force refresh
-                setTimeout(() => {
-                  router.push('/(tabs)/home');
-                }, 100);
-              }}
-            >
-              <Text style={styles.switchModeBtnText}>Switch to Client Mode</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <>
-            {/* Mini Map */}
-            {userLoc && contractors.length > 0 && Platform.OS !== 'web' && (
-              <TouchableOpacity style={styles.mapPreview} onPress={() => setShowFullMap(true)}>
-                <WebView 
-                  source={{ html: getMapHTML() }} 
-                  style={styles.mapWebView}
-                  onMessage={handleMapMessage}
-                  scrollEnabled={false}
-                  pointerEvents="none"
-                />
-                <View style={styles.mapOverlay}>
-                  <Text style={styles.mapOverlayText}>Tap to expand map</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-            {Platform.OS === 'web' && (
-              <View style={styles.mapPlaceholder}>
-                <Ionicons name="map" size={32} color={colors.primary} />
-                <Text style={styles.mapPlaceholderText}>Map view on mobile app</Text>
+        {/* Content area - show for all modes */}
+        <>
+          {/* Mini Map */}
+          {userLoc && contractors.length > 0 && Platform.OS !== 'web' && (
+            <TouchableOpacity style={styles.mapPreview} onPress={() => setShowFullMap(true)}>
+              <WebView 
+                source={{ html: getMapHTML() }} 
+                style={styles.mapWebView}
+                onMessage={handleMapMessage}
+                scrollEnabled={false}
+                pointerEvents="none"
+              />
+              <View style={styles.mapOverlay}>
+                <Text style={styles.mapOverlayText}>Tap to expand map</Text>
               </View>
-            )}
+            </TouchableOpacity>
+          )}
+          {Platform.OS === 'web' && (
+            <View style={styles.mapPlaceholder}>
+              <Ionicons name="map" size={32} color={colors.primary} />
+              <Text style={styles.mapPlaceholderText}>Map view on mobile app</Text>
+            </View>
+          )}
 
-            {/* Post a Job - Compact Inline */}
+          {/* Post a Job - Compact Inline (only show when browsing as client or is a client) */}
+          {(isClientMode || user?.role === 'client' || !user) && (
             <TouchableOpacity 
               style={styles.postJobBtn}
               onPress={() => {
@@ -777,8 +746,9 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.primary} />
             </TouchableOpacity>
+          )}
 
-            {/* Categories */}
+          {/* Categories */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Browse Categories</Text>
@@ -952,7 +922,6 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               )}
             </View>
           </>
-        )}
       </ScrollView>
 
       {/* Service Menu Modal */}
@@ -1065,6 +1034,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.85)',
     marginTop: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   notificationBtn: {
     width: 44,

@@ -10,6 +10,7 @@ import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
+import ModeToggle from '../../src/components/ModeToggle';
 
 const colors = {
   primary: '#FF6A00',
@@ -205,24 +206,8 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={s.scrollContent}>
         <View style={s.header}>
           <Text style={s.title}>Profile</Text>
-          {isContractor && (
-            <View style={s.modeBadge}>
-              <Text style={s.modeText}>
-                {isContractorMode ? '👷 Contractor Mode' : '🏠 Client Mode'}
-              </Text>
-            </View>
-          )}
+          <ModeToggle />
         </View>
-
-        {/* Mode Switcher for Contractors - matches Dashboard style */}
-        {isContractor && (
-          <TouchableOpacity style={s.switchModeBtn} onPress={handleModeSwitch}>
-            <Ionicons name="swap-horizontal" size={20} color={colors.primary} />
-            <Text style={s.switchModeBtnText}>
-              Switch to {isContractorMode ? 'Client' : 'Contractor'} Mode
-            </Text>
-          </TouchableOpacity>
-        )}
         
         {/* Become a Contractor button for pure Clients */}
         {!isContractor && (

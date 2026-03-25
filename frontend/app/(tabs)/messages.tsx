@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
+import ModeToggle from '../../src/components/ModeToggle';
 
 const colors = {
   primary: '#FF6A00',
@@ -200,13 +201,7 @@ export default function MessagesScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
         <Text style={s.title}>Messages</Text>
-        {user?.role === 'contractor' && (
-          <View style={s.modeBadge}>
-            <Text style={s.modeText}>
-              {isClientMode ? '🏠 Client Mode' : '👷 Contractor Mode'}
-            </Text>
-          </View>
-        )}
+        <ModeToggle />
       </View>
 
       {/* 3 Tabs: Pending, Confirmed, Archived */}
