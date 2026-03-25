@@ -638,22 +638,24 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 <Text style={styles.tagline}>Your home, our experts</Text>
               </View>
             </View>
-            <View style={styles.headerActions}>
-              <ModeToggle />
-              <TouchableOpacity 
-                style={[
-                  styles.notificationBtn, 
-                  notificationsEnabled && styles.notificationBtnActive
-                ]}
-                onPress={handleNotificationToggle}
-              >
-                <Ionicons 
-                  name={notificationsEnabled ? "notifications" : "notifications-outline"} 
-                  size={20} 
-                  color={notificationsEnabled ? '#FFD700' : colors.paper} 
-                />
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity 
+              style={[
+                styles.notificationBtn, 
+                notificationsEnabled && styles.notificationBtnActive
+              ]}
+              onPress={handleNotificationToggle}
+            >
+              <Ionicons 
+                name={notificationsEnabled ? "notifications" : "notifications-outline"} 
+                size={22} 
+                color={notificationsEnabled ? '#FFD700' : colors.paper} 
+              />
+            </TouchableOpacity>
+          </View>
+          
+          {/* Mode Toggle Row - under header */}
+          <View style={styles.modeToggleRow}>
+            <ModeToggle />
           </View>
           
           <View style={styles.headerContent}>
@@ -755,7 +757,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               <View style={styles.postJobContent}>
                 <Ionicons name="add-circle" size={22} color={colors.primary} />
                 <Text style={styles.postJobTitle}>Post a Job</Text>
-                <Text style={styles.postJobSubtitle}>• Get quotes from pros</Text>
+                <Text style={styles.postJobSubtitle}>• Let contractors find you</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.primary} />
             </TouchableOpacity>
@@ -1052,6 +1054,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  modeToggleRow: {
+    alignItems: 'flex-end',
+    marginTop: 8,
   },
   notificationBtn: {
     width: 32,
