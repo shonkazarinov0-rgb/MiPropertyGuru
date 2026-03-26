@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
+import { TRADES, getTradeIcon } from '../../src/constants/trades';
 
 const colors = {
   primary: '#FF6A00',
@@ -26,42 +27,6 @@ const colors = {
   border: '#E5E7EB',
 };
 
-// Trade types with icons
-const TRADE_TYPES = [
-  { label: 'Electrician', icon: 'flash' },
-  { label: 'Plumber', icon: 'water' },
-  { label: 'Carpenter', icon: 'construct' },
-  { label: 'Painter', icon: 'color-palette' },
-  { label: 'HVAC', icon: 'thermometer' },
-  { label: 'Roofer', icon: 'home' },
-  { label: 'Landscaper', icon: 'leaf' },
-  { label: 'General Contractor', icon: 'build' },
-  { label: 'Handyman', icon: 'hammer' },
-  { label: 'Cleaner', icon: 'sparkles' },
-  { label: 'Tile/Flooring', icon: 'grid' },
-  { label: 'Fence', icon: 'git-network' },
-  { label: 'Drywall', icon: 'albums' },
-  { label: 'Concrete', icon: 'cube' },
-];
-
-// Trade icons mapping
-const tradeIcons: Record<string, string> = {
-  'Electrician': 'flash',
-  'Plumber': 'water',
-  'Carpenter': 'construct',
-  'Painter': 'color-palette',
-  'HVAC': 'thermometer',
-  'Roofer': 'home',
-  'Landscaper': 'leaf',
-  'General Contractor': 'build',
-  'Handyman': 'hammer',
-  'Cleaner': 'sparkles',
-  'Tile/Flooring': 'grid',
-  'Fence': 'git-network',
-  'Drywall': 'albums',
-  'Concrete': 'cube',
-};
-
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -72,6 +37,7 @@ export default function JobDetailScreen() {
   const [isEditing, setIsEditing] = useState(false);
   const [editDescription, setEditDescription] = useState('');
   const [editLocation, setEditLocation] = useState('');
+  const [editBudget, setEditBudget] = useState('');
   const [editTradeRequired, setEditTradeRequired] = useState('');
   const [editPhotos, setEditPhotos] = useState<string[]>([]);
   const [showTradeModal, setShowTradeModal] = useState(false);
@@ -87,6 +53,7 @@ export default function JobDetailScreen() {
       setJob(res.job);
       setEditDescription(res.job?.description || '');
       setEditLocation(res.job?.location || '');
+      setEditBudget(res.job?.budget || '');
       setEditTradeRequired(res.job?.trade_required || res.job?.category || '');
       setEditPhotos(res.job?.photos || []);
     } catch (e) {
@@ -108,6 +75,7 @@ export default function JobDetailScreen() {
       await api.put(`/jobs/${id}`, {
         description: editDescription.trim(),
         location: editLocation.trim(),
+        budget: editBudget.trim(),
         trade_required: editTradeRequired,
         photos: editPhotos,
       });
@@ -115,6 +83,7 @@ export default function JobDetailScreen() {
         ...job, 
         description: editDescription.trim(), 
         location: editLocation.trim(),
+        budget: editBudget.trim(),
         trade_required: editTradeRequired,
         photos: editPhotos,
       });
@@ -249,7 +218,7 @@ export default function JobDetailScreen() {
   }
 
   const tradeRequired = job.trade_required || job.category || 'General';
-  const iconName = tradeIcons[tradeRequired] || tradeIcons[job.category] || 'build';
+  const tradeEmoji = getTradeIcon(tradeRequired);
   const photos = isEditing ? editPhotos : (job.photos || []);
 
   return (
@@ -284,13 +253,7 @@ export default function JobDetailScreen() {
                 onPress={() => setShowTradeModal(true)}
               >
                 <View style={s.tradeSelectorContent}>
-                  <View style={s.tradeIconSmall}>
-                    <Ionicons 
-                      name={(tradeIcons[editTradeRequired] || 'build') as any} 
-                      size={20} 
-                      color={colors.primary} 
-                    />
-                  </View>
+                  <Text style={s.tradeEmojiSmall}>{getTradeIcon(editTradeRequired)}</Text>
                   <Text style={s.tradeSelectorText}>
                     {editTradeRequired || 'Select trade...'}
                   </Text>
@@ -300,7 +263,7 @@ export default function JobDetailScreen() {
             ) : (
               <View style={s.tradeCard}>
                 <View style={s.tradeIconBig}>
-                  <Ionicons name={iconName as any} size={32} color={colors.primary} />
+                  <Text style={s.tradeEmojiBig}>{tradeEmoji}</Text>
                 </View>
                 <View>
                   <Text style={s.tradeText}>{tradeRequired}</Text>
@@ -404,6 +367,30 @@ export default function JobDetailScreen() {
             )}
           </View>
 
+          {/* Budget */}
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Budget</Text>
+            {isEditing ? (
+              <TextInput
+                style={s.input}
+                value={editBudget}
+                onChangeText={setEditBudget}
+                placeholder="Enter budget (e.g., 500)"
+                placeholderTextColor={colors.textSecondary}
+                keyboardType="numeric"
+              />
+            ) : (
+              <View style={s.card}>
+                <View style={s.budgetRow}>
+                  <Ionicons name="cash" size={18} color={colors.green} />
+                  <Text style={s.budgetText}>
+                    {job.budget ? `$${job.budget}` : 'Not specified'}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+
           {/* Meta Info */}
           <View style={s.section}>
             <Text style={s.sectionTitle}>Posted</Text>
@@ -431,6 +418,7 @@ export default function JobDetailScreen() {
                   setIsEditing(false);
                   setEditDescription(job.description || '');
                   setEditLocation(job.location || '');
+                  setEditBudget(job.budget || '');
                   setEditTradeRequired(job.trade_required || job.category || '');
                   setEditPhotos(job.photos || []);
                 }}
@@ -476,32 +464,26 @@ export default function JobDetailScreen() {
                 </TouchableOpacity>
               </View>
               <ScrollView style={s.tradeList}>
-                {TRADE_TYPES.map((trade) => (
+                {TRADES.map((trade) => (
                   <TouchableOpacity
-                    key={trade.label}
+                    key={trade.name}
                     style={[
                       s.tradeOption,
-                      editTradeRequired === trade.label && s.tradeOptionSelected
+                      editTradeRequired === trade.name && s.tradeOptionSelected
                     ]}
                     onPress={() => {
-                      setEditTradeRequired(trade.label);
+                      setEditTradeRequired(trade.name);
                       setShowTradeModal(false);
                     }}
                   >
-                    <View style={s.tradeOptionIcon}>
-                      <Ionicons 
-                        name={trade.icon as any} 
-                        size={20} 
-                        color={editTradeRequired === trade.label ? colors.paper : colors.primary} 
-                      />
-                    </View>
+                    <Text style={s.tradeEmojiIcon}>{trade.icon}</Text>
                     <Text style={[
                       s.tradeOptionText,
-                      editTradeRequired === trade.label && s.tradeOptionTextSelected
+                      editTradeRequired === trade.name && s.tradeOptionTextSelected
                     ]}>
-                      {trade.label}
+                      {trade.name}
                     </Text>
-                    {editTradeRequired === trade.label && (
+                    {editTradeRequired === trade.name && (
                       <Ionicons name="checkmark" size={20} color={colors.paper} />
                     )}
                   </TouchableOpacity>
@@ -715,6 +697,25 @@ const s = StyleSheet.create({
   locationText: {
     fontSize: 15,
     color: colors.text,
+  },
+  budgetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  budgetText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.green,
+  },
+  tradeEmojiIcon: {
+    fontSize: 24,
+  },
+  tradeEmojiBig: {
+    fontSize: 28,
+  },
+  tradeEmojiSmall: {
+    fontSize: 20,
   },
   metaText: {
     fontSize: 15,
