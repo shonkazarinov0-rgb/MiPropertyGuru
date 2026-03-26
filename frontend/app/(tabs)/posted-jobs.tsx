@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator, 
-  RefreshControl, ScrollView, Alert,
+  RefreshControl, Alert, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -21,10 +21,12 @@ const colors = {
   greenLight: '#DCFCE7',
   blue: '#3B82F6',
   blueLight: '#DBEAFE',
+  red: '#EF4444',
+  redLight: '#FEE2E2',
   border: '#E5E7EB',
 };
 
-type TabType = 'pending' | 'confirmed' | 'completed';
+type TabType = 'pending' | 'inProgress' | 'completed';
 
 // Trade icons mapping
 const tradeIcons: Record<string, string> = {
@@ -38,26 +40,41 @@ const tradeIcons: Record<string, string> = {
   'General Contractor': 'build',
   'Handyman': 'hammer',
   'Cleaner': 'sparkles',
+  'Fence': 'git-network',
+  'Tile/Flooring': 'grid',
 };
 
 export default function PostedJobsScreen() {
   const router = useRouter();
-  const { user, isClientMode } = useAuth();
+  const { user, isClientMode, switchMode } = useAuth();
   const [jobs, setJobs] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('pending');
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Redirect to Dashboard if in Contractor mode
+  useEffect(() => {
+    if (!isClientMode && user?.role === 'contractor') {
+      router.replace('/(tabs)/dashboard');
+    }
+  }, [isClientMode, user]);
 
   useEffect(() => { 
-    fetchJobs(); 
+    fetchData(); 
   }, []);
 
-  const fetchJobs = async () => {
+  const fetchData = async () => {
     try {
-      const res = await api.get('/jobs/my-posted');
-      setJobs(res.jobs || []);
+      const [jobsRes, convsRes] = await Promise.all([
+        api.get('/jobs/my-posted'),
+        api.get('/conversations'),
+      ]);
+      setJobs(jobsRes.jobs || []);
+      setConversations(convsRes.conversations || []);
     } catch (e) { 
-      console.error('Error fetching jobs:', e); 
+      console.error('Error fetching data:', e); 
     } finally { 
       setLoading(false); 
       setRefreshing(false); 
@@ -66,17 +83,56 @@ export default function PostedJobsScreen() {
 
   const onRefresh = useCallback(() => { 
     setRefreshing(true); 
-    fetchJobs(); 
+    fetchData(); 
   }, []);
 
+  // Get the conversation associated with a job (if any)
+  const getJobConversation = (job: any) => {
+    // First try to find by job_id in conversation
+    const byJobId = conversations.find(conv => conv.job_id === job.id);
+    if (byJobId) return byJobId;
+    
+    // Fallback: find by matching client posting and contractor responding
+    return conversations.find(conv => {
+      // The client (job poster) should be one participant
+      const clientIsP1 = conv.participant_1 === job.posted_by;
+      const clientIsP2 = conv.participant_2 === job.posted_by;
+      
+      if (!clientIsP1 && !clientIsP2) return false;
+      
+      // Check if the contractor (other participant) responded to this job
+      const contractorId = clientIsP1 ? conv.participant_2 : conv.participant_1;
+      const respondedContractorIds = job.responses?.map((r: any) => r.contractor_id) || [];
+      
+      return respondedContractorIds.includes(contractorId);
+    });
+  };
+
+  // Determine job status based on conversation state
+  const getJobStatus = (job: any) => {
+    const conv = getJobConversation(job);
+    if (!conv) {
+      // No conversation yet - job is pending
+      return 'pending';
+    }
+    if (conv.job_status === 'archived') {
+      return 'completed';
+    }
+    if (conv.job_status === 'confirmed') {
+      return 'inProgress';
+    }
+    // Has conversation but not confirmed - still pending (negotiating)
+    return 'pending';
+  };
+
   // Filter jobs by status
-  const pendingJobs = jobs.filter(j => j.status !== 'confirmed' && j.status !== 'completed');
-  const confirmedJobs = jobs.filter(j => j.status === 'confirmed');
-  const completedJobs = jobs.filter(j => j.status === 'completed');
+  const pendingJobs = jobs.filter(j => getJobStatus(j) === 'pending');
+  const inProgressJobs = jobs.filter(j => getJobStatus(j) === 'inProgress');
+  const completedJobs = jobs.filter(j => getJobStatus(j) === 'completed');
 
   const getJobsForTab = () => {
     switch (activeTab) {
-      case 'confirmed': return confirmedJobs;
+      case 'inProgress': return inProgressJobs;
       case 'completed': return completedJobs;
       default: return pendingJobs;
     }
@@ -97,112 +153,345 @@ export default function PostedJobsScreen() {
     return d.toLocaleDateString();
   };
 
-  const getStatusBadge = (job: any) => {
-    if (job.status === 'completed') {
-      return (
-        <View style={s.completedBadge}>
-          <Ionicons name="checkmark-done" size={12} color={colors.blue} />
-          <Text style={s.completedBadgeText}>Completed</Text>
-        </View>
-      );
+  const getContractorName = (job: any) => {
+    const conv = getJobConversation(job);
+    if (!conv) return null;
+    // Get the other participant (not the client)
+    if (conv.participant_1 === user?.id) {
+      return conv.participant_2_name;
     }
-    if (job.status === 'confirmed') {
-      return (
-        <View style={s.confirmedBadge}>
-          <Ionicons name="checkmark-circle" size={12} color={colors.green} />
-          <Text style={s.confirmedBadgeText}>In Progress</Text>
-        </View>
-      );
-    }
-    const responseCount = job.responses?.length || 0;
-    if (responseCount > 0) {
-      return (
-        <View style={s.responsesBadge}>
-          <Ionicons name="chatbubbles" size={12} color={colors.primary} />
-          <Text style={s.responsesBadgeText}>{responseCount} response{responseCount > 1 ? 's' : ''}</Text>
-        </View>
-      );
-    }
-    return (
-      <View style={s.waitingBadge}>
-        <Ionicons name="time-outline" size={12} color={colors.textSecondary} />
-        <Text style={s.waitingBadgeText}>Waiting for responses</Text>
-      </View>
+    return conv.participant_1_name;
+  };
+
+  // Handle moving job back to Pending (reopen for contractors)
+  const handleMoveToPending = async (job: any) => {
+    const conv = getJobConversation(job);
+    if (!conv) return;
+
+    Alert.alert(
+      'Reopen Job',
+      'This will cancel the current arrangement and reopen the job for all contractors. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reopen',
+          style: 'destructive',
+          onPress: async () => {
+            setActionLoading(job.id);
+            try {
+              await api.post(`/conversations/${conv.id}/reset-to-pending`);
+              await fetchData();
+              Alert.alert('Job Reopened', 'Contractors can now see and respond to this job again.');
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Could not reopen job');
+            } finally {
+              setActionLoading(null);
+            }
+          }
+        }
+      ]
     );
   };
 
-  const renderJob = ({ item }: { item: any }) => {
-    const iconName = tradeIcons[item.category] || 'build';
-    const isCompleted = item.status === 'completed';
-    
+  // Handle moving job back to In Progress
+  const handleMoveToInProgress = async (job: any) => {
+    const conv = getJobConversation(job);
+    if (!conv) return;
+
+    Alert.alert(
+      'Reactivate Job',
+      'Move this job back to In Progress?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reactivate',
+          onPress: async () => {
+            setActionLoading(job.id);
+            try {
+              await api.post(`/conversations/${conv.id}/reset-to-confirmed`);
+              await fetchData();
+              Alert.alert('Success', 'Job moved back to In Progress.');
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Could not reactivate job');
+            } finally {
+              setActionLoading(null);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Handle completing a job
+  const handleComplete = async (job: any) => {
+    const conv = getJobConversation(job);
+    if (!conv) return;
+
+    Alert.alert(
+      'Complete Job',
+      'Mark this job as completed?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Complete',
+          onPress: async () => {
+            setActionLoading(job.id);
+            try {
+              await api.post(`/conversations/${conv.id}/archive-job`);
+              await fetchData();
+              Alert.alert('Job Completed', 'The job has been marked as completed.');
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Could not complete job');
+            } finally {
+              setActionLoading(null);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Handle deleting a job
+  const handleDelete = async (job: any) => {
+    Alert.alert(
+      'Delete Job',
+      'Are you sure you want to delete this job? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setActionLoading(job.id);
+            try {
+              await api.delete(`/jobs/${job.id}`);
+              setJobs(jobs.filter(j => j.id !== job.id));
+              Alert.alert('Deleted', 'Job has been removed.');
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Could not delete job');
+            } finally {
+              setActionLoading(null);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Open chat with contractor
+  const handleOpenChat = (job: any) => {
+    const conv = getJobConversation(job);
+    if (conv) {
+      router.push(`/chat/${conv.id}`);
+    }
+  };
+
+  const renderPendingJob = ({ item }: { item: any }) => {
+    const conv = getJobConversation(item);
+    const hasResponses = item.responses && item.responses.length > 0;
+    const iconName = tradeIcons[item.trade_required] || 'build';
+
     return (
       <TouchableOpacity 
-        style={[s.jobCard, isCompleted && s.completedCard]}
+        style={s.jobCard}
         onPress={() => router.push(`/job/${item.id}`)}
+        activeOpacity={0.7}
       >
-        <View style={[s.jobIconBg, isCompleted && s.completedIconBg]}>
-          <Ionicons name={iconName as any} size={24} color={isCompleted ? colors.blue : colors.primary} />
-        </View>
-        <View style={s.jobInfo}>
-          <Text style={s.jobCategory}>{item.category}</Text>
-          <Text style={s.jobDescription} numberOfLines={2}>{item.description}</Text>
-          <View style={s.jobMeta}>
-            {getStatusBadge(item)}
-            <Text style={s.jobTime}>{getTimestamp(item.created_at)}</Text>
+        <View style={s.jobHeader}>
+          <View style={s.tradeIconContainer}>
+            <Ionicons name={iconName as any} size={24} color={colors.primary} />
+          </View>
+          <View style={s.jobInfo}>
+            <Text style={s.jobTitle} numberOfLines={1}>{item.title}</Text>
+            <Text style={s.jobTrade}>{item.trade_required}</Text>
+          </View>
+          <View style={s.pendingBadge}>
+            <Ionicons name="time-outline" size={12} color={colors.primary} />
+            <Text style={s.pendingBadgeText}>Pending</Text>
           </View>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+
+        <Text style={s.jobDescription} numberOfLines={2}>{item.description}</Text>
+
+        {item.location && (
+          <View style={s.locationRow}>
+            <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+            <Text style={s.locationText}>{item.location}</Text>
+          </View>
+        )}
+
+        <View style={s.jobFooter}>
+          <Text style={s.timeText}>{getTimestamp(item.created_at)}</Text>
+          {hasResponses && (
+            <View style={s.responseBadge}>
+              <Ionicons name="chatbubbles" size={12} color={colors.green} />
+              <Text style={s.responseText}>{item.responses.length} response(s)</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={s.actionRow}>
+          <TouchableOpacity 
+            style={s.editBtn}
+            onPress={() => router.push(`/job/${item.id}`)}
+          >
+            <Ionicons name="create-outline" size={16} color={colors.primary} />
+            <Text style={s.editBtnText}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={s.deleteBtn}
+            onPress={() => handleDelete(item)}
+            disabled={actionLoading === item.id}
+          >
+            {actionLoading === item.id ? (
+              <ActivityIndicator size="small" color={colors.red} />
+            ) : (
+              <>
+                <Ionicons name="trash-outline" size={16} color={colors.red} />
+                <Text style={s.deleteBtnText}>Delete</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
     );
   };
 
-  const getEmptyContent = () => {
-    switch (activeTab) {
-      case 'confirmed':
-        return {
-          icon: "briefcase-outline" as const,
-          title: 'No jobs in progress',
-          text: 'Jobs will appear here once you confirm with a contractor'
-        };
-      case 'completed':
-        return {
-          icon: "checkmark-done-outline" as const,
-          title: 'No completed jobs',
-          text: 'Completed jobs will appear here'
-        };
-      default:
-        return {
-          icon: "document-text-outline" as const,
-          title: 'No posted jobs',
-          text: 'Post a job to get started'
-        };
-    }
+  const renderInProgressJob = ({ item }: { item: any }) => {
+    const contractorName = getContractorName(item);
+    const iconName = tradeIcons[item.trade_required] || 'build';
+
+    return (
+      <TouchableOpacity 
+        style={s.jobCard}
+        onPress={() => handleOpenChat(item)}
+        activeOpacity={0.7}
+      >
+        <View style={s.jobHeader}>
+          <View style={[s.tradeIconContainer, { backgroundColor: colors.greenLight }]}>
+            <Ionicons name={iconName as any} size={24} color={colors.green} />
+          </View>
+          <View style={s.jobInfo}>
+            <Text style={s.jobTitle} numberOfLines={1}>{item.title}</Text>
+            <Text style={s.contractorName}>with {contractorName || 'Contractor'}</Text>
+          </View>
+          <View style={s.inProgressBadge}>
+            <Ionicons name="checkmark-circle" size={12} color={colors.green} />
+            <Text style={s.inProgressBadgeText}>In Progress</Text>
+          </View>
+        </View>
+
+        <Text style={s.jobDescription} numberOfLines={2}>{item.description}</Text>
+
+        <View style={s.actionRow}>
+          <TouchableOpacity 
+            style={s.messageBtn}
+            onPress={() => handleOpenChat(item)}
+          >
+            <Ionicons name="chatbubble-outline" size={16} color={colors.primary} />
+            <Text style={s.messageBtnText}>Message</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={s.completeBtn}
+            onPress={() => handleComplete(item)}
+            disabled={actionLoading === item.id}
+          >
+            {actionLoading === item.id ? (
+              <ActivityIndicator size="small" color={colors.paper} />
+            ) : (
+              <>
+                <Ionicons name="checkmark-done" size={16} color={colors.paper} />
+                <Text style={s.completeBtnText}>Complete</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity 
+          style={s.reopenLink}
+          onPress={() => handleMoveToPending(item)}
+          disabled={actionLoading === item.id}
+        >
+          <Ionicons name="arrow-undo-outline" size={14} color={colors.textSecondary} />
+          <Text style={s.reopenLinkText}>Cancel & Reopen for other contractors</Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
   };
 
-  const emptyContent = getEmptyContent();
+  const renderCompletedJob = ({ item }: { item: any }) => {
+    const contractorName = getContractorName(item);
+    const iconName = tradeIcons[item.trade_required] || 'build';
+
+    return (
+      <TouchableOpacity 
+        style={[s.jobCard, { opacity: 0.85 }]}
+        onPress={() => handleOpenChat(item)}
+        activeOpacity={0.7}
+      >
+        <View style={s.jobHeader}>
+          <View style={[s.tradeIconContainer, { backgroundColor: colors.blueLight }]}>
+            <Ionicons name={iconName as any} size={24} color={colors.blue} />
+          </View>
+          <View style={s.jobInfo}>
+            <Text style={s.jobTitle} numberOfLines={1}>{item.title}</Text>
+            <Text style={s.contractorName}>completed by {contractorName || 'Contractor'}</Text>
+          </View>
+          <View style={s.completedBadge}>
+            <Ionicons name="checkmark-done" size={12} color={colors.blue} />
+            <Text style={s.completedBadgeText}>Completed</Text>
+          </View>
+        </View>
+
+        <View style={s.actionRow}>
+          <TouchableOpacity 
+            style={s.viewChatBtn}
+            onPress={() => handleOpenChat(item)}
+          >
+            <Ionicons name="eye-outline" size={16} color={colors.textSecondary} />
+            <Text style={s.viewChatBtnText}>View Chat</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={s.reactivateBtn}
+            onPress={() => handleMoveToInProgress(item)}
+            disabled={actionLoading === item.id}
+          >
+            {actionLoading === item.id ? (
+              <ActivityIndicator size="small" color={colors.green} />
+            ) : (
+              <>
+                <Ionicons name="arrow-undo" size={16} color={colors.green} />
+                <Text style={s.reactivateBtnText}>Reactivate</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={s.container} edges={['top']}>
+        <View style={s.center}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>
+      {/* Header */}
       <View style={s.header}>
         <Text style={s.title}>My Jobs</Text>
         <ModeToggle />
       </View>
 
-      {/* Floating Post Button */}
-      <TouchableOpacity style={s.floatingPostBtn} onPress={() => router.push('/post-job')}>
-        <Ionicons name="add" size={24} color={colors.paper} />
-      </TouchableOpacity>
-
-      {/* 3 Tabs: Pending, Confirmed, Completed */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={s.tabScrollContainer}
-        contentContainerStyle={s.tabContainer}
-      >
-        {/* Pending Tab - Orange */}
-        <TouchableOpacity 
-          style={[s.tab, activeTab === 'pending' && s.pendingTabActive]}
+      {/* Tab Navigation */}
+      <View style={s.tabContainer}>
+        <TouchableOpacity
+          style={[s.tab, activeTab === 'pending' && s.tabActiveOrange]}
           onPress={() => setActiveTab('pending')}
         >
           <Ionicons 
@@ -210,93 +499,139 @@ export default function PostedJobsScreen() {
             size={14} 
             color={activeTab === 'pending' ? colors.primary : colors.textSecondary} 
           />
-          <Text style={[s.tabText, activeTab === 'pending' && s.pendingTabText]}>
+          <Text style={[s.tabText, activeTab === 'pending' && s.tabTextActiveOrange]}>
             Pending
           </Text>
           {pendingJobs.length > 0 && (
-            <View style={[s.tabBadge, s.orangeBadge]}>
+            <View style={[s.tabBadge, activeTab === 'pending' && s.tabBadgeActiveOrange]}>
               <Text style={s.tabBadgeText}>{pendingJobs.length}</Text>
             </View>
           )}
         </TouchableOpacity>
-        
-        {/* Confirmed Tab - Green */}
-        <TouchableOpacity 
-          style={[s.tab, activeTab === 'confirmed' && s.confirmedTabActive]}
-          onPress={() => setActiveTab('confirmed')}
+
+        <TouchableOpacity
+          style={[s.tab, activeTab === 'inProgress' && s.tabActiveGreen]}
+          onPress={() => setActiveTab('inProgress')}
         >
           <Ionicons 
-            name="checkmark-circle" 
+            name="checkmark-circle-outline" 
             size={14} 
-            color={activeTab === 'confirmed' ? colors.green : colors.textSecondary} 
+            color={activeTab === 'inProgress' ? colors.green : colors.textSecondary} 
           />
-          <Text style={[s.tabText, activeTab === 'confirmed' && s.confirmedTabText]}>
+          <Text style={[s.tabText, activeTab === 'inProgress' && s.tabTextActiveGreen]}>
             In Progress
           </Text>
-          {confirmedJobs.length > 0 && (
-            <View style={[s.tabBadge, s.greenBadge]}>
-              <Text style={s.tabBadgeText}>{confirmedJobs.length}</Text>
+          {inProgressJobs.length > 0 && (
+            <View style={[s.tabBadge, activeTab === 'inProgress' && s.tabBadgeActiveGreen]}>
+              <Text style={s.tabBadgeText}>{inProgressJobs.length}</Text>
             </View>
           )}
         </TouchableOpacity>
 
-        {/* Completed Tab - Blue */}
-        <TouchableOpacity 
-          style={[s.tab, activeTab === 'completed' && s.completedTabActive]}
+        <TouchableOpacity
+          style={[s.tab, activeTab === 'completed' && s.tabActiveBlue]}
           onPress={() => setActiveTab('completed')}
         >
           <Ionicons 
-            name="checkmark-done" 
+            name="checkmark-done-outline" 
             size={14} 
             color={activeTab === 'completed' ? colors.blue : colors.textSecondary} 
           />
-          <Text style={[s.tabText, activeTab === 'completed' && s.completedTabText]}>
+          <Text style={[s.tabText, activeTab === 'completed' && s.tabTextActiveBlue]}>
             Completed
           </Text>
           {completedJobs.length > 0 && (
-            <View style={[s.tabBadge, s.blueBadge]}>
+            <View style={[s.tabBadge, activeTab === 'completed' && s.tabBadgeActiveBlue]}>
               <Text style={s.tabBadgeText}>{completedJobs.length}</Text>
             </View>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </View>
 
-      {loading ? (
-        <View style={s.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
+      {/* Job Lists */}
+      {activeTab === 'pending' && (
         <FlatList
-          data={getJobsForTab()}
-          renderItem={renderJob}
+          data={pendingJobs}
+          renderItem={renderPendingJob}
           keyExtractor={item => item.id}
           contentContainerStyle={s.listContent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
-          ListEmptyComponent={
-            <View style={s.emptyContainer}>
-              <Ionicons name={emptyContent.icon} size={64} color={colors.textSecondary} />
-              <Text style={s.emptyTitle}>{emptyContent.title}</Text>
-              <Text style={s.emptyText}>{emptyContent.text}</Text>
-              {activeTab === 'pending' && (
-                <TouchableOpacity style={s.emptyPostBtn} onPress={() => router.push('/post-job')}>
-                  <Ionicons name="add-circle" size={20} color={colors.paper} />
-                  <Text style={s.emptyPostBtnText}>Post a Job</Text>
-                </TouchableOpacity>
-              )}
+          ListEmptyComponent={() => (
+            <View style={s.emptyState}>
+              <Ionicons name="briefcase-outline" size={48} color={colors.textSecondary} />
+              <Text style={s.emptyTitle}>No pending jobs</Text>
+              <Text style={s.emptySubtitle}>
+                Post a job to get started and find contractors
+              </Text>
             </View>
-          }
+          )}
         />
       )}
+
+      {activeTab === 'inProgress' && (
+        <FlatList
+          data={inProgressJobs}
+          renderItem={renderInProgressJob}
+          keyExtractor={item => item.id}
+          contentContainerStyle={s.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.green} />
+          }
+          ListEmptyComponent={() => (
+            <View style={s.emptyState}>
+              <Ionicons name="construct-outline" size={48} color={colors.textSecondary} />
+              <Text style={s.emptyTitle}>No jobs in progress</Text>
+              <Text style={s.emptySubtitle}>
+                Jobs will appear here once you and a contractor both confirm in Messages
+              </Text>
+            </View>
+          )}
+        />
+      )}
+
+      {activeTab === 'completed' && (
+        <FlatList
+          data={completedJobs}
+          renderItem={renderCompletedJob}
+          keyExtractor={item => item.id}
+          contentContainerStyle={s.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.blue} />
+          }
+          ListEmptyComponent={() => (
+            <View style={s.emptyState}>
+              <Ionicons name="trophy-outline" size={48} color={colors.textSecondary} />
+              <Text style={s.emptyTitle}>No completed jobs</Text>
+              <Text style={s.emptySubtitle}>
+                Completed jobs will appear here
+              </Text>
+            </View>
+          )}
+        />
+      )}
+
+      {/* Floating Post Button */}
+      <TouchableOpacity 
+        style={s.floatingPostBtn}
+        onPress={() => router.push('/post-job')}
+      >
+        <Ionicons name="add" size={28} color={colors.paper} />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  container: { 
-    flex: 1, 
+  container: {
+    flex: 1,
     backgroundColor: colors.background,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: { 
     paddingHorizontal: 16, 
@@ -314,6 +649,332 @@ const s = StyleSheet.create({
     fontWeight: '700', 
     color: colors.text,
   },
+  // Tab styles
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.paper,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    gap: 4,
+  },
+  tabActiveOrange: {
+    backgroundColor: colors.primaryLight,
+  },
+  tabActiveGreen: {
+    backgroundColor: colors.greenLight,
+  },
+  tabActiveBlue: {
+    backgroundColor: colors.blueLight,
+  },
+  tabText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  tabTextActiveOrange: {
+    color: colors.primary,
+  },
+  tabTextActiveGreen: {
+    color: colors.green,
+  },
+  tabTextActiveBlue: {
+    color: colors.blue,
+  },
+  tabBadge: {
+    backgroundColor: colors.textSecondary,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    minWidth: 18,
+    alignItems: 'center',
+  },
+  tabBadgeActiveOrange: {
+    backgroundColor: colors.primary,
+  },
+  tabBadgeActiveGreen: {
+    backgroundColor: colors.green,
+  },
+  tabBadgeActiveBlue: {
+    backgroundColor: colors.blue,
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  listContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  // Job card
+  jobCard: {
+    backgroundColor: colors.paper,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  jobHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  tradeIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  jobInfo: {
+    flex: 1,
+  },
+  jobTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  jobTrade: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  contractorName: {
+    fontSize: 13,
+    color: colors.green,
+    fontWeight: '500',
+  },
+  jobDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 12,
+  },
+  locationText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  jobFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  timeText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  responseBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.greenLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  responseText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.green,
+  },
+  // Badges
+  pendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  pendingBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  inProgressBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.greenLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  inProgressBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.green,
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.blueLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  completedBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.blue,
+  },
+  // Action row
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  editBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.primaryLight,
+    gap: 6,
+  },
+  editBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  deleteBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.redLight,
+    gap: 6,
+  },
+  deleteBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.red,
+  },
+  messageBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.primaryLight,
+    gap: 6,
+  },
+  messageBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  completeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.green,
+    gap: 6,
+  },
+  completeBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  viewChatBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    gap: 6,
+  },
+  viewChatBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  reactivateBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.greenLight,
+    gap: 6,
+  },
+  reactivateBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.green,
+  },
+  reopenLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 12,
+    gap: 4,
+  },
+  reopenLinkText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  // Empty state
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 16,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 8,
+    textAlign: 'center',
+    paddingHorizontal: 40,
+    lineHeight: 20,
+  },
+  // Floating button
   floatingPostBtn: {
     position: 'absolute',
     bottom: 70,
@@ -330,219 +991,5 @@ const s = StyleSheet.create({
     shadowRadius: 6,
     elevation: 8,
     zIndex: 100,
-  },
-  tabScrollContainer: {
-    backgroundColor: colors.paper,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    maxHeight: 56,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
-  },
-  tab: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 18,
-    backgroundColor: '#F3F4F6',
-    gap: 5,
-  },
-  pendingTabActive: {
-    backgroundColor: colors.primaryLight,
-  },
-  pendingTabText: {
-    color: colors.primary,
-  },
-  confirmedTabActive: {
-    backgroundColor: colors.greenLight,
-  },
-  confirmedTabText: {
-    color: colors.green,
-  },
-  completedTabActive: {
-    backgroundColor: colors.blueLight,
-  },
-  completedTabText: {
-    color: colors.blue,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  tabBadge: {
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    minWidth: 18,
-    alignItems: 'center',
-  },
-  tabBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.paper,
-  },
-  orangeBadge: {
-    backgroundColor: colors.primary,
-  },
-  greenBadge: {
-    backgroundColor: colors.green,
-  },
-  blueBadge: {
-    backgroundColor: colors.blue,
-  },
-  listContent: { 
-    padding: 16,
-    paddingBottom: 100,
-  },
-  jobCard: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 12,
-    backgroundColor: colors.paper, 
-    borderRadius: 14, 
-    padding: 14, 
-    marginBottom: 10,
-    shadowColor: '#000', 
-    shadowOffset: { width: 0, height: 1 }, 
-    shadowOpacity: 0.05, 
-    shadowRadius: 2, 
-    elevation: 1,
-  },
-  completedCard: {
-    opacity: 0.85,
-  },
-  jobIconBg: {
-    width: 50, 
-    height: 50, 
-    borderRadius: 12, 
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center', 
-    alignItems: 'center',
-  },
-  completedIconBg: {
-    backgroundColor: colors.blueLight,
-  },
-  jobInfo: { 
-    flex: 1,
-  },
-  jobCategory: { 
-    fontSize: 16, 
-    fontWeight: '600', 
-    color: colors.text,
-  },
-  jobDescription: { 
-    fontSize: 14, 
-    color: colors.textSecondary, 
-    marginTop: 2,
-  },
-  jobMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-  },
-  jobTime: { 
-    fontSize: 12, 
-    color: colors.textSecondary,
-  },
-  confirmedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.greenLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 4,
-  },
-  confirmedBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.green,
-  },
-  completedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.blueLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 4,
-  },
-  completedBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.blue,
-  },
-  responsesBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 4,
-  },
-  responsesBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  waitingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    gap: 4,
-  },
-  waitingBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  center: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center',
-  },
-  emptyContainer: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    paddingTop: 80,
-  },
-  emptyTitle: { 
-    fontSize: 20, 
-    fontWeight: '600', 
-    color: colors.text, 
-    marginTop: 16,
-  },
-  emptyText: { 
-    fontSize: 15, 
-    color: colors.textSecondary, 
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  emptyPostBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 24,
-    gap: 8,
-    marginTop: 24,
-  },
-  emptyPostBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.paper,
   },
 });

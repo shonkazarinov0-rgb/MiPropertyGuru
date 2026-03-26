@@ -1598,6 +1598,35 @@ async def list_conversations(user=Depends(get_current_user)):
             if p2:
                 conv["participant_2_phone"] = p2.get("phone", "")
                 conv["participant_2_email"] = p2.get("email", "")
+        
+        # Try to find linked job for this conversation
+        if not conv.get("job_id"):
+            # Find a job where:
+            # - One participant is the job poster
+            # - The other participant responded to the job
+            other_id = conv["participant_2"] if conv["participant_1"] == user["id"] else conv["participant_1"]
+            
+            # Check if current user posted a job that the other responded to
+            linked_job = await db.posted_jobs.find_one({
+                "posted_by": user["id"],
+                "responses.contractor_id": other_id
+            })
+            
+            if not linked_job:
+                # Check if other user posted a job that current user responded to
+                linked_job = await db.posted_jobs.find_one({
+                    "posted_by": other_id,
+                    "responses.contractor_id": user["id"]
+                })
+            
+            if linked_job:
+                conv["job_id"] = linked_job["id"]
+                conv["job_title"] = linked_job.get("title", "")
+                # Update the conversation with job_id for future queries
+                await db.conversations.update_one(
+                    {"id": conv["id"]},
+                    {"$set": {"job_id": linked_job["id"], "job_title": linked_job.get("title", "")}}
+                )
     
     return {"conversations": convs}
 
