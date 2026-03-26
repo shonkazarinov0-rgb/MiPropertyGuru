@@ -3891,12 +3891,12 @@ const styles = StyleSheet.create({
   // Service Menu in Full Map
   fullMapServiceMenu: {
     position: 'absolute',
-    bottom: 90,
+    top: 100,
     right: 20,
     backgroundColor: colors.paper,
     borderRadius: 14,
     width: 260,
-    maxHeight: 420,
+    maxHeight: 350,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
