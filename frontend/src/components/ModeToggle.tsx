@@ -25,7 +25,7 @@ export default function ModeToggle() {
     return (
       <TouchableOpacity 
         style={styles.becomeContractorBtn} 
-        onPress={() => router.push('/?mode=register&role=contractor')}
+        onPress={() => router.push('/contractor-register')}
       >
         <Ionicons name="construct" size={12} color={colors.green} />
         <Text style={styles.becomeContractorText}>Become a Pro</Text>

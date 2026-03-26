@@ -80,9 +80,12 @@ const LANGUAGES = [
 
 export default function ContractorRegisterScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  
+  // Check if upgrading from existing client
+  const isUpgrading = user?.role === 'client';
 
   // Step 1: Basic Info
   const [name, setName] = useState('');
@@ -90,6 +93,7 @@ export default function ContractorRegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [businessName, setBusinessName] = useState('');
+  const [useSamePassword, setUseSamePassword] = useState(true);
 
   // Step 2: Trades
   const [selectedTrades, setSelectedTrades] = useState<string[]>([]);
@@ -117,6 +121,15 @@ export default function ContractorRegisterScreen() {
   
   // Field validation tracking
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
+
+  // Pre-fill user data if upgrading from client
+  useEffect(() => {
+    if (isUpgrading && user) {
+      setName(user.name || '');
+      setEmail(user.email || '');
+      setPhone(user.phone || '');
+    }
+  }, [isUpgrading, user]);
 
   useEffect(() => {
     if (step === 4) {
@@ -222,9 +235,17 @@ export default function ContractorRegisterScreen() {
           Alert.alert('Invalid Email', 'Please enter a valid email address (e.g., name@example.com)'); 
           return false; 
         }
-        if (password.length < 6) { 
-          Alert.alert('Error', 'Password must be at least 6 characters'); 
-          return false; 
+        // For upgrading users, password is only required if NOT using same password
+        if (isUpgrading) {
+          if (!useSamePassword && password.length < 6) {
+            Alert.alert('Error', 'Password must be at least 6 characters');
+            return false;
+          }
+        } else {
+          if (password.length < 6) { 
+            Alert.alert('Error', 'Password must be at least 6 characters'); 
+            return false; 
+          }
         }
         return true;
       case 2: // Trades
@@ -304,22 +325,43 @@ export default function ContractorRegisterScreen() {
         finalLanguages.push(otherLanguage.trim());
       }
 
-      const res = await api.post('/auth/register', {
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        phone: phone.trim(),
-        password,
-        role: 'contractor',
-        trades: selectedTrades,
-        contractor_type: selectedTrades[0],
-        bio: bio.trim(),
-        experience_years: parseInt(experienceYears) || 0,
-        service_radius: serviceRadius,
-        business_name: businessName.trim() || null,
-        languages: finalLanguages,
-        has_license: !!licenseFile,
-        license_confirmed: acceptLicenseTerms,
-      });
+      let res;
+      
+      if (isUpgrading) {
+        // Upgrade existing client to contractor
+        res = await api.post('/auth/upgrade-to-contractor', {
+          name: name.trim(),
+          phone: phone.trim(),
+          business_name: businessName.trim() || null,
+          trades: selectedTrades,
+          languages: finalLanguages,
+          service_radius: serviceRadius,
+          bio: bio.trim(),
+          experience_years: parseInt(experienceYears) || 0,
+          has_license: !!licenseFile,
+          license_confirmed: acceptLicenseTerms,
+          use_same_password: useSamePassword,
+          new_password: useSamePassword ? null : password,
+        });
+      } else {
+        // New contractor registration
+        res = await api.post('/auth/register', {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          phone: phone.trim(),
+          password,
+          role: 'contractor',
+          trades: selectedTrades,
+          contractor_type: selectedTrades[0],
+          bio: bio.trim(),
+          experience_years: parseInt(experienceYears) || 0,
+          service_radius: serviceRadius,
+          business_name: businessName.trim() || null,
+          languages: finalLanguages,
+          has_license: !!licenseFile,
+          license_confirmed: acceptLicenseTerms,
+        });
+      }
 
       if (res.token && res.user) {
         // Store the token
@@ -327,16 +369,26 @@ export default function ContractorRegisterScreen() {
         await AsyncStorage.setItem('keep_logged_in', 'true');
         await AsyncStorage.removeItem('guest_mode'); // Clear guest mode if was browsing as guest
         
-        // Auto-login using email and password to properly set auth context
-        try {
-          await login(email.trim().toLowerCase(), password, true);
-        } catch (e) {
-          // If login fails, still redirect since token is stored
-          console.log('Auto-login after registration:', e);
+        if (isUpgrading) {
+          // For upgrade, we need to re-login with the new token
+          // The token is already updated, just refresh the user context
+          Alert.alert(
+            'Upgrade Successful!', 
+            'You are now a contractor. Welcome to the pro side!',
+            [{ text: 'OK', onPress: () => router.replace('/(tabs)/dashboard') }]
+          );
+        } else {
+          // Auto-login using email and password to properly set auth context
+          try {
+            await login(email.trim().toLowerCase(), password, true);
+          } catch (e) {
+            // If login fails, still redirect since token is stored
+            console.log('Auto-login after registration:', e);
+          }
+          
+          // Redirect to dashboard
+          router.replace('/(tabs)/dashboard');
         }
-        
-        // Redirect to dashboard
-        router.replace('/(tabs)/dashboard');
       } else {
         Alert.alert('Registration Failed', 'Something went wrong. Please try again.');
       }
@@ -386,13 +438,19 @@ export default function ContractorRegisterScreen() {
     
     return (
       <View style={styles.stepContent}>
-        <Text style={styles.stepTitle}>Let's get started</Text>
-        <Text style={styles.stepSubtitle}>Enter your basic information</Text>
+        <Text style={styles.stepTitle}>
+          {isUpgrading ? 'Upgrade to Contractor' : "Let's get started"}
+        </Text>
+        <Text style={styles.stepSubtitle}>
+          {isUpgrading 
+            ? 'Your details are pre-filled from your client account' 
+            : 'Enter your basic information'}
+        </Text>
 
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>Full Name</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, isUpgrading && styles.inputPreFilled]}
             value={name}
             onChangeText={setName}
             placeholder="John Smith"
@@ -418,7 +476,7 @@ export default function ContractorRegisterScreen() {
             Phone Number (Canadian) {showPhoneError && <Text style={styles.requiredText}>*Invalid</Text>}
           </Text>
           <TextInput
-            style={[styles.input, showPhoneError && styles.inputError]}
+            style={[styles.input, showPhoneError && styles.inputError, isUpgrading && styles.inputPreFilled]}
             value={phone}
             onChangeText={(text) => {
               setPhone(formatCanadianPhone(text));
@@ -439,7 +497,7 @@ export default function ContractorRegisterScreen() {
             Email {showEmailError && <Text style={styles.requiredText}>*Invalid</Text>}
           </Text>
           <TextInput
-            style={[styles.input, showEmailError && styles.inputError]}
+            style={[styles.input, showEmailError && styles.inputError, isUpgrading && styles.inputPreFilled]}
             value={email}
             onChangeText={(text) => {
               setEmail(text);
@@ -449,23 +507,82 @@ export default function ContractorRegisterScreen() {
             placeholderTextColor={colors.textSecondary}
             keyboardType="email-address"
             autoCapitalize="none"
+            editable={!isUpgrading}
           />
           {showEmailError && (
             <Text style={styles.errorText}>Enter a valid email (e.g., name@example.com)</Text>
           )}
+          {isUpgrading && (
+            <Text style={styles.lockedFieldText}>Email cannot be changed</Text>
+          )}
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Password</Text>
-          <TextInput
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            placeholder="At least 6 characters"
-            placeholderTextColor={colors.textSecondary}
-            secureTextEntry
-          />
-        </View>
+        {/* Password Section */}
+        {isUpgrading ? (
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Password</Text>
+            
+            {/* Password Option Toggle */}
+            <View style={styles.passwordOptions}>
+              <TouchableOpacity 
+                style={[
+                  styles.passwordOption,
+                  useSamePassword && styles.passwordOptionActive
+                ]}
+                onPress={() => {
+                  setUseSamePassword(true);
+                  setPassword('');
+                }}
+              >
+                <View style={[styles.radioOuter, useSamePassword && styles.radioOuterActive]}>
+                  {useSamePassword && <View style={styles.radioInner} />}
+                </View>
+                <Text style={[styles.passwordOptionText, useSamePassword && styles.passwordOptionTextActive]}>
+                  Use same password as my client account
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[
+                  styles.passwordOption,
+                  !useSamePassword && styles.passwordOptionActive
+                ]}
+                onPress={() => setUseSamePassword(false)}
+              >
+                <View style={[styles.radioOuter, !useSamePassword && styles.radioOuterActive]}>
+                  {!useSamePassword && <View style={styles.radioInner} />}
+                </View>
+                <Text style={[styles.passwordOptionText, !useSamePassword && styles.passwordOptionTextActive]}>
+                  Create a new password
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Show password input only if creating new */}
+            {!useSamePassword && (
+              <TextInput
+                style={[styles.input, { marginTop: 12 }]}
+                value={password}
+                onChangeText={setPassword}
+                placeholder="At least 6 characters"
+                placeholderTextColor={colors.textSecondary}
+                secureTextEntry
+              />
+            )}
+          </View>
+        ) : (
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Password</Text>
+            <TextInput
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="At least 6 characters"
+              placeholderTextColor={colors.textSecondary}
+              secureTextEntry
+            />
+          </View>
+        )}
       </View>
     );
   };
@@ -933,6 +1050,60 @@ const styles = StyleSheet.create({
   inputError: {
     borderColor: colors.red,
     borderWidth: 2,
+  },
+  inputPreFilled: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  lockedFieldText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  passwordOptions: {
+    gap: 12,
+  },
+  passwordOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.paper,
+  },
+  passwordOptionActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  passwordOptionText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  passwordOptionTextActive: {
+    color: colors.text,
+    fontWeight: '500',
+  },
+  radioOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioOuterActive: {
+    borderColor: colors.primary,
+  },
+  radioInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.primary,
   },
   requiredText: {
     color: colors.red,

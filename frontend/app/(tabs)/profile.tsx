@@ -351,18 +351,6 @@ export default function ProfileScreen() {
       </View>
       
       <ScrollView contentContainerStyle={s.scrollContent}>
-        {/* Become a Contractor button for pure Clients */}
-        {!isContractor && (
-          <TouchableOpacity 
-            style={s.becomeContractorBtn} 
-            onPress={() => router.push('/contractor-register')}
-          >
-            <Ionicons name="briefcase" size={20} color={colors.paper} />
-            <Text style={s.becomeContractorBtnText}>Become a Contractor</Text>
-            <Text style={s.becomeContractorSubtext}>Start earning by offering your services</Text>
-          </TouchableOpacity>
-        )}
-
         {/* Profile Card */}
         <View style={s.profileCard}>
           <View style={s.avatarLg}>

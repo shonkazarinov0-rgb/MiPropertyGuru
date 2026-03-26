@@ -400,6 +400,76 @@ async def register(req: RegisterReq):
     safe = {k: v for k, v in user.items() if k != "password_hash"}
     return {"token": token, "user": safe}
 
+# Upgrade client to contractor
+class UpgradeToContractorReq(BaseModel):
+    name: str
+    phone: str
+    business_name: Optional[str] = None
+    trades: List[str] = []
+    languages: List[str] = ["English"]
+    service_radius: int = 15
+    bio: Optional[str] = None
+    experience_years: Optional[int] = 0
+    has_license: Optional[bool] = False
+    license_confirmed: Optional[bool] = False
+    use_same_password: bool = True  # If true, keep existing password
+    new_password: Optional[str] = None  # Only required if use_same_password is False
+
+@api_router.post("/auth/upgrade-to-contractor")
+async def upgrade_to_contractor(req: UpgradeToContractorReq, user=Depends(get_current_user)):
+    """Upgrade an existing client account to a contractor account"""
+    
+    # Verify user is a client
+    if user.get("role") == "contractor":
+        raise HTTPException(400, "User is already a contractor")
+    
+    # Validate new password if not using same
+    if not req.use_same_password:
+        if not req.new_password or len(req.new_password) < 6:
+            raise HTTPException(400, "New password must be at least 6 characters")
+    
+    if not req.trades or len(req.trades) == 0:
+        raise HTTPException(400, "At least one trade is required")
+    
+    # Prepare update data
+    update_data = {
+        "name": req.name,
+        "phone": req.phone,
+        "role": "contractor",
+        "business_name": req.business_name,
+        "trades": req.trades,
+        "languages": req.languages,
+        "service_radius": req.service_radius,
+        "bio": req.bio or "",
+        "experience_years": req.experience_years or 0,
+        "has_license": req.has_license or False,
+        "license_confirmed": req.license_confirmed or False,
+        "is_online": False,
+        "work_locations": user.get("work_locations", []),
+        "rating": 0,
+        "review_count": 0,
+        "response_rate": 100,
+        "avg_response_time": 5,
+        "jobs_received": 0,
+        "jobs_completed": 0,
+        "profile_views": 0,
+    }
+    
+    # Update password if new one provided
+    if not req.use_same_password and req.new_password:
+        update_data["password_hash"] = hash_pw(req.new_password)
+    
+    # Update user in database
+    await db.users.update_one({"id": user["id"]}, {"$set": update_data})
+    
+    # Get updated user
+    updated_user = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+    
+    # Create new token with contractor role
+    token = create_token(user["id"], user["email"], "contractor")
+    
+    return {"token": token, "user": updated_user}
+
 @api_router.post("/auth/login")
 async def login(req: LoginReq, request: Request):
     query = {}
