@@ -44,6 +44,12 @@ export default function ProfileScreen() {
   const [licenseType, setLicenseType] = useState(user?.license_type || '');
   const [licenseExpiry, setLicenseExpiry] = useState(user?.license_expiry || '');
   const [licenseImage, setLicenseImage] = useState<string | null>(user?.license_image || null);
+  
+  // Client profile edit states
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editName, setEditName] = useState(user?.name || '');
+  const [editPhone, setEditPhone] = useState(user?.phone || '');
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
   // Helper function to get trade-specific icon
   const getTradeIcon = (tradeType: string | null | undefined): keyof typeof Ionicons.glyphMap => {
@@ -103,6 +109,28 @@ export default function ProfileScreen() {
       await refreshUser();
     } catch (e: any) {
       console.error('Failed to update service radius:', e.message);
+    }
+  };
+
+  // Save client profile (name and phone)
+  const saveClientProfile = async () => {
+    if (!editName.trim()) {
+      Alert.alert('Error', 'Name is required');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.put('/users/profile', {
+        name: editName.trim(),
+        phone: editPhone.trim(),
+      });
+      await refreshUser();
+      setShowEditProfile(false);
+      Alert.alert('Success', 'Profile updated');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not update profile');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -561,19 +589,24 @@ export default function ProfileScreen() {
         {(!isContractor || isClientMode) && (
           <View style={s.section}>
             <Text style={s.sectionTitle}>Account Settings</Text>
-            <TouchableOpacity style={s.menuItem}>
+            <TouchableOpacity 
+              style={s.menuItem}
+              onPress={() => {
+                setEditName(user?.name || '');
+                setEditPhone(user?.phone || '');
+                setShowEditProfile(true);
+              }}
+            >
               <Ionicons name="person-outline" size={22} color={colors.primary} />
               <Text style={s.menuItemText}>Edit Profile</Text>
               <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
-            <TouchableOpacity style={s.menuItem}>
-              <Ionicons name="notifications-outline" size={22} color={colors.primary} />
-              <Text style={s.menuItemText}>Notifications</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={s.menuItem}>
+            <TouchableOpacity 
+              style={s.menuItem}
+              onPress={() => setShowPrivacyPolicy(true)}
+            >
               <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
-              <Text style={s.menuItemText}>Privacy & Security</Text>
+              <Text style={s.menuItemText}>Privacy & Policy</Text>
               <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
