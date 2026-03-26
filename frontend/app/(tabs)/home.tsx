@@ -502,14 +502,14 @@ export default function ClientHomeScreen() {
 <body><div id="map"></div><script>
 var map=L.map('map',{zoomControl:false}).setView([${userLoc.lat},${userLoc.lng}],${zoomLevel});
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:''}).addTo(map);
-// Draw radius circle
-L.circle([${userLoc.lat},${userLoc.lng}],{radius:${radiusMeters},fillColor:'#FF6A00',fillOpacity:0.1,color:'#FF6A00',weight:2,dashArray:'5,5'}).addTo(map);
-// User marker
-L.circleMarker([${userLoc.lat},${userLoc.lng}],{radius:10,fillColor:'#007AFF',color:'#fff',weight:3,fillOpacity:1}).addTo(map).bindPopup('<b>You</b>');
+// Draw search radius circle - transparent blue to show search area
+L.circle([${userLoc.lat},${userLoc.lng}],{radius:${radiusMeters},fillColor:'#007AFF',fillOpacity:0.15,color:'#007AFF',weight:2,opacity:0.6}).addTo(map);
+// User marker - solid blue circle
+L.circleMarker([${userLoc.lat},${userLoc.lng}],{radius:12,fillColor:'#007AFF',color:'#fff',weight:4,fillOpacity:1}).addTo(map).bindPopup('<b>You are here</b>');
 var ms=${mJSON};
 ms.forEach(function(m){
 // All markers are green (online only)
-var icon=L.divIcon({className:'',html:'<div style="background:#22C55E;width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>',iconSize:[12,12],iconAnchor:[6,6]});
+var icon=L.divIcon({className:'',html:'<div style="background:#22C55E;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)"></div>',iconSize:[14,14],iconAnchor:[7,7]});
 L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'tap',id:m.id}))});
 });
 </script></body></html>`;
