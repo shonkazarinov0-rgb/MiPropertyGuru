@@ -74,6 +74,7 @@ export default function ClientHomeScreen() {
   const [locationName, setLocationName] = useState('Detecting location...');
   const [onlineCount, setOnlineCount] = useState(0);
   const [showFullMap, setShowFullMap] = useState(false);
+  const [showFullMapServiceMenu, setShowFullMapServiceMenu] = useState(false);
   
   // Guest prompt modal state
   const [showGuestPrompt, setShowGuestPrompt] = useState(false);
@@ -1258,16 +1259,53 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               </View>
             )}
             
-            {/* FAB - Show All Contractors List */}
+            {/* FAB - Show Select Service Menu */}
             <TouchableOpacity 
               style={styles.fullMapFab}
-              onPress={() => {
-                setCategory('All');
-                // Scroll to the bottom panel to show contractors
-              }}
+              onPress={() => setShowFullMapServiceMenu(!showFullMapServiceMenu)}
             >
-              <Ionicons name="people" size={24} color={colors.paper} />
+              <Ionicons name={showFullMapServiceMenu ? "close" : "people"} size={24} color={colors.paper} />
             </TouchableOpacity>
+            
+            {/* Service Menu Popup */}
+            {showFullMapServiceMenu && (
+              <View style={styles.fullMapServiceMenu}>
+                <Text style={styles.fullMapServiceMenuTitle}>Select Service</Text>
+                <ScrollView style={styles.fullMapServiceMenuScroll} showsVerticalScrollIndicator={false}>
+                  {/* All option */}
+                  <TouchableOpacity
+                    style={[styles.fullMapServiceMenuItem, category === 'All' && styles.fullMapServiceMenuItemActive]}
+                    onPress={() => {
+                      setCategory('All');
+                      setShowFullMapServiceMenu(false);
+                    }}
+                  >
+                    <View style={styles.fullMapServiceMenuIconBg}>
+                      <Ionicons name="people" size={20} color={colors.primary} />
+                    </View>
+                    <Text style={[styles.fullMapServiceMenuItemText, category === 'All' && styles.fullMapServiceMenuItemTextActive]}>All Contractors</Text>
+                    {category === 'All' && <Ionicons name="checkmark-circle" size={20} color={colors.green} />}
+                  </TouchableOpacity>
+                  
+                  {CATEGORY_DATA.filter(c => c.name !== 'All').map((cat) => (
+                    <TouchableOpacity
+                      key={cat.name}
+                      style={[styles.fullMapServiceMenuItem, category === cat.name && styles.fullMapServiceMenuItemActive]}
+                      onPress={() => {
+                        setCategory(cat.name);
+                        setShowFullMapServiceMenu(false);
+                      }}
+                    >
+                      <View style={styles.fullMapServiceMenuIconBg}>
+                        <Text style={styles.fullMapServiceMenuIcon}>{cat.icon}</Text>
+                      </View>
+                      <Text style={[styles.fullMapServiceMenuItemText, category === cat.name && styles.fullMapServiceMenuItemTextActive]}>{cat.name}</Text>
+                      {category === cat.name && <Ionicons name="checkmark-circle" size={20} color={colors.green} />}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
           </View>
           
           {/* Bottom Panel - Categories, Slider & Contractors */}
@@ -2870,6 +2908,68 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   fullMapCategoryTextActive: {
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  // Service Menu in Full Map
+  fullMapServiceMenu: {
+    position: 'absolute',
+    bottom: 90,
+    right: 20,
+    backgroundColor: colors.paper,
+    borderRadius: 16,
+    width: 260,
+    maxHeight: 350,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 12,
+    overflow: 'hidden',
+  },
+  fullMapServiceMenuTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  fullMapServiceMenuScroll: {
+    maxHeight: 290,
+  },
+  fullMapServiceMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  fullMapServiceMenuItemActive: {
+    backgroundColor: colors.primaryLight,
+  },
+  fullMapServiceMenuIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullMapServiceMenuIcon: {
+    fontSize: 18,
+  },
+  fullMapServiceMenuItemText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  fullMapServiceMenuItemTextActive: {
     fontWeight: '700',
     color: colors.primary,
   },
