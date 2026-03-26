@@ -2104,7 +2104,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 style={styles.smartSuggestionBtnYes}
                 onPress={handleAcceptSuggestion}
               >
-                <Text style={styles.smartSuggestionBtnYesText}>Yes, show me {suggestedCategory}s</Text>
+                <Text style={styles.smartSuggestionBtnYesText}>Yes</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2132,13 +2132,13 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 style={styles.smartSuggestionBtnNo}
                 onPress={() => handleAddMoreResponse(false)}
               >
-                <Text style={styles.smartSuggestionBtnNoText}>No, I&apos;m done</Text>
+                <Text style={styles.smartSuggestionBtnNoText}>Done</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.smartSuggestionBtnYes}
                 onPress={() => handleAddMoreResponse(true)}
               >
-                <Text style={styles.smartSuggestionBtnYesText}>Yes, add more</Text>
+                <Text style={styles.smartSuggestionBtnYesText}>Add More</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -2882,7 +2882,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 20,
+    marginBottom: 24,
   },
   smartSuggestionHighlight: {
     fontWeight: '700',
@@ -2898,24 +2898,28 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   smartSuggestionBtnNoText: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.text,
+    textAlign: 'center',
   },
   smartSuggestionBtnYes: {
-    flex: 2,
+    flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
     backgroundColor: colors.primary,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   smartSuggestionBtnYesText: {
     fontSize: 15,
     fontWeight: '600',
     color: colors.paper,
+    textAlign: 'center',
   },
   // Full Map Search Styles
   fullMapSearchContainer: {
