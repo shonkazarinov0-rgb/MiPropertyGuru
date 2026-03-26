@@ -354,8 +354,23 @@ export default function ProfileScreen() {
           </View>
           <Text style={s.profileName}>{user?.name}</Text>
           
-          {/* Show trade badge with icon only in contractor mode */}
-          {isContractor && isContractorMode && (
+          {/* Show trade badges with icons only in contractor mode */}
+          {isContractor && isContractorMode && user?.trades && user.trades.length > 0 && (
+            <View style={s.tradesContainer}>
+              {user.trades.map((trade: string, index: number) => (
+                <View key={index} style={s.typeBadge}>
+                  <Ionicons 
+                    name={getTradeIcon(trade)} 
+                    size={16} 
+                    color={colors.primary} 
+                  />
+                  <Text style={s.typeText}>{trade}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          {/* Fallback to contractor_type if no trades array */}
+          {isContractor && isContractorMode && (!user?.trades || user.trades.length === 0) && user?.contractor_type && (
             <View style={s.typeBadge}>
               <Ionicons 
                 name={getTradeIcon(user?.contractor_type)} 
@@ -1142,8 +1157,16 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
-    marginTop: 10,
+    marginTop: 6,
     gap: 6,
+  },
+  tradesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingHorizontal: 10,
   },
   typeText: {
     fontSize: 14,
