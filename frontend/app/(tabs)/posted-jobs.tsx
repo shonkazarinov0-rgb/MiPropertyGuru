@@ -55,13 +55,6 @@ export default function PostedJobsScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('pending');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Redirect to Dashboard if in Contractor mode
-  useEffect(() => {
-    if (!isClientMode && user?.role === 'contractor') {
-      router.replace('/(tabs)/dashboard');
-    }
-  }, [isClientMode, user]);
-
   useEffect(() => { 
     fetchData(); 
   }, []);

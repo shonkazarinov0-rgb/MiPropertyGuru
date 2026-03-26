@@ -608,7 +608,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
 
   const handleSwitchToContractorMode = async () => {
     await switchMode('contractor');
-    router.replace('/(tabs)/dashboard');
+    // Stay on current page - no navigation
   };
 
   return (

@@ -331,13 +331,7 @@ export default function ProfileScreen() {
     
     const newMode = isContractorMode ? 'client' : 'contractor';
     await switchMode(newMode);
-    
-    // Navigate appropriately
-    if (newMode === 'client') {
-      router.replace('/(tabs)/home');
-    } else {
-      router.replace('/(tabs)/dashboard');
-    }
+    // Stay on current page - no navigation
   };
 
   const isContractor = user?.role === 'contractor';
