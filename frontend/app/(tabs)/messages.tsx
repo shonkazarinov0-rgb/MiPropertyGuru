@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator, RefreshControl,
+  View, Text, TouchableOpacity, Pressable, FlatList, StyleSheet, ActivityIndicator, RefreshControl,
   Alert, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -236,13 +236,16 @@ export default function MessagesScreen() {
         
         {/* Remove button for pending conversations in Client mode */}
         {isPending && isClientMode && (
-          <TouchableOpacity 
-            style={s.removeBtn}
-            onPress={() => handleRemoveConversation(item)}
+          <Pressable 
+            style={({ pressed }) => [s.removeBtn, pressed && { opacity: 0.7 }]}
+            onPress={() => {
+              console.log('[Messages] Remove button pressed for:', item.id);
+              handleRemoveConversation(item);
+            }}
           >
             <Ionicons name="close-circle" size={16} color={colors.red} />
             <Text style={s.removeBtnText}>Remove</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
       </View>
     );

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet,
+  View, Text, TextInput, TouchableOpacity, Pressable, FlatList, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, Linking, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -525,9 +525,15 @@ export default function ChatScreen() {
 
         {/* Remove Contractor Button - Only for pending conversations in Client mode */}
         {!isFullyConfirmed && !isArchived && isClientMode && (
-          <TouchableOpacity style={s.removeContractorBtn} onPress={handleRemoveConversation}>
+          <Pressable 
+            style={({ pressed }) => [s.removeContractorBtn, pressed && { opacity: 0.7 }]}
+            onPress={() => {
+              console.log('[Chat] Remove Contractor button pressed');
+              handleRemoveConversation();
+            }}
+          >
             <Text style={s.removeContractorText}>Remove Contractor</Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
 
         {/* Job Confirmation Banner */}
