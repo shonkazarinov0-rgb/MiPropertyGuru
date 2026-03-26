@@ -1222,7 +1222,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
         )}
       </ScrollView>
 
-      {/* "What do you need?" Intent Modal - Shows on app open for clients/guests */}
+      {/* Welcome Intent Modal - Professional design */}
       <Modal
         visible={showNeedPrompt}
         transparent
@@ -1231,72 +1231,98 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
       >
         <View style={styles.intentModalOverlay}>
           <View style={styles.intentModalContainer}>
-            <View style={styles.intentModalHeader}>
-              <Text style={styles.intentModalTitle}>What do you need?</Text>
+            {/* Header with gradient accent */}
+            <View style={styles.intentModalHeaderAccent} />
+            
+            <View style={styles.intentModalContent}>
+              {/* Welcome Text */}
+              <View style={styles.intentWelcomeSection}>
+                <Text style={styles.intentWelcomeTitle}>Hi there! 👋</Text>
+                <Text style={styles.intentWelcomeSubtitle}>How can we help you today?</Text>
+              </View>
+              
+              {/* Close Button */}
               <TouchableOpacity 
-                style={styles.intentModalClose}
+                style={styles.intentCloseBtn}
                 onPress={() => setShowNeedPrompt(false)}
               >
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.intentOptions}>
-              {/* Urgent Option */}
-              <TouchableOpacity 
-                style={styles.intentOptionCard}
-                onPress={() => {
-                  setShowNeedPrompt(false);
-                  // Navigate to Explore tab and open full map
-                  router.push('/(tabs)/home');
-                  // Small delay to ensure navigation, then open full map
-                  setTimeout(() => setShowFullMap(true), 300);
-                }}
-              >
-                <View style={[styles.intentIconBg, { backgroundColor: '#DCFCE7' }]}>
-                  <Text style={styles.intentEmoji}>⚡</Text>
-                </View>
-                <View style={styles.intentOptionContent}>
-                  <Text style={styles.intentOptionTitle}>Urgent</Text>
-                  <Text style={styles.intentOptionDesc}>Someone available now</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={22} color={colors.textSecondary} />
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
               </TouchableOpacity>
               
-              {/* Planned Option */}
+              {/* Options */}
+              <View style={styles.intentOptionsNew}>
+                {/* Urgent Option - Green theme */}
+                <TouchableOpacity 
+                  style={styles.intentOptionCardNew}
+                  onPress={() => {
+                    setShowNeedPrompt(false);
+                    router.push('/(tabs)/home');
+                    setTimeout(() => setShowFullMap(true), 300);
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#22C55E', '#16A34A']}
+                    style={styles.intentOptionIconNew}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Ionicons name="flash" size={26} color="#fff" />
+                  </LinearGradient>
+                  <View style={styles.intentOptionTextNew}>
+                    <Text style={styles.intentOptionTitleNew}>Need Help Now</Text>
+                    <Text style={styles.intentOptionDescNew}>Find available contractors nearby</Text>
+                  </View>
+                  <View style={styles.intentOptionArrow}>
+                    <Ionicons name="arrow-forward" size={18} color={colors.green} />
+                  </View>
+                </TouchableOpacity>
+                
+                {/* Planned Option - Orange theme */}
+                <TouchableOpacity 
+                  style={styles.intentOptionCardNew}
+                  onPress={() => {
+                    setShowNeedPrompt(false);
+                    if (!user) {
+                      Alert.alert(
+                        'Sign In Required',
+                        'You need to sign in or create an account to post a job.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Register', onPress: () => router.push('/?mode=register') },
+                          { text: 'Sign In', onPress: () => router.push('/?mode=login'), style: 'default' },
+                        ]
+                      );
+                    } else {
+                      router.push('/post-job');
+                    }
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#FF6A00', '#FF8C33']}
+                    style={styles.intentOptionIconNew}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Ionicons name="calendar" size={26} color="#fff" />
+                  </LinearGradient>
+                  <View style={styles.intentOptionTextNew}>
+                    <Text style={styles.intentOptionTitleNew}>Plan a Project</Text>
+                    <Text style={styles.intentOptionDescNew}>Post a job and compare quotes</Text>
+                  </View>
+                  <View style={styles.intentOptionArrow}>
+                    <Ionicons name="arrow-forward" size={18} color={colors.primary} />
+                  </View>
+                </TouchableOpacity>
+              </View>
+              
+              {/* Browse Option */}
               <TouchableOpacity 
-                style={styles.intentOptionCard}
-                onPress={() => {
-                  setShowNeedPrompt(false);
-                  if (!user) {
-                    Alert.alert(
-                      'Sign In Required',
-                      'You need to sign in or create an account to post a job.',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Register', onPress: () => router.push('/?mode=register') },
-                        { text: 'Sign In', onPress: () => router.push('/?mode=login'), style: 'default' },
-                      ]
-                    );
-                  } else {
-                    router.push('/post-job');
-                  }
-                }}
+                style={styles.intentBrowseBtn}
+                onPress={() => setShowNeedPrompt(false)}
               >
-                <View style={[styles.intentIconBg, { backgroundColor: '#FFF3EB' }]}>
-                  <Text style={styles.intentEmoji}>📋</Text>
-                </View>
-                <View style={styles.intentOptionContent}>
-                  <Text style={styles.intentOptionTitle}>Planned</Text>
-                  <Text style={styles.intentOptionDesc}>Get quotes for a project</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={22} color={colors.textSecondary} />
+                <Text style={styles.intentBrowseBtnText}>Just browsing</Text>
               </TouchableOpacity>
             </View>
-            
-            <Text style={styles.intentModalHint}>
-              Choose Urgent to find contractors available right now, or Planned to post a job and receive quotes.
-            </Text>
           </View>
         </View>
       </Modal>
@@ -2606,7 +2632,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textDecorationLine: 'underline',
   },
-  // Intent Modal Styles
+  // Professional Intent Modal Styles
   intentModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -2616,67 +2642,95 @@ const styles = StyleSheet.create({
   },
   intentModalContainer: {
     backgroundColor: colors.paper,
-    borderRadius: 20,
+    borderRadius: 24,
     width: '100%',
     maxWidth: 360,
+    overflow: 'hidden',
+  },
+  intentModalHeaderAccent: {
+    height: 6,
+    backgroundColor: colors.primary,
+  },
+  intentModalContent: {
     padding: 24,
+    paddingTop: 20,
   },
-  intentModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+  intentWelcomeSection: {
+    marginBottom: 24,
   },
-  intentModalTitle: {
-    fontSize: 22,
+  intentWelcomeTitle: {
+    fontSize: 26,
     fontWeight: '700',
     color: colors.text,
+    marginBottom: 6,
   },
-  intentModalClose: {
-    padding: 4,
+  intentWelcomeSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontWeight: '500',
   },
-  intentOptions: {
-    gap: 12,
+  intentCloseBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  intentOptionCard: {
+  intentOptionsNew: {
+    gap: 14,
+    marginBottom: 20,
+  },
+  intentOptionCardNew: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 14,
+    backgroundColor: '#FAFAFA',
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.border,
-    gap: 14,
+    borderColor: '#E5E7EB',
   },
-  intentIconBg: {
-    width: 52,
-    height: 52,
+  intentOptionIconNew: {
+    width: 54,
+    height: 54,
     borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  intentEmoji: {
-    fontSize: 26,
-  },
-  intentOptionContent: {
+  intentOptionTextNew: {
     flex: 1,
+    marginLeft: 14,
   },
-  intentOptionTitle: {
+  intentOptionTitleNew: {
     fontSize: 17,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  intentOptionDesc: {
+  intentOptionDescNew: {
     fontSize: 13,
     color: colors.textSecondary,
+    fontWeight: '500',
   },
-  intentModalHint: {
-    fontSize: 12,
+  intentOptionArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  intentBrowseBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  intentBrowseBtnText: {
+    fontSize: 15,
     color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 16,
-    lineHeight: 18,
+    fontWeight: '600',
   },
   // Guest Modal Styles
   guestModalText: {
