@@ -82,7 +82,6 @@ export default function ClientHomeScreen() {
   
   // Filter toggle states - can combine multiple
   const [showOnline, setShowOnline] = useState(false);
-  const [showOffline, setShowOffline] = useState(false);
   const [sortByNearest, setSortByNearest] = useState(true);
   
   // Distance radius filter (in km) - 0 means no limit
@@ -384,15 +383,10 @@ export default function ClientHomeScreen() {
       return distance <= radiusKm;
     });
     
-    // Filter by online/offline status
-    if (showOnline && !showOffline) {
-      // Only online contractors
+    // Filter by online status - if Online toggle is on, only show online contractors
+    if (showOnline) {
       filtered = filtered.filter(c => c.is_online);
-    } else if (showOffline && !showOnline) {
-      // Only offline contractors
-      filtered = filtered.filter(c => !c.is_online);
     }
-    // If both or neither selected, show all
     
     // Sort by distance if enabled
     if (sortByNearest) {
@@ -400,7 +394,7 @@ export default function ClientHomeScreen() {
     }
     
     return filtered;
-  }, [contractors, radiusKm, showOnline, showOffline, sortByNearest]);
+  }, [contractors, radiusKm, showOnline, sortByNearest]);
 
   // Re-fetch when filters change
   useEffect(() => {
@@ -483,47 +477,16 @@ export default function ClientHomeScreen() {
   const getMapHTML = () => {
     if (!userLoc) return '';
     
-    // Build markers array - for offline show all work locations, for online show live location
-    const markers: any[] = [];
-    sortedContractors.slice(0, 15).forEach(c => {
-      if (c.is_online && c.current_location) {
-        // Online: show only live location (green marker)
-        markers.push({
-          id: c.id,
-          name: c.name,
-          type: c.contractor_type,
-          lat: c.current_location.lat,
-          lng: c.current_location.lng,
-          online: true,
-          locationType: 'live'
-        });
-      } else if (!c.is_online && c.work_locations && c.work_locations.length > 0) {
-        // Offline: show all work locations (up to 3, orange markers)
-        c.work_locations.slice(0, 3).forEach((loc: any, idx: number) => {
-          markers.push({
-            id: c.id,
-            name: c.name,
-            type: c.contractor_type,
-            lat: loc.lat,
-            lng: loc.lng,
-            online: false,
-            locationType: `work${idx + 1}`,
-            locationName: loc.name || `Work Area ${idx + 1}`
-          });
-        });
-      } else {
-        // Fallback to user location area
-        markers.push({
-          id: c.id,
-          name: c.name,
-          type: c.contractor_type,
-          lat: userLoc.lat + (Math.random() - 0.5) * 0.02,
-          lng: userLoc.lng + (Math.random() - 0.5) * 0.02,
-          online: c.is_online,
-          locationType: 'unknown'
-        });
-      }
-    });
+    // Only show online contractors with their live location on the map
+    const onlineContractors = sortedContractors.filter(c => c.is_online && c.current_location);
+    const markers = onlineContractors.slice(0, 15).map(c => ({
+      id: c.id,
+      name: c.name,
+      type: c.contractor_type,
+      lat: c.current_location.lat,
+      lng: c.current_location.lng,
+      online: true
+    }));
     
     const mJSON = JSON.stringify(markers);
     // Calculate zoom level based on radius (larger radius = lower zoom)
@@ -552,9 +515,8 @@ L.circle([${userLoc.lat},${userLoc.lng}],{radius:${radiusMeters},fillColor:'#FF6
 L.circleMarker([${userLoc.lat},${userLoc.lng}],{radius:10,fillColor:'#007AFF',color:'#fff',weight:3,fillOpacity:1}).addTo(map).bindPopup('<b>You</b>');
 var ms=${mJSON};
 ms.forEach(function(m){
-var col=m.online?'#22C55E':'#FF6A00';
-var size=m.online?12:10;
-var icon=L.divIcon({className:'',html:'<div style="background:'+col+';width:'+size+'px;height:'+size+'px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>',iconSize:[size,size],iconAnchor:[size/2,size/2]});
+// All markers are green (online only)
+var icon=L.divIcon({className:'',html:'<div style="background:#22C55E;width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>',iconSize:[12,12],iconAnchor:[6,6]});
 L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'tap',id:m.id}))});
 });
 </script></body></html>`;
@@ -825,7 +787,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   <Text style={styles.urgentMapSubtitle}>Find contractors available right now</Text>
                 </View>
                 
-                {/* Filter Toggles - Online, Offline, Nearest */}
+                {/* Filter Toggles - Online and Nearest */}
                 <View style={styles.filterToggleRow}>
                   <TouchableOpacity 
                     style={[styles.filterChip, showOnline && styles.filterChipOnline]}
@@ -833,13 +795,6 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   >
                     <View style={[styles.filterChipDot, { backgroundColor: colors.green }]} />
                     <Text style={[styles.filterChipText, showOnline && styles.filterChipTextActive]}>Online</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.filterChip, showOffline && styles.filterChipOffline]}
-                    onPress={() => setShowOffline(!showOffline)}
-                  >
-                    <View style={[styles.filterChipDot, { backgroundColor: colors.primary }]} />
-                    <Text style={[styles.filterChipText, showOffline && styles.filterChipTextActive]}>Offline</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={[styles.filterChip, sortByNearest && styles.filterChipNearest]}
@@ -909,16 +864,6 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                     pointerEvents="none"
                   />
                   <View style={styles.mapOverlay}>
-                    <View style={styles.mapLegend}>
-                      <View style={styles.mapLegendItem}>
-                        <View style={[styles.mapLegendDot, { backgroundColor: colors.green }]} />
-                        <Text style={styles.mapLegendText}>Online</Text>
-                      </View>
-                      <View style={styles.mapLegendItem}>
-                        <View style={[styles.mapLegendDot, { backgroundColor: colors.primary }]} />
-                        <Text style={styles.mapLegendText}>Offline</Text>
-                      </View>
-                    </View>
                     <Text style={styles.mapOverlayText}>Tap to expand map</Text>
                   </View>
                 </TouchableOpacity>
@@ -934,7 +879,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   <Text style={styles.urgentMapSubtitle}>Find contractors available right now</Text>
                 </View>
                 
-                {/* Filter Toggles - Online, Offline, Nearest */}
+                {/* Filter Toggles - Online and Nearest */}
                 <View style={styles.filterToggleRow}>
                   <TouchableOpacity 
                     style={[styles.filterChip, showOnline && styles.filterChipOnline]}
@@ -942,13 +887,6 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   >
                     <View style={[styles.filterChipDot, { backgroundColor: colors.green }]} />
                     <Text style={[styles.filterChipText, showOnline && styles.filterChipTextActive]}>Online</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.filterChip, showOffline && styles.filterChipOffline]}
-                    onPress={() => setShowOffline(!showOffline)}
-                  >
-                    <View style={[styles.filterChipDot, { backgroundColor: colors.primary }]} />
-                    <Text style={[styles.filterChipText, showOffline && styles.filterChipTextActive]}>Offline</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={[styles.filterChip, sortByNearest && styles.filterChipNearest]}
