@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
@@ -36,7 +37,11 @@ export default function MessagesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('pending');
 
-  useEffect(() => { fetchConversations(); }, []);
+  useEffect(() => { 
+    if (user) {
+      fetchConversations(); 
+    }
+  }, [user?.id]);
 
   // Re-fetch when mode changes
   useEffect(() => { 
@@ -45,11 +50,20 @@ export default function MessagesScreen() {
     }
   }, [isClientMode, isContractorMode]);
 
+  // Re-fetch when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        fetchConversations();
+      }
+    }, [user?.id])
+  );
+
   const fetchConversations = async () => {
     try {
       const res = await api.get('/conversations');
       setConversations(res.conversations || []);
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error('[Messages] Error fetching:', e); }
     finally { setLoading(false); setRefreshing(false); }
   };
 
@@ -75,7 +89,9 @@ export default function MessagesScreen() {
   // Filter conversations based on current mode
   const filterByMode = (convList: any[]) => {
     if (!user) return convList;
-    if (user.role === 'client') return convList; // Pure clients see all their conversations
+    if (user.role === 'client') {
+      return convList; // Pure clients see all their conversations
+    }
     
     return convList.filter(conv => {
       const isParticipant1 = conv.participant_1 === user.id;
@@ -96,6 +112,7 @@ export default function MessagesScreen() {
 
   // Split conversations into 3 categories
   const modeFilteredConversations = filterByMode(conversations);
+  
   const pendingConversations = modeFilteredConversations.filter(c => 
     c.job_status !== 'confirmed' && c.job_status !== 'archived'
   );
