@@ -92,11 +92,8 @@ export default function PostJobScreen() {
         urgency: 'normal',
       });
 
-      Alert.alert(
-        'Job Posted!',
-        'Your job has been posted. Contractors matching your requirements will be notified.',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      // Redirect directly to My Jobs (Pending tab)
+      router.replace('/(tabs)/posted-jobs');
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Failed to post job. Please try again.');
     } finally {
