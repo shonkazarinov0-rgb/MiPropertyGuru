@@ -102,6 +102,19 @@ export default function ClientHomeScreen() {
   // Check if contractor is in client mode (browsing as client)
   const isContractorInClientMode = user?.role === 'contractor' && isClientMode;
   
+  // Show "What do you need?" modal on app open for clients/guests
+  useEffect(() => {
+    const checkShowIntentModal = async () => {
+      // Only show for clients or guests (not contractors in contractor mode)
+      const isClientOrGuest = !user || user.role === 'client' || (user.role === 'contractor' && isClientMode);
+      if (isClientOrGuest) {
+        // Show the modal every time the app opens for clients/guests
+        setShowNeedPrompt(true);
+      }
+    };
+    checkShowIntentModal();
+  }, [user, isClientMode]);
+  
   // Contractor types with emojis for dynamic stat
   const CONTRACTOR_STATS = [
     { type: 'Electricians', icon: '⚡' },
@@ -352,6 +365,23 @@ export default function ClientHomeScreen() {
       setRefreshing(false);
     }
   };
+
+  // Sort contractors based on selected sort option
+  const sortedContractors = React.useMemo(() => {
+    const sorted = [...contractors];
+    if (sortBy === 'online') {
+      // Online contractors first, then by distance
+      sorted.sort((a, b) => {
+        if (a.is_online && !b.is_online) return -1;
+        if (!a.is_online && b.is_online) return 1;
+        return (a.distance_km || 999) - (b.distance_km || 999);
+      });
+    } else {
+      // Sort by distance
+      sorted.sort((a, b) => (a.distance_km || 999) - (b.distance_km || 999));
+    }
+    return sorted;
+  }, [contractors, sortBy]);
 
   // Re-fetch when filters change
   useEffect(() => {
@@ -706,7 +736,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
           <View style={styles.switchModePrompt}>
             <Ionicons name="information-circle-outline" size={24} color={colors.primary} />
             <Text style={styles.switchModePromptText}>
-              You're in Contractor Mode. To browse and hire contractors,{' '}
+              You&apos;re in Contractor Mode. To browse and hire contractors,{' '}
               <Text style={styles.switchModeLink} onPress={() => switchMode('client')}>
                 switch to Client Mode
               </Text>
@@ -717,20 +747,58 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
         {/* Content area - only show when in client mode or for clients/guests */}
         {(isClientMode || user?.role === 'client' || !user) && (
           <>
-            {/* Mini Map */}
+            {/* Mini Map with Urgent Label */}
             {userLoc && contractors.length > 0 && Platform.OS !== 'web' && (
-              <TouchableOpacity style={styles.mapPreview} onPress={() => setShowFullMap(true)}>
-                <WebView 
-                  source={{ html: getMapHTML() }} 
-                  style={styles.mapWebView}
-                  onMessage={handleMapMessage}
-                  scrollEnabled={false}
-                  pointerEvents="none"
-                />
-                <View style={styles.mapOverlay}>
-                  <Text style={styles.mapOverlayText}>Tap to expand map</Text>
+              <View style={styles.urgentMapSection}>
+                <View style={styles.urgentMapHeader}>
+                  <View style={styles.urgentBadge}>
+                    <Text style={styles.urgentBadgeEmoji}>⚡</Text>
+                    <Text style={styles.urgentBadgeText}>URGENT</Text>
+                  </View>
+                  <Text style={styles.urgentMapSubtitle}>Find contractors available right now</Text>
                 </View>
-              </TouchableOpacity>
+                
+                {/* Sort/Filter Toggle */}
+                <View style={styles.sortToggleRow}>
+                  <TouchableOpacity 
+                    style={[styles.sortChip, sortBy === 'online' && styles.sortChipActive]}
+                    onPress={() => setSortBy('online')}
+                  >
+                    <View style={styles.sortChipDot} />
+                    <Text style={[styles.sortChipText, sortBy === 'online' && styles.sortChipTextActive]}>Online First</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.sortChip, sortBy === 'distance' && styles.sortChipActive]}
+                    onPress={() => setSortBy('distance')}
+                  >
+                    <Ionicons name="location" size={14} color={sortBy === 'distance' ? '#fff' : colors.textSecondary} />
+                    <Text style={[styles.sortChipText, sortBy === 'distance' && styles.sortChipTextActive]}>Nearest</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <TouchableOpacity style={styles.mapPreview} onPress={() => setShowFullMap(true)}>
+                  <WebView 
+                    source={{ html: getMapHTML() }} 
+                    style={styles.mapWebView}
+                    onMessage={handleMapMessage}
+                    scrollEnabled={false}
+                    pointerEvents="none"
+                  />
+                  <View style={styles.mapOverlay}>
+                    <View style={styles.mapLegend}>
+                      <View style={styles.mapLegendItem}>
+                        <View style={[styles.mapLegendDot, { backgroundColor: colors.green }]} />
+                        <Text style={styles.mapLegendText}>Online</Text>
+                      </View>
+                      <View style={styles.mapLegendItem}>
+                        <View style={[styles.mapLegendDot, { backgroundColor: colors.primary }]} />
+                        <Text style={styles.mapLegendText}>Offline</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.mapOverlayText}>Tap to expand map</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
             )}
             {Platform.OS === 'web' && (
               <View style={styles.mapPlaceholder}>
@@ -739,33 +807,46 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               </View>
             )}
 
-            {/* Post a Job - Compact Inline */}
-            <TouchableOpacity 
-              style={styles.postJobBtn}
-              onPress={() => {
-                if (!user) {
-                  // Guest user - show sign in/register prompt
-                  Alert.alert(
-                    'Sign In Required',
-                    'You need to sign in or create an account to post a job.',
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Register', onPress: () => router.push('/?mode=register') },
-                      { text: 'Sign In', onPress: () => router.push('/?mode=login'), style: 'default' },
-                    ]
-                  );
-                } else {
-                  router.push('/post-job');
-                }
-              }}
-            >
-              <View style={styles.postJobContent}>
-                <Ionicons name="add-circle" size={22} color={colors.primary} />
-                <Text style={styles.postJobTitle}>Post a Job</Text>
-                <Text style={styles.postJobSubtitle}>• Let contractors find you</Text>
+            {/* Post a Job - For Planned Quotes (Not Urgent) */}
+            <View style={styles.postJobSection}>
+              <View style={styles.plannedBadgeRow}>
+                <View style={styles.plannedBadge}>
+                  <Text style={styles.plannedBadgeEmoji}>📋</Text>
+                  <Text style={styles.plannedBadgeText}>PLANNED</Text>
+                </View>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-            </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.postJobBtn}
+                onPress={() => {
+                  if (!user) {
+                    // Guest user - show sign in/register prompt
+                    Alert.alert(
+                      'Sign In Required',
+                      'You need to sign in or create an account to post a job.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Register', onPress: () => router.push('/?mode=register') },
+                        { text: 'Sign In', onPress: () => router.push('/?mode=login'), style: 'default' },
+                      ]
+                    );
+                  } else {
+                    router.push('/post-job');
+                  }
+                }}
+              >
+                <View style={styles.postJobContent}>
+                  <Ionicons name="add-circle" size={22} color={colors.primary} />
+                  <View>
+                    <Text style={styles.postJobTitle}>Post a Job for Quotes</Text>
+                    <Text style={styles.postJobSubtitle}>Get multiple quotes from contractors</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+              </TouchableOpacity>
+              <Text style={styles.postJobHint}>
+                Not urgent? Post your project and let contractors come to you with quotes.
+              </Text>
+            </View>
 
           {/* Categories */}
             <View style={styles.section}>
@@ -926,14 +1007,14 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               
               {loading ? (
                 <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
-              ) : contractors.length === 0 ? (
+              ) : sortedContractors.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Ionicons name="people-outline" size={48} color={colors.textSecondary} />
                   <Text style={styles.emptyText}>No contractors found</Text>
                   <Text style={styles.emptySubtext}>Try a different category or location</Text>
                 </View>
               ) : (
-                contractors.slice(0, 10).map(contractor => (
+                sortedContractors.slice(0, 10).map(contractor => (
                   <View key={contractor.id}>
                     {renderContractorCard({ item: contractor })}
                   </View>
@@ -943,6 +1024,121 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
           </>
         )}
       </ScrollView>
+
+      {/* "What do you need?" Intent Modal - Shows on app open for clients/guests */}
+      <Modal
+        visible={showNeedPrompt}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNeedPrompt(false)}
+      >
+        <View style={styles.intentModalOverlay}>
+          <View style={styles.intentModalContainer}>
+            <View style={styles.intentModalHeader}>
+              <Text style={styles.intentModalTitle}>What do you need?</Text>
+              <TouchableOpacity 
+                style={styles.intentModalClose}
+                onPress={() => setShowNeedPrompt(false)}
+              >
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.intentOptions}>
+              {/* Urgent Option */}
+              <TouchableOpacity 
+                style={styles.intentOptionCard}
+                onPress={() => {
+                  setShowNeedPrompt(false);
+                  // Stay on map - already here
+                }}
+              >
+                <View style={[styles.intentIconBg, { backgroundColor: '#DCFCE7' }]}>
+                  <Text style={styles.intentEmoji}>⚡</Text>
+                </View>
+                <View style={styles.intentOptionContent}>
+                  <Text style={styles.intentOptionTitle}>Urgent</Text>
+                  <Text style={styles.intentOptionDesc}>Someone available now</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+              
+              {/* Planned Option */}
+              <TouchableOpacity 
+                style={styles.intentOptionCard}
+                onPress={() => {
+                  setShowNeedPrompt(false);
+                  if (!user) {
+                    Alert.alert(
+                      'Sign In Required',
+                      'You need to sign in or create an account to post a job.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Register', onPress: () => router.push('/?mode=register') },
+                        { text: 'Sign In', onPress: () => router.push('/?mode=login'), style: 'default' },
+                      ]
+                    );
+                  } else {
+                    router.push('/post-job');
+                  }
+                }}
+              >
+                <View style={[styles.intentIconBg, { backgroundColor: '#FFF3EB' }]}>
+                  <Text style={styles.intentEmoji}>📋</Text>
+                </View>
+                <View style={styles.intentOptionContent}>
+                  <Text style={styles.intentOptionTitle}>Planned</Text>
+                  <Text style={styles.intentOptionDesc}>Get quotes for a project</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.intentModalHint}>
+              Choose Urgent to find contractors available right now, or Planned to post a job and receive quotes.
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Guest Prompt Modal */}
+      <Modal
+        visible={showGuestPrompt}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowGuestPrompt(false)}
+      >
+        <View style={styles.intentModalOverlay}>
+          <View style={styles.intentModalContainer}>
+            <View style={styles.intentModalHeader}>
+              <Text style={styles.intentModalTitle}>Sign In Required</Text>
+              <TouchableOpacity 
+                style={styles.intentModalClose}
+                onPress={() => setShowGuestPrompt(false)}
+              >
+                <Ionicons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.guestModalText}>
+              You need to sign in or create an account to contact contractors.
+            </Text>
+            <View style={styles.guestModalButtons}>
+              <TouchableOpacity 
+                style={styles.guestModalBtnOutline}
+                onPress={() => { setShowGuestPrompt(false); router.push('/?mode=register'); }}
+              >
+                <Text style={styles.guestModalBtnOutlineText}>Register</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.guestModalBtnPrimary}
+                onPress={() => { setShowGuestPrompt(false); router.push('/?mode=login'); }}
+              >
+                <Text style={styles.guestModalBtnPrimaryText}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Service Menu Modal */}
       <Modal
@@ -1741,11 +1937,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textSecondary,
   },
-  resultCount: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 8,
-  },
   // Switch Mode Banner for contractors in client mode
   switchModeBanner: {
     flexDirection: 'row',
@@ -1787,26 +1978,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.primaryLight,
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 12,
   },
   postJobContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
   postJobTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: colors.primary,
   },
   postJobSubtitle: {
     fontSize: 12,
     color: colors.textSecondary,
+    marginTop: 2,
   },
   // Switch mode prompt for contractors
   switchModePrompt: {
@@ -1829,5 +2018,235 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '700',
     textDecorationLine: 'underline',
+  },
+  // Intent Modal Styles
+  intentModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  intentModalContainer: {
+    backgroundColor: colors.paper,
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 360,
+    padding: 24,
+  },
+  intentModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  intentModalTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  intentModalClose: {
+    padding: 4,
+  },
+  intentOptions: {
+    gap: 12,
+  },
+  intentOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 14,
+  },
+  intentIconBg: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  intentEmoji: {
+    fontSize: 26,
+  },
+  intentOptionContent: {
+    flex: 1,
+  },
+  intentOptionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  intentOptionDesc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  intentModalHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 16,
+    lineHeight: 18,
+  },
+  // Guest Modal Styles
+  guestModalText: {
+    fontSize: 15,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  guestModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  guestModalBtnOutline: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    alignItems: 'center',
+  },
+  guestModalBtnOutlineText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  guestModalBtnPrimary: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  guestModalBtnPrimaryText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  // Urgent Map Section Styles
+  urgentMapSection: {
+    marginHorizontal: 16,
+    marginTop: 20,
+  },
+  urgentMapHeader: {
+    marginBottom: 12,
+  },
+  urgentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginBottom: 6,
+  },
+  urgentBadgeEmoji: {
+    fontSize: 14,
+  },
+  urgentBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#166534',
+    letterSpacing: 0.5,
+  },
+  urgentMapSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  // Sort Toggle Styles
+  sortToggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  sortChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    gap: 6,
+  },
+  sortChipActive: {
+    backgroundColor: colors.green,
+  },
+  sortChipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.green,
+  },
+  sortChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  sortChipTextActive: {
+    color: colors.paper,
+  },
+  // Map Legend Styles
+  mapLegend: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 6,
+  },
+  mapLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  mapLegendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: colors.paper,
+  },
+  mapLegendText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  // Post Job (Planned) Section Styles
+  postJobSection: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  plannedBadgeRow: {
+    marginBottom: 8,
+  },
+  plannedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3EB',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+    gap: 6,
+  },
+  plannedBadgeEmoji: {
+    fontSize: 14,
+  },
+  plannedBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 0.5,
+  },
+  postJobHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 8,
+    marginLeft: 4,
   },
 });
