@@ -453,10 +453,10 @@ export default function JobDetailScreen() {
                   <Text style={s.budgetText}>
                     {job.budget ? (job.budget.toString().startsWith('$') ? job.budget : `$${job.budget}`) : 'Not specified'}
                   </Text>
-                  {job.budget && job.budget_negotiable !== null && job.budget_negotiable !== undefined && (
+                  {job.budget && (job.budget_negotiable === true || job.budget_negotiable === false) && (
                     <View style={[s.negotiableBadge, job.budget_negotiable === false && s.fixedPriceBadge]}>
                       <Text style={[s.negotiableBadgeText, job.budget_negotiable === false && s.fixedPriceBadgeText]}>
-                        {job.budget_negotiable === false ? 'Fixed' : 'Negotiable'}
+                        {job.budget_negotiable ? 'Negotiable' : 'Fixed'}
                       </Text>
                     </View>
                   )}

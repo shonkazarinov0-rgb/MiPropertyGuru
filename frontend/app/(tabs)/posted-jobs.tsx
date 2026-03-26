@@ -348,10 +348,10 @@ export default function PostedJobsScreen() {
                 <Text style={[s.metaText, { color: colors.green, fontWeight: '600' }]}>
                   {item.budget.toString().startsWith('$') ? item.budget : `$${item.budget}`}
                 </Text>
-                {item.budget_negotiable !== undefined && (
+                {(item.budget_negotiable === true || item.budget_negotiable === false) && (
                   <View style={[s.negotiableBadge, item.budget_negotiable === false && s.fixedBadge]}>
                     <Text style={[s.negotiableBadgeText, item.budget_negotiable === false && s.fixedBadgeText]}>
-                      {item.budget_negotiable === false ? 'Fixed' : 'Negotiable'}
+                      {item.budget_negotiable ? 'Negotiable' : 'Fixed'}
                     </Text>
                   </View>
                 )}

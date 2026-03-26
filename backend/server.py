@@ -127,8 +127,10 @@ class JobPostCreate(BaseModel):
     trade_required: str
     location: Optional[str] = None
     budget: Optional[str] = None
+    budget_negotiable: Optional[bool] = None
     urgency: Optional[str] = "normal"  # normal, urgent
     photos: Optional[List[str]] = None  # Up to 10 photos
+    trades_required: Optional[List[str]] = None  # Array of trades
 
 class LocationUpdate(BaseModel):
     live_location_enabled: bool
@@ -875,8 +877,10 @@ async def post_job(req: JobPostCreate, user=Depends(get_current_user)):
         "title": req.title,
         "description": req.description,
         "trade_required": req.trade_required,
+        "trades_required": req.trades_required or [],
         "location": req.location,
         "budget": req.budget,
+        "budget_negotiable": req.budget_negotiable,
         "urgency": req.urgency or "normal",
         "status": "open",  # open, in_progress, completed, cancelled
         "posted_by": user["id"],
@@ -1349,7 +1353,10 @@ async def get_job(job_id: str, user=Depends(get_current_user)):
 class JobUpdate(BaseModel):
     description: Optional[str] = None
     location: Optional[str] = None
+    budget: Optional[str] = None
+    budget_negotiable: Optional[bool] = None
     trade_required: Optional[str] = None
+    trades_required: Optional[List[str]] = None
     photos: Optional[List[str]] = None
 
 @api_router.put("/jobs/{job_id}")
@@ -1366,8 +1373,14 @@ async def update_job(job_id: str, data: JobUpdate, user=Depends(get_current_user
         update_data["description"] = data.description
     if data.location is not None:
         update_data["location"] = data.location
+    if data.budget is not None:
+        update_data["budget"] = data.budget
+    if data.budget_negotiable is not None:
+        update_data["budget_negotiable"] = data.budget_negotiable
     if data.trade_required is not None:
         update_data["trade_required"] = data.trade_required
+    if data.trades_required is not None:
+        update_data["trades_required"] = data.trades_required
     if data.photos is not None:
         # Limit to 10 photos
         update_data["photos"] = data.photos[:10]
