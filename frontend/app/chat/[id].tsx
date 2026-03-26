@@ -525,12 +525,9 @@ export default function ChatScreen() {
 
         {/* Remove Contractor Button - Only for pending conversations in Client mode */}
         {!isFullyConfirmed && !isArchived && isClientMode && (
-          <View style={s.removeContractorContainer}>
-            <TouchableOpacity style={s.removeContractorBtn} onPress={handleRemoveConversation}>
-              <Text style={s.removeContractorText}>Cancel & Remove</Text>
-              <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={s.removeContractorBtn} onPress={handleRemoveConversation}>
+            <Text style={s.removeContractorText}>Remove Contractor</Text>
+          </TouchableOpacity>
         )}
 
         {/* Job Confirmation Banner */}
@@ -756,26 +753,18 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  removeContractorContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
   removeContractorBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: colors.paper,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    paddingVertical: 10,
+    marginHorizontal: 16,
+    marginTop: 6,
   },
   removeContractorText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#6B7280',
+    color: '#9CA3AF',
+    textDecorationLine: 'underline',
   },
   confirmBanner: {
     flexDirection: 'row',
