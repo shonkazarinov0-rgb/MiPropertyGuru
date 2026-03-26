@@ -1125,7 +1125,10 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 style={styles.intentOptionCard}
                 onPress={() => {
                   setShowNeedPrompt(false);
-                  // Stay on map - already here
+                  // Navigate to Explore tab and open full map
+                  router.push('/(tabs)/home');
+                  // Small delay to ensure navigation, then open full map
+                  setTimeout(() => setShowFullMap(true), 300);
                 }}
               >
                 <View style={[styles.intentIconBg, { backgroundColor: '#DCFCE7' }]}>
@@ -1213,6 +1216,129 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Full-Screen Map Modal - Complete Map Experience */}
+      <Modal
+        visible={showFullMap}
+        animationType="slide"
+        onRequestClose={() => setShowFullMap(false)}
+      >
+        <SafeAreaView style={styles.fullMapContainer}>
+          {/* Header */}
+          <View style={styles.fullMapHeader}>
+            <TouchableOpacity 
+              style={styles.fullMapBackBtn}
+              onPress={() => setShowFullMap(false)}
+            >
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <View style={styles.fullMapHeaderCenter}>
+              <View style={styles.urgentBadge}>
+                <Text style={styles.urgentBadgeEmoji}>⚡</Text>
+                <Text style={styles.urgentBadgeText}>URGENT</Text>
+              </View>
+              <Text style={styles.fullMapTitle}>Online Contractors</Text>
+            </View>
+            <View style={{ width: 40 }} />
+          </View>
+          
+          {/* Full Map */}
+          <View style={styles.fullMapWebViewContainer}>
+            {userLoc ? (
+              <WebView 
+                source={{ html: getMapHTML() }} 
+                style={styles.fullMapWebView}
+                onMessage={handleMapMessage}
+                scrollEnabled={true}
+              />
+            ) : (
+              <View style={styles.fullMapLoading}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.fullMapLoadingText}>Getting your location...</Text>
+              </View>
+            )}
+          </View>
+          
+          {/* Bottom Panel - Slider & Contractors */}
+          <View style={styles.fullMapBottomPanel}>
+            {/* Radius Slider */}
+            <View style={styles.fullMapSliderSection}>
+              <View style={styles.radiusSliderHeader}>
+                <Ionicons name="locate" size={18} color={colors.primary} />
+                <Text style={styles.radiusSliderLabel}>Search Radius</Text>
+                <View style={styles.radiusValueBadge}>
+                  <Text style={styles.radiusValueText}>
+                    {radiusKm >= 200 ? '200+ km' : `${radiusKm} km`}
+                  </Text>
+                </View>
+              </View>
+              
+              <View style={styles.sliderContainer}>
+                <Text style={styles.sliderMinLabel}>0</Text>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={0}
+                  maximumValue={200}
+                  step={5}
+                  value={radiusKm > 200 ? 200 : radiusKm}
+                  onValueChange={(value) => setRadiusKm(Math.round(value))}
+                  minimumTrackTintColor={colors.primary}
+                  maximumTrackTintColor="#E5E7EB"
+                  thumbTintColor={colors.primary}
+                />
+                <Text style={styles.sliderMaxLabel}>200+</Text>
+              </View>
+              
+              <Text style={styles.fullMapContractorCount}>
+                {sortedContractors.length} online contractor{sortedContractors.length !== 1 ? 's' : ''} nearby
+              </Text>
+            </View>
+            
+            {/* Contractor List */}
+            <ScrollView 
+              style={styles.fullMapContractorList}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+            >
+              {sortedContractors.length === 0 ? (
+                <View style={styles.fullMapEmptyState}>
+                  <Ionicons name="people-outline" size={32} color={colors.textSecondary} />
+                  <Text style={styles.fullMapEmptyText}>No online contractors within {radiusKm} km</Text>
+                </View>
+              ) : (
+                sortedContractors.slice(0, 10).map((contractor) => {
+                  const initials = contractor.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2);
+                  return (
+                    <TouchableOpacity 
+                      key={contractor.id}
+                      style={styles.fullMapContractorCard}
+                      onPress={() => {
+                        setShowFullMap(false);
+                        router.push(`/contractor/${contractor.id}`);
+                      }}
+                    >
+                      {contractor.profile_photo ? (
+                        <Image source={{ uri: contractor.profile_photo }} style={styles.fullMapCardAvatar} />
+                      ) : (
+                        <View style={styles.fullMapCardAvatarPlaceholder}>
+                          <Text style={styles.fullMapCardAvatarText}>{initials}</Text>
+                        </View>
+                      )}
+                      <View style={styles.fullMapCardOnlineDot} />
+                      <Text style={styles.fullMapCardName} numberOfLines={1}>{contractor.name}</Text>
+                      <Text style={styles.fullMapCardType} numberOfLines={1}>{contractor.contractor_type}</Text>
+                      {contractor.distance_km && (
+                        <Text style={styles.fullMapCardDistance}>{contractor.distance_km.toFixed(1)} km</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </SafeAreaView>
       </Modal>
 
       {/* Service Menu Modal */}
@@ -2492,5 +2618,149 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.paper,
+  },
+  // Full-Screen Map Modal Styles
+  fullMapContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  fullMapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.paper,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  fullMapBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullMapHeaderCenter: {
+    alignItems: 'center',
+  },
+  fullMapTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 4,
+  },
+  fullMapWebViewContainer: {
+    flex: 1,
+  },
+  fullMapWebView: {
+    flex: 1,
+  },
+  fullMapLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  fullMapLoadingText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  fullMapBottomPanel: {
+    backgroundColor: colors.paper,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  fullMapSliderSection: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  fullMapContractorCount: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.green,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  fullMapContractorList: {
+    maxHeight: 140,
+  },
+  fullMapEmptyState: {
+    width: 280,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  fullMapEmptyText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  fullMapContractorCard: {
+    width: 110,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  fullMapCardAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginBottom: 8,
+  },
+  fullMapCardAvatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  fullMapCardAvatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  fullMapCardOnlineDot: {
+    position: 'absolute',
+    top: 50,
+    right: 30,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.green,
+    borderWidth: 2,
+    borderColor: colors.paper,
+  },
+  fullMapCardName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  fullMapCardType: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  fullMapCardDistance: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
   },
 });
