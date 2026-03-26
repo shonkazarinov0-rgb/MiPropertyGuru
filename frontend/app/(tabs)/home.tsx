@@ -174,6 +174,12 @@ export default function ClientHomeScreen() {
   const [showRatingPopup, setShowRatingPopup] = useState(false);
   const [showLanguagePopup, setShowLanguagePopup] = useState(false);
   
+  // Category Search State
+  const [categorySearchText, setCategorySearchText] = useState('');
+  const [showSmartSuggestion, setShowSmartSuggestion] = useState(false);
+  const [suggestedCategory, setSuggestedCategory] = useState<string | null>(null);
+  const [showAddMorePrompt, setShowAddMorePrompt] = useState(false);
+  
   // Rating options
   const RATING_OPTIONS = [
     { value: 0, label: 'All Ratings' },
@@ -489,6 +495,105 @@ export default function ClientHomeScreen() {
           return newCats;
         }
       });
+    }
+  };
+
+  // Search category by text - searches exact names and keyword mappings
+  const searchCategoryByText = (searchText: string): { exactMatch: typeof CATEGORY_DATA[0] | null; suggestion: string | null } => {
+    const searchLower = searchText.toLowerCase().trim();
+    if (!searchLower) return { exactMatch: null, suggestion: null };
+    
+    // First check for exact category name match
+    const exactMatch = CATEGORY_DATA.find(cat => 
+      cat.name.toLowerCase() === searchLower || 
+      cat.name.toLowerCase().includes(searchLower)
+    );
+    if (exactMatch) return { exactMatch, suggestion: null };
+    
+    // Check keyword mappings for smart suggestions
+    const suggestedCategoryName = SEARCH_KEYWORDS[searchLower];
+    if (suggestedCategoryName) {
+      return { exactMatch: null, suggestion: suggestedCategoryName };
+    }
+    
+    // Check for partial keyword matches (e.g., "lamp fixer" -> "lamp")
+    const words = searchLower.split(' ');
+    for (const word of words) {
+      if (SEARCH_KEYWORDS[word]) {
+        return { exactMatch: null, suggestion: SEARCH_KEYWORDS[word] };
+      }
+    }
+    
+    return { exactMatch: null, suggestion: null };
+  };
+
+  // Filter categories by search text for display in the list
+  const filteredCategoryData = React.useMemo(() => {
+    if (!categorySearchText.trim()) return CATEGORY_DATA;
+    const searchLower = categorySearchText.toLowerCase().trim();
+    return CATEGORY_DATA.filter(cat => 
+      cat.name.toLowerCase().includes(searchLower)
+    );
+  }, [categorySearchText]);
+
+  // Handle search submit
+  const handleCategorySearch = () => {
+    const { exactMatch, suggestion } = searchCategoryByText(categorySearchText);
+    
+    if (exactMatch) {
+      // Direct match found - select it
+      if (!selectedCategories.includes(exactMatch.name) && selectedCategories.length < 5) {
+        toggleCategory(exactMatch.name);
+      }
+      setCategorySearchText('');
+      // Ask if they want to add more
+      if (selectedCategories.length < 4) {
+        setShowAddMorePrompt(true);
+      }
+    } else if (suggestion) {
+      // Show smart suggestion prompt
+      setSuggestedCategory(suggestion);
+      setShowSmartSuggestion(true);
+    } else if (categorySearchText.trim()) {
+      // No match found - show alert
+      Alert.alert(
+        'Category Not Found',
+        `We couldn't find "${categorySearchText}" in our contractor categories. Try browsing the list below.`,
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  // Handle accepting smart suggestion
+  const handleAcceptSuggestion = () => {
+    if (suggestedCategory && !selectedCategories.includes(suggestedCategory)) {
+      if (selectedCategories.length < 5) {
+        toggleCategory(suggestedCategory);
+      }
+    }
+    setSuggestedCategory(null);
+    setShowSmartSuggestion(false);
+    setCategorySearchText('');
+    // Ask if they want to add more
+    if (selectedCategories.length < 4) {
+      setShowAddMorePrompt(true);
+    }
+  };
+
+  // Handle declining smart suggestion
+  const handleDeclineSuggestion = () => {
+    setSuggestedCategory(null);
+    setShowSmartSuggestion(false);
+    setCategorySearchText('');
+  };
+
+  // Handle "Add more" response
+  const handleAddMoreResponse = (addMore: boolean) => {
+    setShowAddMorePrompt(false);
+    if (!addMore) {
+      // Close the service menus if they said no
+      closeServiceMenu();
+      setShowFullMapServiceMenu(false);
     }
   };
 
@@ -1608,19 +1713,41 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               <Ionicons name={showFullMapServiceMenu ? "close" : "people"} size={24} color={colors.paper} />
             </TouchableOpacity>
             
-            {/* Service Menu Popup - Multi-select */}
+            {/* Service Menu Popup - Multi-select with Search */}
             {showFullMapServiceMenu && (
               <View style={styles.fullMapServiceMenu}>
                 <View style={styles.fullMapServiceMenuHeader}>
                   <Text style={styles.fullMapServiceMenuTitle}>Select Services</Text>
                   {selectedCategories.length > 0 && (
-                    <TouchableOpacity onPress={() => { setSelectedCategories([]); setShowFullMapServiceMenu(false); }}>
+                    <TouchableOpacity onPress={() => { setSelectedCategories([]); }}>
                       <Text style={styles.fullMapServiceMenuClear}>Clear</Text>
                     </TouchableOpacity>
                   )}
                 </View>
+                
+                {/* Search Bar in Full Map Menu */}
+                <View style={styles.fullMapSearchContainer}>
+                  <View style={styles.fullMapSearchInputWrapper}>
+                    <Ionicons name="search" size={16} color={colors.textSecondary} />
+                    <TextInput
+                      style={styles.fullMapSearchInput}
+                      placeholder="Search (e.g., lamp fixer)"
+                      placeholderTextColor={colors.textSecondary}
+                      value={categorySearchText}
+                      onChangeText={setCategorySearchText}
+                      onSubmitEditing={handleCategorySearch}
+                      returnKeyType="search"
+                    />
+                    {categorySearchText.length > 0 && (
+                      <TouchableOpacity onPress={() => setCategorySearchText('')}>
+                        <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+                
                 <ScrollView style={styles.fullMapServiceMenuScroll} showsVerticalScrollIndicator={false}>
-                  {CATEGORY_DATA.filter(c => c.name !== 'All').map((cat) => {
+                  {(categorySearchText.trim() ? filteredCategoryData : CATEGORY_DATA).filter(c => c.name !== 'All').map((cat) => {
                     const isSelected = selectedCategories.includes(cat.name);
                     return (
                       <TouchableOpacity
@@ -1636,6 +1763,14 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                       </TouchableOpacity>
                     );
                   })}
+                  {categorySearchText.trim() && filteredCategoryData.filter(c => c.name !== 'All').length === 0 && (
+                    <TouchableOpacity 
+                      style={styles.fullMapNoResultsBtn}
+                      onPress={handleCategorySearch}
+                    >
+                      <Text style={styles.fullMapNoResultsText}>No match - tap to search</Text>
+                    </TouchableOpacity>
+                  )}
                 </ScrollView>
                 {selectedCategories.length > 0 && (
                   <TouchableOpacity 
@@ -1792,21 +1927,57 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               }
             ]}
           >
-            <View style={styles.serviceMenuHeader}>
-              <Text style={styles.serviceMenuTitle}>Select Services</Text>
-              <View style={styles.serviceMenuHeaderRight}>
-                {selectedCategories.length > 0 && (
-                  <TouchableOpacity onPress={() => setSelectedCategories([])}>
-                    <Text style={styles.serviceMenuClearText}>Clear</Text>
+            <Pressable onPress={(e) => e.stopPropagation()}>
+              <View style={styles.serviceMenuHeader}>
+                <Text style={styles.serviceMenuTitle}>Select Services</Text>
+                <View style={styles.serviceMenuHeaderRight}>
+                  {selectedCategories.length > 0 && (
+                    <TouchableOpacity onPress={() => setSelectedCategories([])}>
+                      <Text style={styles.serviceMenuClearText}>Clear</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity onPress={closeServiceMenu}>
+                    <Ionicons name="close" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              
+              {/* Search Bar */}
+              <View style={styles.categorySearchContainer}>
+                <View style={styles.categorySearchInputWrapper}>
+                  <Ionicons name="search" size={18} color={colors.textSecondary} style={styles.categorySearchIcon} />
+                  <TextInput
+                    style={styles.categorySearchInput}
+                    placeholder="Search contractors (e.g., lamp fixer)"
+                    placeholderTextColor={colors.textSecondary}
+                    value={categorySearchText}
+                    onChangeText={setCategorySearchText}
+                    onSubmitEditing={handleCategorySearch}
+                    returnKeyType="search"
+                  />
+                  {categorySearchText.length > 0 && (
+                    <TouchableOpacity onPress={() => setCategorySearchText('')}>
+                      <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {categorySearchText.length > 0 && (
+                  <TouchableOpacity style={styles.categorySearchBtn} onPress={handleCategorySearch}>
+                    <Text style={styles.categorySearchBtnText}>Search</Text>
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity onPress={closeServiceMenu}>
-                  <Ionicons name="close" size={24} color={colors.text} />
-                </TouchableOpacity>
               </View>
-            </View>
+              
+              {/* Selected Count Badge */}
+              {selectedCategories.length > 0 && (
+                <View style={styles.selectedCountBadge}>
+                  <Text style={styles.selectedCountText}>{selectedCategories.length}/5 selected</Text>
+                </View>
+              )}
+            </Pressable>
+            
             <ScrollView style={styles.serviceMenuList} showsVerticalScrollIndicator={false}>
-              {CATEGORY_DATA.filter(c => c.name !== 'All').map((cat) => {
+              {(categorySearchText.trim() ? filteredCategoryData : CATEGORY_DATA).filter(c => c.name !== 'All').map((cat) => {
                 const isSelected = selectedCategories.includes(cat.name);
                 return (
                   <TouchableOpacity 
@@ -1828,6 +1999,12 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   </TouchableOpacity>
                 );
               })}
+              {categorySearchText.trim() && filteredCategoryData.filter(c => c.name !== 'All').length === 0 && (
+                <View style={styles.noSearchResultsContainer}>
+                  <Text style={styles.noSearchResultsText}>No exact match found</Text>
+                  <Text style={styles.noSearchResultsHint}>Press &quot;Search&quot; to check for similar contractors</Text>
+                </View>
+              )}
             </ScrollView>
             {selectedCategories.length > 0 && (
               <TouchableOpacity 
@@ -1839,6 +2016,74 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
             )}
           </Animated.View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Smart Suggestion Modal */}
+      <Modal
+        visible={showSmartSuggestion}
+        transparent
+        animationType="fade"
+        onRequestClose={handleDeclineSuggestion}
+      >
+        <View style={styles.smartSuggestionOverlay}>
+          <View style={styles.smartSuggestionContainer}>
+            <View style={styles.smartSuggestionIcon}>
+              <Ionicons name="bulb" size={32} color="#FFB800" />
+            </View>
+            <Text style={styles.smartSuggestionTitle}>Did you mean?</Text>
+            <Text style={styles.smartSuggestionText}>
+              We found <Text style={styles.smartSuggestionHighlight}>{suggestedCategory}</Text> that matches your search for &quot;{categorySearchText}&quot;
+            </Text>
+            <View style={styles.smartSuggestionButtons}>
+              <TouchableOpacity 
+                style={styles.smartSuggestionBtnNo}
+                onPress={handleDeclineSuggestion}
+              >
+                <Text style={styles.smartSuggestionBtnNoText}>No</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.smartSuggestionBtnYes}
+                onPress={handleAcceptSuggestion}
+              >
+                <Text style={styles.smartSuggestionBtnYesText}>Yes, show me {suggestedCategory}s</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add More Contractors Prompt Modal */}
+      <Modal
+        visible={showAddMorePrompt}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddMorePrompt(false)}
+      >
+        <View style={styles.smartSuggestionOverlay}>
+          <View style={styles.smartSuggestionContainer}>
+            <View style={styles.addMoreIcon}>
+              <Ionicons name="add-circle" size={32} color={colors.primary} />
+            </View>
+            <Text style={styles.smartSuggestionTitle}>Add More?</Text>
+            <Text style={styles.smartSuggestionText}>
+              Would you like to select any more contractor types? You can select up to 5.
+            </Text>
+            <View style={styles.smartSuggestionButtons}>
+              <TouchableOpacity 
+                style={styles.smartSuggestionBtnNo}
+                onPress={() => handleAddMoreResponse(false)}
+              >
+                <Text style={styles.smartSuggestionBtnNoText}>No, I&apos;m done</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.smartSuggestionBtnYes}
+                onPress={() => handleAddMoreResponse(true)}
+              >
+                <Text style={styles.smartSuggestionBtnYesText}>Yes, add more</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
 
       {/* Floating Action Button - Click to open */}
@@ -2433,6 +2678,182 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.paper,
+  },
+  // Category Search Bar Styles
+  categorySearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  categorySearchInputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  categorySearchIcon: {
+    marginRight: 4,
+  },
+  categorySearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    padding: 0,
+  },
+  categorySearchBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  categorySearchBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  selectedCountBadge: {
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  selectedCountText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  noSearchResultsContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  noSearchResultsText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  noSearchResultsHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  // Smart Suggestion Modal Styles
+  smartSuggestionOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  smartSuggestionContainer: {
+    backgroundColor: colors.paper,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  smartSuggestionIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEF3C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  addMoreIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  smartSuggestionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  smartSuggestionText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  smartSuggestionHighlight: {
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  smartSuggestionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  smartSuggestionBtnNo: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  smartSuggestionBtnNoText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  smartSuggestionBtnYes: {
+    flex: 2,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  smartSuggestionBtnYesText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  // Full Map Search Styles
+  fullMapSearchContainer: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  fullMapSearchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  fullMapSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
+    padding: 0,
+  },
+  fullMapNoResultsBtn: {
+    padding: 14,
+    alignItems: 'center',
+  },
+  fullMapNoResultsText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
   },
   // FAB Styles
   fab: {
@@ -3352,8 +3773,8 @@ const styles = StyleSheet.create({
     right: 20,
     backgroundColor: colors.paper,
     borderRadius: 14,
-    width: 240,
-    maxHeight: 280,
+    width: 260,
+    maxHeight: 360,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -3367,7 +3788,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   fullMapServiceMenuScroll: {
-    maxHeight: 200,
+    maxHeight: 220,
   },
   fullMapServiceMenuItem: {
     flexDirection: 'row',
