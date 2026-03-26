@@ -1019,45 +1019,72 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               </View>
             </View>
 
-          {/* Categories */}
+          {/* Categories - Multi-select */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Browse Categories</Text>
+                {selectedCategories.length > 0 && (
+                  <TouchableOpacity onPress={() => setSelectedCategories([])}>
+                    <Text style={styles.clearCategoriesText}>Clear all</Text>
+                  </TouchableOpacity>
+                )}
               </View>
               <FlatList
                 horizontal
                 data={[{ name: 'All', icon: '🔍', color: '#666' }, ...CATEGORY_DATA]}
-                renderItem={({ item }) => (
-                  <TouchableOpacity 
-                    style={[
-                      item.name === 'All' ? styles.allCategoryChip : styles.categoryChip, 
-                      category === item.name && styles.categoryChipActive
-                    ]}
-                    onPress={() => setCategory(item.name)}
-                  >
-                    {item.name === 'All' ? (
-                      <Text style={[styles.allCategoryText, category === 'All' && styles.categoryTextActive]}>All</Text>
-                    ) : (
-                      <>
-                        <Text style={styles.categoryIcon}>{item.icon}</Text>
-                        <Text style={[styles.categoryText, category === item.name && styles.categoryTextActive]}>
-                          {item.name}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                )}
+                renderItem={({ item }) => {
+                  const isSelected = item.name === 'All' 
+                    ? selectedCategories.length === 0 
+                    : selectedCategories.includes(item.name);
+                  return (
+                    <TouchableOpacity 
+                      style={[
+                        item.name === 'All' ? styles.allCategoryChip : styles.categoryChip, 
+                        isSelected && styles.categoryChipActive
+                      ]}
+                      onPress={() => {
+                        if (item.name === 'All') {
+                          setSelectedCategories([]);
+                          setCategory('All');
+                        } else {
+                          toggleCategory(item.name);
+                        }
+                      }}
+                    >
+                      {item.name === 'All' ? (
+                        <Text style={[styles.allCategoryText, isSelected && styles.categoryTextActive]}>All</Text>
+                      ) : (
+                        <>
+                          <Text style={styles.categoryIcon}>{item.icon}</Text>
+                          <Text style={[styles.categoryText, isSelected && styles.categoryTextActive]}>
+                            {item.name}
+                          </Text>
+                          {isSelected && <Ionicons name="checkmark-circle" size={14} color={colors.green} style={{ marginLeft: 4 }} />}
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
                 keyExtractor={item => item.name}
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.categoriesList}
               />
+              {selectedCategories.length > 0 && (
+                <Text style={styles.selectedCategoriesCount}>{selectedCategories.length}/5 categories selected</Text>
+              )}
             </View>
 
             {/* Available Contractors */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>
-                  {category !== 'All' ? `${category}s` : 'Available Contractors'}
+                  {selectedCategories.length === 0 
+                    ? 'Available Contractors' 
+                    : selectedCategories.length === 1 
+                      ? `${selectedCategories[0]}s` 
+                      : selectedCategories.length === 2
+                        ? `${selectedCategories[0]}s & ${selectedCategories[1]}s`
+                        : `${selectedCategories.slice(0, -1).map(c => c + 's').join(', ')} & ${selectedCategories[selectedCategories.length - 1]}s`}
                 </Text>
                 <TouchableOpacity 
                   style={styles.filterBtn}
@@ -1174,15 +1201,15 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 </View>
               )}
               
-              <Text style={styles.resultCount}>{contractors.length} found</Text>
+              <Text style={styles.resultCount}>{getCategoryCountsText}</Text>
               
               {loading ? (
                 <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
               ) : sortedContractors.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Ionicons name="people-outline" size={48} color={colors.textSecondary} />
-                  <Text style={styles.emptyText}>No contractors found</Text>
-                  <Text style={styles.emptySubtext}>Try a different category or location</Text>
+                  <Text style={styles.emptyText}>{getEmptyStateMessage}</Text>
+                  <Text style={styles.emptySubtext}>Try adjusting your search radius or categories</Text>
                 </View>
               ) : (
                 sortedContractors.slice(0, 10).map(contractor => (
@@ -1831,6 +1858,18 @@ const styles = StyleSheet.create({
   },
   categoriesList: {
     gap: 10,
+  },
+  clearCategoriesText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  selectedCategoriesCount: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: -8,
   },
   allCategoryChip: {
     alignItems: 'center',
