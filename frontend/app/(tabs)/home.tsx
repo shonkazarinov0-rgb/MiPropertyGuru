@@ -3896,7 +3896,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
     borderRadius: 14,
     width: 260,
-    maxHeight: 360,
+    maxHeight: 420,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -3904,13 +3904,21 @@ const styles = StyleSheet.create({
     elevation: 12,
     overflow: 'hidden',
   },
+  fullMapServiceMenuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 10,
+  },
   fullMapServiceMenuTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: colors.text,
   },
   fullMapServiceMenuScroll: {
-    maxHeight: 220,
+    maxHeight: 200,
   },
   fullMapServiceMenuItem: {
     flexDirection: 'row',
@@ -3963,16 +3971,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
-  },
-  fullMapServiceMenuHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   fullMapServiceMenuClear: {
     fontSize: 12,
