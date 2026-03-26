@@ -28,12 +28,14 @@ const colors = {
   blue: '#3B82F6',
   blueLight: '#DBEAFE',
   border: '#E5E7EB',
+  red: '#EF4444',
+  redLight: '#FEE2E2',
 };
 
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isClientMode } = useAuth();
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
@@ -359,6 +361,41 @@ export default function ChatScreen() {
     }
   };
 
+  // Handle removing a pending conversation
+  const handleRemoveConversation = async () => {
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Remove this contractor? This will end the conversation.');
+      if (confirmed) {
+        try {
+          await api.delete(`/conversations/${conversationId}`);
+          router.replace('/(tabs)/messages');
+        } catch (e: any) {
+          window.alert('Error: ' + (e.message || 'Could not remove conversation'));
+        }
+      }
+    } else {
+      Alert.alert(
+        'Remove Contractor',
+        'Are you sure you want to remove this contractor? This will end the conversation.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Remove', 
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await api.delete(`/conversations/${conversationId}`);
+                router.replace('/(tabs)/messages');
+              } catch (e: any) {
+                Alert.alert('Error', e.message || 'Could not remove conversation');
+              }
+            }
+          }
+        ]
+      );
+    }
+  };
+
   const formatTime = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -485,6 +522,14 @@ export default function ChatScreen() {
             We recommend confirming licenses and experience before hiring.
           </Text>
         </View>
+
+        {/* Remove Contractor Button - Only for pending conversations in Client mode */}
+        {!isFullyConfirmed && !isArchived && isClientMode && (
+          <TouchableOpacity style={s.removeContractorBtn} onPress={handleRemoveConversation}>
+            <Ionicons name="close-circle" size={16} color={colors.red} />
+            <Text style={s.removeContractorText}>Remove Contractor</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Job Confirmation Banner */}
         {!isFullyConfirmed && !isArchived && (
@@ -708,6 +753,23 @@ const s = StyleSheet.create({
     backgroundColor: colors.background,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  removeContractorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FEE2E2',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 10,
+  },
+  removeContractorText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
   },
   confirmBanner: {
     flexDirection: 'row',

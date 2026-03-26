@@ -1784,6 +1784,28 @@ async def reset_to_confirmed(conv_id: str, user=Depends(get_current_user)):
     updated_conv = await db.conversations.find_one({"id": conv_id}, {"_id": 0})
     return {"conversation": updated_conv}
 
+@api_router.delete("/conversations/{conv_id}")
+async def delete_conversation(conv_id: str, user=Depends(get_current_user)):
+    """Delete a conversation (only for pending conversations)"""
+    conv = await db.conversations.find_one({"id": conv_id})
+    if not conv:
+        raise HTTPException(404, "Conversation not found")
+    
+    if user["id"] not in [conv["participant_1"], conv["participant_2"]]:
+        raise HTTPException(403, "Not authorized")
+    
+    # Only allow deletion of pending conversations
+    if conv.get("job_status") in ["confirmed", "archived"]:
+        raise HTTPException(400, "Cannot delete confirmed or completed conversations")
+    
+    # Delete the conversation
+    await db.conversations.delete_one({"id": conv_id})
+    
+    # Also delete associated messages
+    await db.messages.delete_many({"conversation_id": conv_id})
+    
+    return {"message": "Conversation removed"}
+
 # ── Contracts ──
 
 @api_router.post("/contracts/generate")

@@ -148,34 +148,73 @@ export default function MessagesScreen() {
     return null;
   };
 
+  // Handle removing a pending conversation
+  const handleRemoveConversation = (conv: any) => {
+    Alert.alert(
+      'Remove Conversation',
+      'Are you sure you want to remove this conversation? This will end the discussion with this contractor.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/conversations/${conv.id}`);
+              // Refresh conversations
+              const res = await api.get('/conversations');
+              setConversations(res.conversations || []);
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Could not remove conversation');
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderConversation = ({ item }: { item: any }) => {
     const otherName = getOtherName(item);
     const initials = otherName.split(' ').map((n: string) => n[0]).join('').slice(0, 2);
     const isArchived = item.job_status === 'archived';
+    const isPending = !item.job_status || item.job_status === 'pending' || item.job_status === 'pending_confirmation';
     
     return (
-      <TouchableOpacity 
-        testID={`conversation-${item.id}`} 
-        style={[s.convCard, isArchived && s.archivedCard]}
-        onPress={() => router.push(`/chat/${item.id}`)}
-      >
-        <View style={[s.convAvatar, getAvatarStyle(item.job_status)]}>
-          <Text style={s.convAvatarText}>{initials}</Text>
-        </View>
-        <View style={s.convInfo}>
-          <View style={s.convTopRow}>
-            <Text style={[s.convName, isArchived && s.archivedText]} numberOfLines={1}>{otherName}</Text>
-            <Text style={s.convTime}>{getTimestamp(item)}</Text>
+      <View style={[s.convCard, isArchived && s.archivedCard]}>
+        <TouchableOpacity 
+          testID={`conversation-${item.id}`} 
+          style={s.convTouchable}
+          onPress={() => router.push(`/chat/${item.id}`)}
+        >
+          <View style={[s.convAvatar, getAvatarStyle(item.job_status)]}>
+            <Text style={s.convAvatarText}>{initials}</Text>
           </View>
-          <Text style={s.convMessage} numberOfLines={1}>
-            {item.last_message || 'Start a conversation...'}
-          </Text>
-          <View style={s.statusRow}>
-            {getStatusBadge(item)}
+          <View style={s.convInfo}>
+            <View style={s.convTopRow}>
+              <Text style={[s.convName, isArchived && s.archivedText]} numberOfLines={1}>{otherName}</Text>
+              <Text style={s.convTime}>{getTimestamp(item)}</Text>
+            </View>
+            <Text style={s.convMessage} numberOfLines={1}>
+              {item.last_message || 'Start a conversation...'}
+            </Text>
+            <View style={s.statusRow}>
+              {getStatusBadge(item)}
+            </View>
           </View>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-      </TouchableOpacity>
+          <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
+        
+        {/* Remove button for pending conversations in Client mode */}
+        {isPending && isClientMode && (
+          <TouchableOpacity 
+            style={s.removeBtn}
+            onPress={() => handleRemoveConversation(item)}
+          >
+            <Ionicons name="close-circle" size={16} color={colors.red} />
+            <Text style={s.removeBtnText}>Remove</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     );
   };
 
@@ -404,9 +443,6 @@ const s = StyleSheet.create({
     paddingBottom: 100,
   },
   convCard: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 12,
     backgroundColor: colors.paper, 
     borderRadius: 14, 
     padding: 14, 
@@ -417,8 +453,30 @@ const s = StyleSheet.create({
     shadowRadius: 2, 
     elevation: 1,
   },
+  convTouchable: {
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 12,
+  },
   archivedCard: {
     opacity: 0.85,
+  },
+  removeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: colors.redLight,
+    borderRadius: 8,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    marginLeft: 62,
+  },
+  removeBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.red,
   },
   convAvatar: {
     width: 50, 

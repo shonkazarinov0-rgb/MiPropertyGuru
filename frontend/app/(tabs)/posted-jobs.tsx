@@ -92,8 +92,14 @@ export default function PostedJobsScreen() {
     const byJobId = conversations.find(conv => conv.job_id === job.id);
     if (byJobId) return byJobId;
     
-    // Fallback: find by matching client posting and contractor responding
-    return conversations.find(conv => {
+    // Second: try by job_title matching
+    const byJobTitle = conversations.find(conv => 
+      conv.job_title && conv.job_title.toLowerCase() === job.title?.toLowerCase()
+    );
+    if (byJobTitle) return byJobTitle;
+    
+    // Third: find by matching client posting and contractor responding
+    const byResponses = conversations.find(conv => {
       // The client (job poster) should be one participant
       const clientIsP1 = conv.participant_1 === job.posted_by;
       const clientIsP2 = conv.participant_2 === job.posted_by;
@@ -106,6 +112,8 @@ export default function PostedJobsScreen() {
       
       return respondedContractorIds.includes(contractorId);
     });
+    
+    return byResponses;
   };
 
   // Determine job status based on conversation state
@@ -333,15 +341,23 @@ export default function PostedJobsScreen() {
         <View style={s.actionRow}>
           <TouchableOpacity 
             style={s.editBtn}
-            onPress={() => router.push(`/job/${item.id}`)}
+            onPress={(e) => {
+              e.stopPropagation();
+              router.push(`/job/${item.id}`);
+            }}
+            activeOpacity={0.7}
           >
             <Ionicons name="create-outline" size={16} color={colors.primary} />
             <Text style={s.editBtnText}>Edit</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={s.deleteBtn}
-            onPress={() => handleDelete(item)}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleDelete(item);
+            }}
             disabled={actionLoading === item.id}
+            activeOpacity={0.7}
           >
             {actionLoading === item.id ? (
               <ActivityIndicator size="small" color={colors.red} />
