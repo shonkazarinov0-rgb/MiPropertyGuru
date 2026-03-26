@@ -31,7 +31,7 @@ export default function PostJobScreen() {
   const [selectedTrades, setSelectedTrades] = useState<string[]>([]);
   const [location, setLocation] = useState('');
   const [budget, setBudget] = useState('');
-  const [budgetNegotiable, setBudgetNegotiable] = useState(true);
+  const [budgetNegotiable, setBudgetNegotiable] = useState<boolean | null>(null);
   const [showTradePicker, setShowTradePicker] = useState(false);
 
   const toggleTrade = (tradeName: string) => {
@@ -196,33 +196,33 @@ export default function PostJobScreen() {
               placeholderTextColor={colors.textSecondary}
               keyboardType="default"
             />
-            {/* Negotiable Toggle */}
+            {/* Negotiable Toggle - Optional */}
             <View style={styles.negotiableRow}>
               <TouchableOpacity 
                 style={[
                   styles.negotiableOption,
-                  budgetNegotiable && styles.negotiableOptionActive
+                  budgetNegotiable === true && styles.negotiableOptionActive
                 ]}
-                onPress={() => setBudgetNegotiable(true)}
+                onPress={() => setBudgetNegotiable(budgetNegotiable === true ? null : true)}
               >
-                <View style={[styles.radioCircle, budgetNegotiable && styles.radioCircleActive]}>
-                  {budgetNegotiable && <View style={styles.radioInner} />}
+                <View style={[styles.radioCircle, budgetNegotiable === true && styles.radioCircleActive]}>
+                  {budgetNegotiable === true && <View style={styles.radioInner} />}
                 </View>
-                <Text style={[styles.negotiableText, budgetNegotiable && styles.negotiableTextActive]}>
+                <Text style={[styles.negotiableText, budgetNegotiable === true && styles.negotiableTextActive]}>
                   Negotiable
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[
                   styles.negotiableOption,
-                  !budgetNegotiable && styles.negotiableOptionActive
+                  budgetNegotiable === false && styles.negotiableOptionActive
                 ]}
-                onPress={() => setBudgetNegotiable(false)}
+                onPress={() => setBudgetNegotiable(budgetNegotiable === false ? null : false)}
               >
-                <View style={[styles.radioCircle, !budgetNegotiable && styles.radioCircleActive]}>
-                  {!budgetNegotiable && <View style={styles.radioInner} />}
+                <View style={[styles.radioCircle, budgetNegotiable === false && styles.radioCircleActive]}>
+                  {budgetNegotiable === false && <View style={styles.radioInner} />}
                 </View>
-                <Text style={[styles.negotiableText, !budgetNegotiable && styles.negotiableTextActive]}>
+                <Text style={[styles.negotiableText, budgetNegotiable === false && styles.negotiableTextActive]}>
                   Fixed Price
                 </Text>
               </TouchableOpacity>

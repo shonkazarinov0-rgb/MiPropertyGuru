@@ -345,7 +345,16 @@ export default function PostedJobsScreen() {
             {item.budget && (
               <View style={s.metaItem}>
                 <Ionicons name="cash-outline" size={14} color={colors.green} />
-                <Text style={[s.metaText, { color: colors.green, fontWeight: '600' }]}>${item.budget}</Text>
+                <Text style={[s.metaText, { color: colors.green, fontWeight: '600' }]}>
+                  {item.budget.toString().startsWith('$') ? item.budget : `$${item.budget}`}
+                </Text>
+                {item.budget_negotiable !== undefined && (
+                  <View style={[s.negotiableBadge, item.budget_negotiable === false && s.fixedBadge]}>
+                    <Text style={[s.negotiableBadgeText, item.budget_negotiable === false && s.fixedBadgeText]}>
+                      {item.budget_negotiable === false ? 'Fixed' : 'Negotiable'}
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -1039,5 +1048,24 @@ const s = StyleSheet.create({
     shadowRadius: 6,
     elevation: 8,
     zIndex: 100,
+  },
+  // Negotiable badge styles
+  negotiableBadge: {
+    backgroundColor: colors.greenLight,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 6,
+  },
+  negotiableBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.green,
+  },
+  fixedBadge: {
+    backgroundColor: '#DBEAFE',
+  },
+  fixedBadgeText: {
+    color: '#3B82F6',
   },
 });

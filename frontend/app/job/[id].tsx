@@ -38,7 +38,7 @@ export default function JobDetailScreen() {
   const [editDescription, setEditDescription] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editBudget, setEditBudget] = useState('');
-  const [editBudgetNegotiable, setEditBudgetNegotiable] = useState(true);
+  const [editBudgetNegotiable, setEditBudgetNegotiable] = useState<boolean | null>(null);
   const [editTrades, setEditTrades] = useState<string[]>([]);
   const [editPhotos, setEditPhotos] = useState<string[]>([]);
   const [showTradeModal, setShowTradeModal] = useState(false);
@@ -72,7 +72,7 @@ export default function JobDetailScreen() {
       setEditDescription(res.job?.description || '');
       setEditLocation(res.job?.location || '');
       setEditBudget(res.job?.budget || '');
-      setEditBudgetNegotiable(res.job?.budget_negotiable !== false); // Default to true
+      setEditBudgetNegotiable(res.job?.budget_negotiable ?? null); // null if not set
       setEditTrades(parseTrades(res.job?.trades_required || res.job?.trade_required || res.job?.category));
       setEditPhotos(res.job?.photos || []);
     } catch (e) {
@@ -414,33 +414,33 @@ export default function JobDetailScreen() {
                   placeholderTextColor={colors.textSecondary}
                   keyboardType="default"
                 />
-                {/* Negotiable Toggle */}
+                {/* Negotiable Toggle - Optional */}
                 <View style={s.negotiableRow}>
                   <TouchableOpacity 
                     style={[
                       s.negotiableOption,
-                      editBudgetNegotiable && s.negotiableOptionActive
+                      editBudgetNegotiable === true && s.negotiableOptionActive
                     ]}
-                    onPress={() => setEditBudgetNegotiable(true)}
+                    onPress={() => setEditBudgetNegotiable(editBudgetNegotiable === true ? null : true)}
                   >
-                    <View style={[s.radioCircle, editBudgetNegotiable && s.radioCircleActive]}>
-                      {editBudgetNegotiable && <View style={s.radioInner} />}
+                    <View style={[s.radioCircle, editBudgetNegotiable === true && s.radioCircleActive]}>
+                      {editBudgetNegotiable === true && <View style={s.radioInner} />}
                     </View>
-                    <Text style={[s.negotiableText, editBudgetNegotiable && s.negotiableTextActive]}>
+                    <Text style={[s.negotiableText, editBudgetNegotiable === true && s.negotiableTextActive]}>
                       Negotiable
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={[
                       s.negotiableOption,
-                      !editBudgetNegotiable && s.negotiableOptionActive
+                      editBudgetNegotiable === false && s.negotiableOptionActive
                     ]}
-                    onPress={() => setEditBudgetNegotiable(false)}
+                    onPress={() => setEditBudgetNegotiable(editBudgetNegotiable === false ? null : false)}
                   >
-                    <View style={[s.radioCircle, !editBudgetNegotiable && s.radioCircleActive]}>
-                      {!editBudgetNegotiable && <View style={s.radioInner} />}
+                    <View style={[s.radioCircle, editBudgetNegotiable === false && s.radioCircleActive]}>
+                      {editBudgetNegotiable === false && <View style={s.radioInner} />}
                     </View>
-                    <Text style={[s.negotiableText, !editBudgetNegotiable && s.negotiableTextActive]}>
+                    <Text style={[s.negotiableText, editBudgetNegotiable === false && s.negotiableTextActive]}>
                       Fixed Price
                     </Text>
                   </TouchableOpacity>
@@ -453,10 +453,10 @@ export default function JobDetailScreen() {
                   <Text style={s.budgetText}>
                     {job.budget ? (job.budget.toString().startsWith('$') ? job.budget : `$${job.budget}`) : 'Not specified'}
                   </Text>
-                  {job.budget && (
-                    <View style={[s.negotiableBadge, !job.budget_negotiable && s.fixedPriceBadge]}>
-                      <Text style={[s.negotiableBadgeText, !job.budget_negotiable && s.fixedPriceBadgeText]}>
-                        {job.budget_negotiable !== false ? 'Negotiable' : 'Fixed'}
+                  {job.budget && job.budget_negotiable !== null && job.budget_negotiable !== undefined && (
+                    <View style={[s.negotiableBadge, job.budget_negotiable === false && s.fixedPriceBadge]}>
+                      <Text style={[s.negotiableBadgeText, job.budget_negotiable === false && s.fixedPriceBadgeText]}>
+                        {job.budget_negotiable === false ? 'Fixed' : 'Negotiable'}
                       </Text>
                     </View>
                   )}
@@ -493,7 +493,7 @@ export default function JobDetailScreen() {
                   setEditDescription(job.description || '');
                   setEditLocation(job.location || '');
                   setEditBudget(job.budget || '');
-                  setEditBudgetNegotiable(job.budget_negotiable !== false);
+                  setEditBudgetNegotiable(job.budget_negotiable ?? null);
                   setEditTrades(parseTrades(job.trades_required || job.trade_required || job.category));
                   setEditPhotos(job.photos || []);
                 }}
