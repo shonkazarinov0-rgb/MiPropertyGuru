@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../src/api';
 import { useAuth } from '../src/auth-context';
+import { TRADES, getTradeIcon } from '../src/constants/trades';
 
 const colors = {
   primary: '#FF6A00',
@@ -21,37 +22,26 @@ const colors = {
   red: '#EF4444',
 };
 
-const TRADES = [
-  { name: 'Electrician', icon: '⚡' },
-  { name: 'Plumber', icon: '🔧' },
-  { name: 'Handyman', icon: '🔨' },
-  { name: 'HVAC Technician', icon: '❄️' },
-  { name: 'Carpenter', icon: '🪚' },
-  { name: 'Painter', icon: '🎨' },
-  { name: 'Roofer', icon: '🏠' },
-  { name: 'General Contractor', icon: '👷' },
-  { name: 'Tiler', icon: '🔲' },
-  { name: 'Landscaper', icon: '🌳' },
-  { name: 'Mason', icon: '🧱' },
-  { name: 'Welder', icon: '🔥' },
-  { name: 'Glazier', icon: '🪟' },
-  { name: 'Demolition', icon: '💥' },
-  { name: 'Drywall', icon: '🏗️' },
-  { name: 'Flooring', icon: '🪵' },
-  { name: 'Locksmith', icon: '🔐' },
-  { name: 'Appliance Repair', icon: '🔌' },
-];
-
 export default function PostJobScreen() {
   const router = useRouter();
   const { user, isGuest } = useAuth();
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [tradeRequired, setTradeRequired] = useState('');
+  const [selectedTrades, setSelectedTrades] = useState<string[]>([]);
   const [location, setLocation] = useState('');
   const [budget, setBudget] = useState('');
   const [showTradePicker, setShowTradePicker] = useState(false);
+
+  const toggleTrade = (tradeName: string) => {
+    if (selectedTrades.includes(tradeName)) {
+      setSelectedTrades(selectedTrades.filter(t => t !== tradeName));
+    } else if (selectedTrades.length < 3) {
+      setSelectedTrades([...selectedTrades, tradeName]);
+    } else {
+      Alert.alert('Limit Reached', 'You can select up to 3 trades per job.');
+    }
+  };
 
   const handlePost = async () => {
     // Check if guest
@@ -76,8 +66,8 @@ export default function PostJobScreen() {
       Alert.alert('Error', 'Please describe the job');
       return;
     }
-    if (!tradeRequired) {
-      Alert.alert('Error', 'Please select the trade/service required');
+    if (selectedTrades.length === 0) {
+      Alert.alert('Error', 'Please select at least one trade/service');
       return;
     }
 
@@ -86,7 +76,8 @@ export default function PostJobScreen() {
       await api.post('/jobs/post', {
         title: title.trim(),
         description: description.trim(),
-        trade_required: tradeRequired,
+        trade_required: selectedTrades.join(', '),  // Store as comma-separated
+        trades_required: selectedTrades,  // Also store as array
         location: location.trim() || null,
         budget: budget.trim() || null,
         urgency: 'normal',
@@ -100,8 +91,6 @@ export default function PostJobScreen() {
       setLoading(false);
     }
   };
-
-  const selectedTrade = TRADES.find(t => t.name === tradeRequired);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -139,23 +128,30 @@ export default function PostJobScreen() {
             />
           </View>
 
-          {/* Trade Required */}
+          {/* Trade Required - Multi-select up to 3 */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Service Required *</Text>
+            <Text style={styles.inputLabel}>Service Required * (Select up to 3)</Text>
             <TouchableOpacity 
               style={styles.selectInput}
               onPress={() => setShowTradePicker(true)}
             >
-              {selectedTrade ? (
-                <View style={styles.selectedTrade}>
-                  <Text style={styles.tradeIcon}>{selectedTrade.icon}</Text>
-                  <Text style={styles.selectedTradeText}>{selectedTrade.name}</Text>
+              {selectedTrades.length > 0 ? (
+                <View style={styles.selectedTradesContainer}>
+                  {selectedTrades.map((trade, idx) => (
+                    <View key={trade} style={styles.selectedTradeChip}>
+                      <Text style={styles.tradeChipIcon}>{getTradeIcon(trade)}</Text>
+                      <Text style={styles.tradeChipText}>{trade}</Text>
+                    </View>
+                  ))}
                 </View>
               ) : (
-                <Text style={styles.placeholderText}>Select a trade/service</Text>
+                <Text style={styles.placeholderText}>Select trades/services</Text>
               )}
               <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
+            {selectedTrades.length > 0 && (
+              <Text style={styles.tradeCount}>{selectedTrades.length}/3 selected</Text>
+            )}
           </View>
 
           {/* Description */}
@@ -225,7 +221,7 @@ export default function PostJobScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Trade Picker Modal */}
+        {/* Trade Picker Modal - Multi-select */}
         <Modal
           visible={showTradePicker}
           animationType="slide"
@@ -233,34 +229,46 @@ export default function PostJobScreen() {
         >
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Service</Text>
+              <Text style={styles.modalTitle}>Select Services (Max 3)</Text>
               <TouchableOpacity onPress={() => setShowTradePicker(false)}>
-                <Ionicons name="close" size={28} color={colors.text} />
+                <Text style={styles.modalDoneBtn}>Done</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalContent}>
-              {TRADES.map((trade) => (
-                <TouchableOpacity
-                  key={trade.name}
-                  style={[
-                    styles.tradeOption,
-                    tradeRequired === trade.name && styles.tradeOptionActive
-                  ]}
-                  onPress={() => {
-                    setTradeRequired(trade.name);
-                    setShowTradePicker(false);
-                  }}
-                >
-                  <Text style={styles.tradeOptionIcon}>{trade.icon}</Text>
-                  <Text style={[
-                    styles.tradeOptionText,
-                    tradeRequired === trade.name && styles.tradeOptionTextActive
-                  ]}>{trade.name}</Text>
-                  {tradeRequired === trade.name && (
-                    <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
-                  )}
+            {selectedTrades.length > 0 && (
+              <View style={styles.selectedTradesHeader}>
+                <Text style={styles.selectedTradesLabel}>Selected: {selectedTrades.length}/3</Text>
+                <TouchableOpacity onPress={() => setSelectedTrades([])}>
+                  <Text style={styles.clearAllBtn}>Clear All</Text>
                 </TouchableOpacity>
-              ))}
+              </View>
+            )}
+            <ScrollView style={styles.modalContent}>
+              {TRADES.map((trade) => {
+                const isSelected = selectedTrades.includes(trade.name);
+                const isDisabled = !isSelected && selectedTrades.length >= 3;
+                return (
+                  <TouchableOpacity
+                    key={trade.name}
+                    style={[
+                      styles.tradeOption,
+                      isSelected && styles.tradeOptionActive,
+                      isDisabled && styles.tradeOptionDisabled
+                    ]}
+                    onPress={() => toggleTrade(trade.name)}
+                    disabled={isDisabled}
+                  >
+                    <Text style={styles.tradeOptionIcon}>{trade.icon}</Text>
+                    <Text style={[
+                      styles.tradeOptionText,
+                      isSelected && styles.tradeOptionTextActive,
+                      isDisabled && styles.tradeOptionTextDisabled
+                    ]}>{trade.name}</Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </SafeAreaView>
         </Modal>
@@ -446,6 +454,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary,
   },
+  tradeOptionDisabled: {
+    opacity: 0.4,
+  },
   tradeOptionIcon: {
     fontSize: 24,
   },
@@ -458,5 +469,62 @@ const styles = StyleSheet.create({
   tradeOptionTextActive: {
     color: colors.primary,
     fontWeight: '600',
+  },
+  tradeOptionTextDisabled: {
+    color: colors.textSecondary,
+  },
+  // Multi-select trade chips
+  selectedTradesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    flex: 1,
+  },
+  selectedTradeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+  },
+  tradeChipIcon: {
+    fontSize: 14,
+  },
+  tradeChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+  tradeCount: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 6,
+  },
+  modalDoneBtn: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  selectedTradesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.primaryLight,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  selectedTradesLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  clearAllBtn: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.red,
   },
 });

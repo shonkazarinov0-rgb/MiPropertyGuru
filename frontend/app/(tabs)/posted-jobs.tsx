@@ -335,12 +335,20 @@ export default function PostedJobsScreen() {
 
           <Text style={s.jobDescription} numberOfLines={2}>{item.description}</Text>
 
-          {item.location && (
-            <View style={s.locationRow}>
-              <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-              <Text style={s.locationText}>{item.location}</Text>
-            </View>
-          )}
+          <View style={s.jobMeta}>
+            {item.location && (
+              <View style={s.metaItem}>
+                <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+                <Text style={s.metaText}>{item.location}</Text>
+              </View>
+            )}
+            {item.budget && (
+              <View style={s.metaItem}>
+                <Ionicons name="cash-outline" size={14} color={colors.green} />
+                <Text style={[s.metaText, { color: colors.green, fontWeight: '600' }]}>${item.budget}</Text>
+              </View>
+            )}
+          </View>
 
           <View style={s.jobFooter}>
             <Text style={s.timeText}>{getTimestamp(item.created_at)}</Text>
@@ -793,6 +801,21 @@ const s = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: 12,
+  },
+  jobMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 12,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 13,
+    color: colors.textSecondary,
   },
   locationRow: {
     flexDirection: 'row',
