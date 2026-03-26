@@ -627,7 +627,7 @@ export default function ContractorDashboard() {
           ListEmptyComponent={() => (
             <View style={styles.emptyState}>
               <Ionicons name="trophy-outline" size={48} color={colors.textSecondary} />
-              <Text style={styles.emptyTitle}>No completed jobs yet</Text>
+              <Text style={styles.emptyTitle}>No completed jobs</Text>
               <Text style={styles.emptySubtitle}>
                 Your completed jobs will be shown here
               </Text>
