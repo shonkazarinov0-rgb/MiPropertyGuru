@@ -467,7 +467,7 @@ export default function ContractorDashboard() {
             Incoming
           </Text>
           {isOnline && incomingJobs.length > 0 && (
-            <View style={[styles.tabBadge, activeTab === 'incoming' && styles.tabBadgeActiveOrange]}>
+            <View style={[styles.tabBadge, styles.tabBadgeOrange]}>
               <Text style={styles.tabBadgeText}>
                 {incomingJobs.length}
               </Text>
@@ -488,7 +488,7 @@ export default function ContractorDashboard() {
             In Progress
           </Text>
           {inProgressJobs.length > 0 && (
-            <View style={[styles.tabBadge, activeTab === 'inProgress' && styles.tabBadgeActiveGreen]}>
+            <View style={[styles.tabBadge, styles.tabBadgeGreen]}>
               <Text style={styles.tabBadgeText}>
                 {inProgressJobs.length}
               </Text>
@@ -509,7 +509,7 @@ export default function ContractorDashboard() {
             Completed
           </Text>
           {completedJobs.length > 0 && (
-            <View style={[styles.tabBadge, activeTab === 'completed' && styles.tabBadgeActiveBlue]}>
+            <View style={[styles.tabBadge, styles.tabBadgeBlue]}>
               <Text style={styles.tabBadgeText}>
                 {completedJobs.length}
               </Text>
@@ -796,20 +796,19 @@ const styles = StyleSheet.create({
     color: colors.blue,
   },
   tabBadge: {
-    backgroundColor: colors.textSecondary,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
     minWidth: 20,
     alignItems: 'center',
   },
-  tabBadgeActiveOrange: {
+  tabBadgeOrange: {
     backgroundColor: colors.primary,
   },
-  tabBadgeActiveGreen: {
+  tabBadgeGreen: {
     backgroundColor: colors.green,
   },
-  tabBadgeActiveBlue: {
+  tabBadgeBlue: {
     backgroundColor: colors.blue,
   },
   tabBadgeText: {

@@ -546,7 +546,7 @@ export default function PostedJobsScreen() {
             Pending
           </Text>
           {pendingJobs.length > 0 && (
-            <View style={[s.tabBadge, activeTab === 'pending' && s.tabBadgeActiveOrange]}>
+            <View style={[s.tabBadge, s.tabBadgeOrange]}>
               <Text style={s.tabBadgeText}>{pendingJobs.length}</Text>
             </View>
           )}
@@ -565,7 +565,7 @@ export default function PostedJobsScreen() {
             In Progress
           </Text>
           {inProgressJobs.length > 0 && (
-            <View style={[s.tabBadge, activeTab === 'inProgress' && s.tabBadgeActiveGreen]}>
+            <View style={[s.tabBadge, s.tabBadgeGreen]}>
               <Text style={s.tabBadgeText}>{inProgressJobs.length}</Text>
             </View>
           )}
@@ -584,7 +584,7 @@ export default function PostedJobsScreen() {
             Completed
           </Text>
           {completedJobs.length > 0 && (
-            <View style={[s.tabBadge, activeTab === 'completed' && s.tabBadgeActiveBlue]}>
+            <View style={[s.tabBadge, s.tabBadgeBlue]}>
               <Text style={s.tabBadgeText}>{completedJobs.length}</Text>
             </View>
           )}
@@ -737,20 +737,19 @@ const s = StyleSheet.create({
     color: colors.blue,
   },
   tabBadge: {
-    backgroundColor: colors.textSecondary,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 10,
     minWidth: 18,
     alignItems: 'center',
   },
-  tabBadgeActiveOrange: {
+  tabBadgeOrange: {
     backgroundColor: colors.primary,
   },
-  tabBadgeActiveGreen: {
+  tabBadgeGreen: {
     backgroundColor: colors.green,
   },
-  tabBadgeActiveBlue: {
+  tabBadgeBlue: {
     backgroundColor: colors.blue,
   },
   tabBadgeText: {
