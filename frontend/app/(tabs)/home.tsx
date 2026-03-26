@@ -67,7 +67,8 @@ export default function ClientHomeScreen() {
   const router = useRouter();
   const { user, switchMode, isClientMode, isContractorMode: authIsContractorMode } = useAuth();
   const [contractors, setContractors] = useState<any[]>([]);
-  const [category, setCategory] = useState('All');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);  // Multi-select categories
+  const [category, setCategory] = useState('All');  // Keep for backwards compatibility
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
@@ -371,6 +372,29 @@ export default function ClientHomeScreen() {
     }
   };
 
+  // Toggle category selection (multi-select)
+  const toggleCategory = (cat: string) => {
+    if (cat === 'All') {
+      setSelectedCategories([]);
+      setCategory('All');
+    } else {
+      setSelectedCategories(prev => {
+        if (prev.includes(cat)) {
+          // Remove category
+          const newCats = prev.filter(c => c !== cat);
+          setCategory(newCats.length === 0 ? 'All' : newCats[0]);
+          return newCats;
+        } else {
+          // Add category (max 5)
+          if (prev.length >= 5) return prev;
+          const newCats = [...prev, cat];
+          setCategory(newCats[0]);
+          return newCats;
+        }
+      });
+    }
+  };
+
   // Sort and filter contractors - ALWAYS show only online contractors for clients
   const sortedContractors = React.useMemo(() => {
     // Always filter for online contractors only
@@ -384,11 +408,82 @@ export default function ClientHomeScreen() {
       return distance <= radiusKm;
     });
     
+    // Filter by selected categories (if any selected)
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(c => {
+        const contractorType = c.contractor_type?.toLowerCase() || '';
+        const trades = c.trades?.map((t: string) => t.toLowerCase()) || [];
+        return selectedCategories.some(cat => 
+          contractorType.includes(cat.toLowerCase()) || 
+          trades.some((t: string) => t.includes(cat.toLowerCase()))
+        );
+      });
+    }
+    
     // Always sort by distance (nearest first)
     filtered.sort((a, b) => (a.distance_km || 999) - (b.distance_km || 999));
     
     return filtered;
-  }, [contractors, radiusKm]);
+  }, [contractors, radiusKm, selectedCategories]);
+
+  // Get counts per selected category
+  const getCategoryCountsText = React.useMemo(() => {
+    if (selectedCategories.length === 0) {
+      return `${sortedContractors.length} online contractor${sortedContractors.length !== 1 ? 's' : ''} nearby`;
+    }
+    
+    // Count contractors per category
+    const categoryCounts: { [key: string]: number } = {};
+    selectedCategories.forEach(cat => {
+      categoryCounts[cat] = contractors.filter(c => {
+        if (!c.is_online) return false;
+        // Check radius
+        const distance = c.distance_km || c.distance;
+        if (distance && radiusKm < 200 && distance > radiusKm) return false;
+        // Check category match
+        const contractorType = c.contractor_type?.toLowerCase() || '';
+        const trades = c.trades?.map((t: string) => t.toLowerCase()) || [];
+        return contractorType.includes(cat.toLowerCase()) || 
+          trades.some((t: string) => t.includes(cat.toLowerCase()));
+      }).length;
+    });
+    
+    // Build the display text
+    const parts = selectedCategories.map(cat => {
+      const count = categoryCounts[cat];
+      const catLower = cat.toLowerCase();
+      const plural = count !== 1 ? 's' : '';
+      return `${count} ${catLower}${plural}`;
+    });
+    
+    if (parts.length === 1) {
+      return `${parts[0]} online`;
+    } else if (parts.length === 2) {
+      return `${parts[0]} and ${parts[1]} online`;
+    } else {
+      const lastPart = parts.pop();
+      return `${parts.join(', ')}, and ${lastPart} online`;
+    }
+  }, [selectedCategories, contractors, radiusKm, sortedContractors]);
+
+  // Get empty state message
+  const getEmptyStateMessage = React.useMemo(() => {
+    if (selectedCategories.length === 0) {
+      return `No online contractors within ${radiusKm} km`;
+    }
+    
+    if (selectedCategories.length === 1) {
+      return `No online ${selectedCategories[0].toLowerCase()}s within ${radiusKm} km`;
+    }
+    
+    const catNames = selectedCategories.map(c => c.toLowerCase() + 's');
+    if (catNames.length === 2) {
+      return `No online ${catNames[0]} or ${catNames[1]} within ${radiusKm} km`;
+    }
+    
+    const lastCat = catNames.pop();
+    return `No online ${catNames.join(', ')}, or ${lastCat} within ${radiusKm} km`;
+  }, [selectedCategories, radiusKm]);
 
   // Re-fetch when filters change
   useEffect(() => {
@@ -1267,59 +1362,66 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               <Ionicons name={showFullMapServiceMenu ? "close" : "people"} size={24} color={colors.paper} />
             </TouchableOpacity>
             
-            {/* Service Menu Popup */}
+            {/* Service Menu Popup - Multi-select */}
             {showFullMapServiceMenu && (
               <View style={styles.fullMapServiceMenu}>
-                <Text style={styles.fullMapServiceMenuTitle}>Select Service</Text>
-                <ScrollView style={styles.fullMapServiceMenuScroll} showsVerticalScrollIndicator={false}>
-                  {/* All option */}
-                  <TouchableOpacity
-                    style={[styles.fullMapServiceMenuItem, category === 'All' && styles.fullMapServiceMenuItemActive]}
-                    onPress={() => {
-                      setCategory('All');
-                      setShowFullMapServiceMenu(false);
-                    }}
-                  >
-                    <View style={styles.fullMapServiceMenuIconBg}>
-                      <Ionicons name="people" size={20} color={colors.primary} />
-                    </View>
-                    <Text style={[styles.fullMapServiceMenuItemText, category === 'All' && styles.fullMapServiceMenuItemTextActive]}>All Contractors</Text>
-                    {category === 'All' && <Ionicons name="checkmark-circle" size={20} color={colors.green} />}
-                  </TouchableOpacity>
-                  
-                  {CATEGORY_DATA.filter(c => c.name !== 'All').map((cat) => (
-                    <TouchableOpacity
-                      key={cat.name}
-                      style={[styles.fullMapServiceMenuItem, category === cat.name && styles.fullMapServiceMenuItemActive]}
-                      onPress={() => {
-                        setCategory(cat.name);
-                        setShowFullMapServiceMenu(false);
-                      }}
-                    >
-                      <View style={styles.fullMapServiceMenuIconBg}>
-                        <Text style={styles.fullMapServiceMenuIcon}>{cat.icon}</Text>
-                      </View>
-                      <Text style={[styles.fullMapServiceMenuItemText, category === cat.name && styles.fullMapServiceMenuItemTextActive]}>{cat.name}</Text>
-                      {category === cat.name && <Ionicons name="checkmark-circle" size={20} color={colors.green} />}
+                <View style={styles.fullMapServiceMenuHeader}>
+                  <Text style={styles.fullMapServiceMenuTitle}>Select Services</Text>
+                  {selectedCategories.length > 0 && (
+                    <TouchableOpacity onPress={() => { setSelectedCategories([]); setShowFullMapServiceMenu(false); }}>
+                      <Text style={styles.fullMapServiceMenuClear}>Clear</Text>
                     </TouchableOpacity>
-                  ))}
+                  )}
+                </View>
+                <ScrollView style={styles.fullMapServiceMenuScroll} showsVerticalScrollIndicator={false}>
+                  {CATEGORY_DATA.filter(c => c.name !== 'All').map((cat) => {
+                    const isSelected = selectedCategories.includes(cat.name);
+                    return (
+                      <TouchableOpacity
+                        key={cat.name}
+                        style={[styles.fullMapServiceMenuItem, isSelected && styles.fullMapServiceMenuItemActive]}
+                        onPress={() => toggleCategory(cat.name)}
+                      >
+                        <View style={styles.fullMapServiceMenuIconBg}>
+                          <Text style={styles.fullMapServiceMenuIcon}>{cat.icon}</Text>
+                        </View>
+                        <Text style={[styles.fullMapServiceMenuItemText, isSelected && styles.fullMapServiceMenuItemTextActive]}>{cat.name}</Text>
+                        {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.green} />}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </ScrollView>
+                {selectedCategories.length > 0 && (
+                  <TouchableOpacity 
+                    style={styles.fullMapServiceMenuDoneBtn}
+                    onPress={() => setShowFullMapServiceMenu(false)}
+                  >
+                    <Text style={styles.fullMapServiceMenuDoneBtnText}>Done ({selectedCategories.length} selected)</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>
           
           {/* Bottom Panel - Categories, Slider & Contractors */}
           <View style={styles.fullMapBottomPanel}>
-            {/* Browse Categories - Select up to 5 */}
+            {/* Browse Categories - Multi-select up to 5 */}
             <View style={styles.fullMapCategoriesSection}>
-              <Text style={styles.fullMapCategoriesTitle}>Browse Categories</Text>
+              <View style={styles.fullMapCategoriesTitleRow}>
+                <Text style={styles.fullMapCategoriesTitle}>Browse Categories</Text>
+                {selectedCategories.length > 0 && (
+                  <TouchableOpacity onPress={() => setSelectedCategories([])}>
+                    <Text style={styles.fullMapCategoriesClear}>Clear all</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
               <ScrollView 
                 horizontal 
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
               >
-                {CATEGORY_DATA.map((cat) => {
-                  const isSelected = category === cat.name || (category === 'All' && cat.name === 'All');
+                {CATEGORY_DATA.filter(c => c.name !== 'All').map((cat) => {
+                  const isSelected = selectedCategories.includes(cat.name);
                   return (
                     <TouchableOpacity
                       key={cat.name}
@@ -1327,17 +1429,21 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                         styles.fullMapCategoryChip,
                         isSelected && styles.fullMapCategoryChipActive
                       ]}
-                      onPress={() => setCategory(cat.name === category ? 'All' : cat.name)}
+                      onPress={() => toggleCategory(cat.name)}
                     >
                       <Text style={styles.fullMapCategoryIcon}>{cat.icon}</Text>
                       <Text style={[
                         styles.fullMapCategoryText,
                         isSelected && styles.fullMapCategoryTextActive
                       ]}>{cat.name}</Text>
+                      {isSelected && <Ionicons name="checkmark-circle" size={16} color={colors.green} />}
                     </TouchableOpacity>
                   );
                 })}
               </ScrollView>
+              {selectedCategories.length > 0 && (
+                <Text style={styles.fullMapSelectedCount}>{selectedCategories.length}/5 selected</Text>
+              )}
             </View>
             
             {/* Radius Slider */}
@@ -1369,7 +1475,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               </View>
               
               <Text style={styles.fullMapContractorCount}>
-                {sortedContractors.length} online contractor{sortedContractors.length !== 1 ? 's' : ''} nearby
+                {getCategoryCountsText}
               </Text>
             </View>
             
@@ -1383,7 +1489,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               {sortedContractors.length === 0 ? (
                 <View style={styles.fullMapEmptyState}>
                   <Ionicons name="people-outline" size={32} color={colors.textSecondary} />
-                  <Text style={styles.fullMapEmptyText}>No online contractors within {radiusKm} km</Text>
+                  <Text style={styles.fullMapEmptyText}>{getEmptyStateMessage}</Text>
                 </View>
               ) : (
                 sortedContractors.slice(0, 10).map((contractor) => {
@@ -2931,11 +3037,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   fullMapServiceMenuScroll: {
     maxHeight: 290,
@@ -2972,5 +3073,51 @@ const styles = StyleSheet.create({
   fullMapServiceMenuItemTextActive: {
     fontWeight: '700',
     color: colors.primary,
+  },
+  // Additional multi-select styles
+  fullMapCategoriesTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  fullMapCategoriesClear: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  fullMapSelectedCount: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  fullMapServiceMenuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  fullMapServiceMenuClear: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  fullMapServiceMenuDoneBtn: {
+    backgroundColor: colors.primary,
+    margin: 12,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  fullMapServiceMenuDoneBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.paper,
   },
 });
