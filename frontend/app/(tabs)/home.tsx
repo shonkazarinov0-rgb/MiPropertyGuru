@@ -83,6 +83,10 @@ export default function ClientHomeScreen() {
   // Sort by filter state
   const [sortBy, setSortBy] = useState<'distance' | 'online'>('distance');
   
+  // Distance radius filter (in km) - 0 means no limit
+  const [radiusKm, setRadiusKm] = useState<number>(50);
+  const RADIUS_PRESETS = [5, 25, 50, 100, 200];
+  
   // Advanced Filters State
   const [showFilters, setShowFilters] = useState(false);
   const [filterLicenseOnly, setFilterLicenseOnly] = useState(false);
@@ -366,9 +370,22 @@ export default function ClientHomeScreen() {
     }
   };
 
-  // Sort contractors based on selected sort option
+  // Sort contractors based on selected sort option and filter by radius
   const sortedContractors = React.useMemo(() => {
-    const sorted = [...contractors];
+    // First filter by radius - only include contractors within the selected distance
+    // Only filter if they have a distance and are online (live location)
+    let filtered = contractors.filter(c => {
+      const distance = c.distance_km || c.distance;
+      // If no distance data, include them (they might be nearby)
+      if (!distance) return true;
+      // If radius is 200+, include everyone
+      if (radiusKm >= 200) return true;
+      // Filter by radius - for live/urgent, prioritize online contractors' live location
+      return distance <= radiusKm;
+    });
+    
+    // Then sort
+    const sorted = [...filtered];
     if (sortBy === 'online') {
       // Online contractors first, then by distance
       sorted.sort((a, b) => {
@@ -381,7 +398,7 @@ export default function ClientHomeScreen() {
       sorted.sort((a, b) => (a.distance_km || 999) - (b.distance_km || 999));
     }
     return sorted;
-  }, [contractors, sortBy]);
+  }, [contractors, sortBy, radiusKm]);
 
   // Re-fetch when filters change
   useEffect(() => {
@@ -463,7 +480,8 @@ export default function ClientHomeScreen() {
 
   const getMapHTML = () => {
     if (!userLoc) return '';
-    const markers = contractors.slice(0, 15).map(c => {
+    // Use sortedContractors which already has radius filter applied
+    const markers = sortedContractors.slice(0, 15).map(c => {
       let lat = userLoc.lat, lng = userLoc.lng;
       if (c.is_online && c.current_location) {
         lat = c.current_location.lat;
@@ -475,14 +493,29 @@ export default function ClientHomeScreen() {
       return { id: c.id, name: c.name, type: c.contractor_type, lat, lng, online: c.is_online };
     });
     const mJSON = JSON.stringify(markers);
+    // Calculate zoom level based on radius (larger radius = lower zoom)
+    let zoomLevel = 13;
+    if (radiusKm <= 5) zoomLevel = 14;
+    else if (radiusKm <= 25) zoomLevel = 12;
+    else if (radiusKm <= 50) zoomLevel = 11;
+    else if (radiusKm <= 100) zoomLevel = 10;
+    else if (radiusKm <= 200) zoomLevel = 9;
+    else zoomLevel = 8;
+    
+    // Convert km to meters for the circle radius
+    const radiusMeters = radiusKm >= 200 ? 200000 : radiusKm * 1000;
+    
     return `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>*{margin:0;padding:0}#map{width:100vw;height:100vh}</style></head>
 <body><div id="map"></div><script>
-var map=L.map('map',{zoomControl:false}).setView([${userLoc.lat},${userLoc.lng}],13);
+var map=L.map('map',{zoomControl:false}).setView([${userLoc.lat},${userLoc.lng}],${zoomLevel});
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:''}).addTo(map);
+// Draw radius circle
+L.circle([${userLoc.lat},${userLoc.lng}],{radius:${radiusMeters},fillColor:'#FF6A00',fillOpacity:0.1,color:'#FF6A00',weight:2,dashArray:'5,5'}).addTo(map);
+// User marker
 L.circleMarker([${userLoc.lat},${userLoc.lng}],{radius:10,fillColor:'#007AFF',color:'#fff',weight:3,fillOpacity:1}).addTo(map).bindPopup('<b>You</b>');
 var ms=${mJSON};
 ms.forEach(function(m){
@@ -776,6 +809,56 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   </TouchableOpacity>
                 </View>
                 
+                {/* Distance Radius Filter */}
+                <View style={styles.radiusFilterSection}>
+                  <View style={styles.radiusLabelRow}>
+                    <Ionicons name="radio-button-on" size={16} color={colors.primary} />
+                    <Text style={styles.radiusLabel}>Search Radius</Text>
+                    <View style={styles.radiusValueBadge}>
+                      <Text style={styles.radiusValueText}>
+                        {radiusKm >= 200 ? '200+ km' : `${radiusKm} km`}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  {/* Radius Preset Buttons */}
+                  <View style={styles.radiusPresetsRow}>
+                    {RADIUS_PRESETS.map((preset) => (
+                      <TouchableOpacity
+                        key={preset}
+                        style={[
+                          styles.radiusPresetBtn,
+                          radiusKm === preset && styles.radiusPresetBtnActive
+                        ]}
+                        onPress={() => setRadiusKm(preset)}
+                      >
+                        <Text style={[
+                          styles.radiusPresetText,
+                          radiusKm === preset && styles.radiusPresetTextActive
+                        ]}>
+                          {preset >= 200 ? '200+' : preset}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                    <TouchableOpacity
+                      style={[
+                        styles.radiusPresetBtn,
+                        radiusKm > 200 && styles.radiusPresetBtnActive
+                      ]}
+                      onPress={() => setRadiusKm(999)}
+                    >
+                      <Text style={[
+                        styles.radiusPresetText,
+                        radiusKm > 200 && styles.radiusPresetTextActive
+                      ]}>All</Text>
+                    </TouchableOpacity>
+                  </View>
+                  
+                  <Text style={styles.radiusHint}>
+                    {sortedContractors.length} contractor{sortedContractors.length !== 1 ? 's' : ''} within {radiusKm >= 200 ? 'all distances' : `${radiusKm} km`}
+                  </Text>
+                </View>
+                
                 <TouchableOpacity style={styles.mapPreview} onPress={() => setShowFullMap(true)}>
                   <WebView 
                     source={{ html: getMapHTML() }} 
@@ -801,9 +884,87 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               </View>
             )}
             {Platform.OS === 'web' && (
-              <View style={styles.mapPlaceholder}>
-                <Ionicons name="map" size={32} color={colors.primary} />
-                <Text style={styles.mapPlaceholderText}>Map view on mobile app</Text>
+              <View style={styles.urgentMapSection}>
+                <View style={styles.urgentMapHeader}>
+                  <View style={styles.urgentBadge}>
+                    <Text style={styles.urgentBadgeEmoji}>⚡</Text>
+                    <Text style={styles.urgentBadgeText}>URGENT</Text>
+                  </View>
+                  <Text style={styles.urgentMapSubtitle}>Find contractors available right now</Text>
+                </View>
+                
+                {/* Sort/Filter Toggle */}
+                <View style={styles.sortToggleRow}>
+                  <TouchableOpacity 
+                    style={[styles.sortChip, sortBy === 'online' && styles.sortChipActive]}
+                    onPress={() => setSortBy('online')}
+                  >
+                    <View style={styles.sortChipDot} />
+                    <Text style={[styles.sortChipText, sortBy === 'online' && styles.sortChipTextActive]}>Online First</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.sortChip, sortBy === 'distance' && styles.sortChipActive]}
+                    onPress={() => setSortBy('distance')}
+                  >
+                    <Ionicons name="location" size={14} color={sortBy === 'distance' ? '#fff' : colors.textSecondary} />
+                    <Text style={[styles.sortChipText, sortBy === 'distance' && styles.sortChipTextActive]}>Nearest</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                {/* Distance Radius Filter */}
+                <View style={styles.radiusFilterSection}>
+                  <View style={styles.radiusLabelRow}>
+                    <Ionicons name="radio-button-on" size={16} color={colors.primary} />
+                    <Text style={styles.radiusLabel}>Search Radius</Text>
+                    <View style={styles.radiusValueBadge}>
+                      <Text style={styles.radiusValueText}>
+                        {radiusKm >= 200 ? '200+ km' : `${radiusKm} km`}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  {/* Radius Preset Buttons */}
+                  <View style={styles.radiusPresetsRow}>
+                    {RADIUS_PRESETS.map((preset) => (
+                      <TouchableOpacity
+                        key={preset}
+                        style={[
+                          styles.radiusPresetBtn,
+                          radiusKm === preset && styles.radiusPresetBtnActive
+                        ]}
+                        onPress={() => setRadiusKm(preset)}
+                      >
+                        <Text style={[
+                          styles.radiusPresetText,
+                          radiusKm === preset && styles.radiusPresetTextActive
+                        ]}>
+                          {preset >= 200 ? '200+' : preset}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                    <TouchableOpacity
+                      style={[
+                        styles.radiusPresetBtn,
+                        radiusKm > 200 && styles.radiusPresetBtnActive
+                      ]}
+                      onPress={() => setRadiusKm(999)}
+                    >
+                      <Text style={[
+                        styles.radiusPresetText,
+                        radiusKm > 200 && styles.radiusPresetTextActive
+                      ]}>All</Text>
+                    </TouchableOpacity>
+                  </View>
+                  
+                  <Text style={styles.radiusHint}>
+                    {sortedContractors.length} contractor{sortedContractors.length !== 1 ? 's' : ''} within {radiusKm >= 200 ? 'all distances' : `${radiusKm} km`}
+                  </Text>
+                </View>
+                
+                <View style={styles.mapPlaceholder}>
+                  <Ionicons name="map" size={32} color={colors.primary} />
+                  <Text style={styles.mapPlaceholderText}>Map view on mobile app</Text>
+                </View>
               </View>
             )}
 
@@ -2248,5 +2409,67 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 8,
     marginLeft: 4,
+  },
+  // Distance Radius Filter Styles
+  radiusFilterSection: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  radiusLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  radiusLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+  },
+  radiusValueBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  radiusValueText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  radiusPresetsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  radiusPresetBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    minWidth: 48,
+    alignItems: 'center',
+  },
+  radiusPresetBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  radiusPresetText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  radiusPresetTextActive: {
+    color: colors.paper,
+  },
+  radiusHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 10,
+    textAlign: 'center',
   },
 });
