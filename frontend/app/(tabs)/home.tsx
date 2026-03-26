@@ -3891,12 +3891,12 @@ const styles = StyleSheet.create({
   // Service Menu in Full Map
   fullMapServiceMenu: {
     position: 'absolute',
-    top: 50,
+    top: 10,
     right: 12,
     backgroundColor: colors.paper,
     borderRadius: 12,
-    width: 220,
-    maxHeight: 200,
+    width: 240,
+    maxHeight: 260,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
@@ -3909,16 +3909,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingTop: 10,
+    paddingTop: 12,
     paddingBottom: 8,
   },
   fullMapServiceMenuTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: colors.text,
   },
   fullMapServiceMenuScroll: {
-    maxHeight: 100,
+    maxHeight: 150,
   },
   fullMapServiceMenuItem: {
     flexDirection: 'row',
