@@ -34,12 +34,15 @@ const colors = {
 };
 
 const CATEGORY_DATA = [
+  { name: 'Aluminum Capping', icon: '🏢', color: '#90A4AE' },
   { name: 'Appliance Repair', icon: '🔌', color: '#673AB7' },
   { name: 'Cabinet Maker', icon: '🪑', color: '#A1887F' },
   { name: 'Carpenter', icon: '🪚', color: '#8D6E63' },
+  { name: 'Caulker', icon: '🔗', color: '#7E57C2' },
   { name: 'Concrete', icon: '🪨', color: '#757575' },
   { name: 'Deck Builder', icon: '🌲', color: '#33691E' },
   { name: 'Demolition', icon: '💥', color: '#D32F2F' },
+  { name: 'Door Installer', icon: '🚪', color: '#5D4037' },
   { name: 'Drywall', icon: '🏗️', color: '#9E9E9E' },
   { name: 'Electrician', icon: '⚡', color: '#FFC107' },
   { name: 'Fence', icon: '🚧', color: '#8BC34A' },
@@ -62,6 +65,75 @@ const CATEGORY_DATA = [
   { name: 'Welder', icon: '🔥', color: '#FF5722' },
   { name: 'Window Installer', icon: '🖼️', color: '#42A5F5' },
 ];
+
+// Search keyword mapping for smart suggestions
+const SEARCH_KEYWORDS: { [key: string]: string } = {
+  // Electrician related
+  'lamp': 'Electrician', 'light': 'Electrician', 'lighting': 'Electrician', 'wire': 'Electrician',
+  'wiring': 'Electrician', 'outlet': 'Electrician', 'socket': 'Electrician', 'switch': 'Electrician',
+  'electrical': 'Electrician', 'power': 'Electrician', 'circuit': 'Electrician', 'fuse': 'Electrician',
+  'breaker': 'Electrician', 'fan': 'Electrician', 'ceiling fan': 'Electrician',
+  // Plumber related
+  'pipe': 'Plumber', 'pipes': 'Plumber', 'drain': 'Plumber', 'toilet': 'Plumber', 'sink': 'Plumber',
+  'faucet': 'Plumber', 'water': 'Plumber', 'leak': 'Plumber', 'leaking': 'Plumber', 'tap': 'Plumber',
+  'bathroom': 'Plumber', 'shower': 'Plumber', 'bathtub': 'Plumber', 'sewer': 'Plumber',
+  // HVAC related
+  'ac': 'HVAC Technician', 'air conditioning': 'HVAC Technician', 'heating': 'HVAC Technician',
+  'furnace': 'HVAC Technician', 'heat': 'HVAC Technician', 'cooling': 'HVAC Technician',
+  'ventilation': 'HVAC Technician', 'thermostat': 'HVAC Technician', 'duct': 'HVAC Technician',
+  // Carpenter related
+  'wood': 'Carpenter', 'cabinet': 'Cabinet Maker', 'shelf': 'Carpenter', 'shelves': 'Carpenter',
+  'furniture': 'Carpenter', 'closet': 'Carpenter', 'trim': 'Carpenter', 'molding': 'Carpenter',
+  // Painter related
+  'paint': 'Painter', 'painting': 'Painter', 'wall': 'Painter', 'stain': 'Painter',
+  // Roofer related
+  'roof': 'Roofer', 'roofing': 'Roofer', 'shingle': 'Roofer', 'gutter': 'Roofer', 'eaves': 'Roofer',
+  // Landscaper related
+  'lawn': 'Landscaper', 'garden': 'Landscaper', 'tree': 'Landscaper', 'grass': 'Landscaper',
+  'yard': 'Landscaper', 'hedge': 'Landscaper', 'bush': 'Landscaper', 'plant': 'Landscaper',
+  // Tiler related
+  'tile': 'Tiler', 'tiles': 'Tiler', 'backsplash': 'Tiler', 'grout': 'Tiler',
+  // Flooring related
+  'floor': 'Flooring', 'hardwood': 'Flooring', 'laminate': 'Flooring', 'vinyl': 'Flooring', 'carpet': 'Flooring',
+  // Door related
+  'door': 'Door Installer', 'doors': 'Door Installer', 'entry': 'Door Installer', 'entrance': 'Door Installer',
+  // Window related
+  'window': 'Window Installer', 'windows': 'Window Installer', 'glass': 'Glazier',
+  // Locksmith related
+  'lock': 'Locksmith', 'key': 'Locksmith', 'deadbolt': 'Locksmith', 'security': 'Locksmith',
+  // Handyman related
+  'fix': 'Handyman', 'repair': 'Handyman', 'install': 'Handyman', 'mount': 'Handyman', 'hang': 'Handyman',
+  // Drywall related
+  'drywall': 'Drywall', 'sheetrock': 'Drywall', 'plaster': 'Drywall', 'hole': 'Drywall',
+  // Concrete related
+  'concrete': 'Concrete', 'cement': 'Concrete', 'driveway': 'Concrete', 'sidewalk': 'Concrete', 'patio': 'Concrete',
+  // Fence related
+  'fence': 'Fence', 'fencing': 'Fence', 'gate': 'Fence',
+  // Deck related
+  'deck': 'Deck Builder', 'porch': 'Deck Builder', 'pergola': 'Deck Builder',
+  // Pool related
+  'pool': 'Pool Service', 'spa': 'Pool Service', 'hot tub': 'Pool Service',
+  // Welder related
+  'weld': 'Welder', 'welding': 'Welder', 'metal': 'Welder', 'iron': 'Welder', 'steel': 'Welder',
+  // Mason related
+  'brick': 'Mason', 'stone': 'Mason', 'masonry': 'Mason', 'chimney': 'Mason', 'fireplace': 'Mason',
+  // Appliance related
+  'appliance': 'Appliance Repair', 'washer': 'Appliance Repair', 'dryer': 'Appliance Repair',
+  'refrigerator': 'Appliance Repair', 'fridge': 'Appliance Repair', 'dishwasher': 'Appliance Repair',
+  'stove': 'Appliance Repair', 'oven': 'Appliance Repair', 'microwave': 'Appliance Repair',
+  // Caulker related
+  'caulk': 'Caulker', 'seal': 'Caulker', 'sealing': 'Caulker', 'weatherproof': 'Caulker',
+  // Aluminum related
+  'aluminum': 'Aluminum Capping', 'capping': 'Aluminum Capping', 'soffit': 'Aluminum Capping', 'fascia': 'Aluminum Capping',
+  // Siding related
+  'siding': 'Siding', 'exterior': 'Siding',
+  // Garage related
+  'garage': 'Garage Door', 'garage door': 'Garage Door',
+  // Insulation related
+  'insulation': 'Insulation', 'insulate': 'Insulation', 'attic': 'Insulation',
+  // Demolition related
+  'demolition': 'Demolition', 'demo': 'Demolition', 'tear down': 'Demolition', 'remove': 'Demolition',
+};
 
 export default function ClientHomeScreen() {
   const router = useRouter();
