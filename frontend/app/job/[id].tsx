@@ -38,10 +38,27 @@ export default function JobDetailScreen() {
   const [editDescription, setEditDescription] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editBudget, setEditBudget] = useState('');
-  const [editTradeRequired, setEditTradeRequired] = useState('');
+  const [editTrades, setEditTrades] = useState<string[]>([]);
   const [editPhotos, setEditPhotos] = useState<string[]>([]);
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+
+  // Parse trades from string or array
+  const parseTrades = (tradeData: any): string[] => {
+    if (Array.isArray(tradeData)) return tradeData;
+    if (typeof tradeData === 'string' && tradeData) {
+      return tradeData.split(',').map(t => t.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
+  const toggleTrade = (tradeName: string) => {
+    if (editTrades.includes(tradeName)) {
+      setEditTrades(editTrades.filter(t => t !== tradeName));
+    } else if (editTrades.length < 3) {
+      setEditTrades([...editTrades, tradeName]);
+    }
+  };
 
   useEffect(() => {
     fetchJob();
@@ -54,7 +71,7 @@ export default function JobDetailScreen() {
       setEditDescription(res.job?.description || '');
       setEditLocation(res.job?.location || '');
       setEditBudget(res.job?.budget || '');
-      setEditTradeRequired(res.job?.trade_required || res.job?.category || '');
+      setEditTrades(parseTrades(res.job?.trades_required || res.job?.trade_required || res.job?.category));
       setEditPhotos(res.job?.photos || []);
     } catch (e) {
       console.error('Error fetching job:', e);
@@ -69,6 +86,10 @@ export default function JobDetailScreen() {
       Alert.alert('Error', 'Description is required');
       return;
     }
+    if (editTrades.length === 0) {
+      Alert.alert('Error', 'Please select at least one trade');
+      return;
+    }
     
     setSaving(true);
     try {
@@ -76,7 +97,8 @@ export default function JobDetailScreen() {
         description: editDescription.trim(),
         location: editLocation.trim(),
         budget: editBudget.trim(),
-        trade_required: editTradeRequired,
+        trade_required: editTrades.join(', '),
+        trades_required: editTrades,
         photos: editPhotos,
       });
       setJob({ 
@@ -84,7 +106,8 @@ export default function JobDetailScreen() {
         description: editDescription.trim(), 
         location: editLocation.trim(),
         budget: editBudget.trim(),
-        trade_required: editTradeRequired,
+        trade_required: editTrades.join(', '),
+        trades_required: editTrades,
         photos: editPhotos,
       });
       setIsEditing(false);
@@ -246,29 +269,36 @@ export default function JobDetailScreen() {
         <ScrollView contentContainerStyle={s.content}>
           {/* Trade Required Section */}
           <View style={s.section}>
-            <Text style={s.sectionTitle}>Trade Required</Text>
+            <Text style={s.sectionTitle}>Trade Required {isEditing ? `(${editTrades.length}/3)` : ''}</Text>
             {isEditing ? (
               <TouchableOpacity 
                 style={s.tradeSelector}
                 onPress={() => setShowTradeModal(true)}
               >
-                <View style={s.tradeSelectorContent}>
-                  <Text style={s.tradeEmojiSmall}>{getTradeIcon(editTradeRequired)}</Text>
-                  <Text style={s.tradeSelectorText}>
-                    {editTradeRequired || 'Select trade...'}
-                  </Text>
-                </View>
+                {editTrades.length > 0 ? (
+                  <View style={s.selectedTradesVertical}>
+                    {editTrades.map((trade) => (
+                      <View key={trade} style={s.selectedTradeRow}>
+                        <Text style={s.tradeEmojiSmall}>{getTradeIcon(trade)}</Text>
+                        <Text style={s.tradeSelectorText}>{trade}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={s.tradeSelectorPlaceholder}>Tap to select trades...</Text>
+                )}
                 <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             ) : (
-              <View style={s.tradeCard}>
-                <View style={s.tradeIconBig}>
-                  <Text style={s.tradeEmojiBig}>{tradeEmoji}</Text>
-                </View>
-                <View>
-                  <Text style={s.tradeText}>{tradeRequired}</Text>
-                  <Text style={s.tradeSubtext}>Looking for this trade</Text>
-                </View>
+              <View style={s.tradesListCard}>
+                {parseTrades(job.trade_required || job.trades_required).map((trade, idx) => (
+                  <View key={idx} style={s.tradeListItem}>
+                    <View style={s.tradeListIcon}>
+                      <Text style={s.tradeEmojiBig}>{getTradeIcon(trade)}</Text>
+                    </View>
+                    <Text style={s.tradeListText}>{trade}</Text>
+                  </View>
+                ))}
                 {getStatusBadge()}
               </View>
             )}
@@ -384,7 +414,7 @@ export default function JobDetailScreen() {
                 <View style={s.budgetRow}>
                   <Ionicons name="cash" size={18} color={colors.green} />
                   <Text style={s.budgetText}>
-                    {job.budget ? `$${job.budget}` : 'Not specified'}
+                    {job.budget ? (job.budget.startsWith('$') ? job.budget : `$${job.budget}`) : 'Not specified'}
                   </Text>
                 </View>
               </View>
@@ -419,7 +449,7 @@ export default function JobDetailScreen() {
                   setEditDescription(job.description || '');
                   setEditLocation(job.location || '');
                   setEditBudget(job.budget || '');
-                  setEditTradeRequired(job.trade_required || job.category || '');
+                  setEditTrades(parseTrades(job.trades_required || job.trade_required || job.category));
                   setEditPhotos(job.photos || []);
                 }}
               >
@@ -458,36 +488,48 @@ export default function JobDetailScreen() {
           <View style={s.modalOverlay}>
             <View style={s.modalContent}>
               <View style={s.modalHeader}>
-                <Text style={s.modalTitle}>Select Trade</Text>
+                <Text style={s.modalTitle}>Select Trades (Max 3)</Text>
                 <TouchableOpacity onPress={() => setShowTradeModal(false)}>
-                  <Ionicons name="close" size={24} color={colors.text} />
+                  <Text style={s.modalDoneBtn}>Done</Text>
                 </TouchableOpacity>
               </View>
-              <ScrollView style={s.tradeList}>
-                {TRADES.map((trade) => (
-                  <TouchableOpacity
-                    key={trade.name}
-                    style={[
-                      s.tradeOption,
-                      editTradeRequired === trade.name && s.tradeOptionSelected
-                    ]}
-                    onPress={() => {
-                      setEditTradeRequired(trade.name);
-                      setShowTradeModal(false);
-                    }}
-                  >
-                    <Text style={s.tradeEmojiIcon}>{trade.icon}</Text>
-                    <Text style={[
-                      s.tradeOptionText,
-                      editTradeRequired === trade.name && s.tradeOptionTextSelected
-                    ]}>
-                      {trade.name}
-                    </Text>
-                    {editTradeRequired === trade.name && (
-                      <Ionicons name="checkmark" size={20} color={colors.paper} />
-                    )}
+              {editTrades.length > 0 && (
+                <View style={s.selectedTradesHeader}>
+                  <Text style={s.selectedCount}>{editTrades.length}/3 selected</Text>
+                  <TouchableOpacity onPress={() => setEditTrades([])}>
+                    <Text style={s.clearAllBtn}>Clear All</Text>
                   </TouchableOpacity>
-                ))}
+                </View>
+              )}
+              <ScrollView style={s.tradeList}>
+                {TRADES.map((trade) => {
+                  const isSelected = editTrades.includes(trade.name);
+                  const isDisabled = !isSelected && editTrades.length >= 3;
+                  return (
+                    <TouchableOpacity
+                      key={trade.name}
+                      style={[
+                        s.tradeOption,
+                        isSelected && s.tradeOptionSelected,
+                        isDisabled && s.tradeOptionDisabled
+                      ]}
+                      onPress={() => toggleTrade(trade.name)}
+                      disabled={isDisabled}
+                    >
+                      <Text style={s.tradeEmojiIcon}>{trade.icon}</Text>
+                      <Text style={[
+                        s.tradeOptionText,
+                        isSelected && s.tradeOptionTextSelected,
+                        isDisabled && s.tradeOptionTextDisabled
+                      ]}>
+                        {trade.name}
+                      </Text>
+                      {isSelected && (
+                        <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
             </View>
           </View>
@@ -716,6 +758,79 @@ const s = StyleSheet.create({
   },
   tradeEmojiSmall: {
     fontSize: 20,
+  },
+  // Vertical trade list styles
+  tradesListCard: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  tradeListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  tradeListIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tradeListText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+  },
+  selectedTradesVertical: {
+    flex: 1,
+    gap: 8,
+  },
+  selectedTradeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  tradeSelectorPlaceholder: {
+    flex: 1,
+    fontSize: 15,
+    color: colors.textSecondary,
+  },
+  // Modal styles
+  modalDoneBtn: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  selectedTradesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.primaryLight,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  selectedCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  clearAllBtn: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.red,
+  },
+  tradeOptionDisabled: {
+    opacity: 0.4,
+  },
+  tradeOptionTextDisabled: {
+    color: colors.textSecondary,
   },
   metaText: {
     fontSize: 15,
