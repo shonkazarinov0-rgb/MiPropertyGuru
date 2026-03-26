@@ -827,6 +827,120 @@ export default function ProfileScreen() {
             </KeyboardAvoidingView>
           </View>
         </Modal>
+
+        {/* Edit Profile Modal (Client - Name & Phone only) */}
+        <Modal visible={showEditProfile} transparent animationType="slide">
+          <View style={s.modalOverlay}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={s.modalKeyboard}
+            >
+              <View style={s.modalContent}>
+                <View style={s.modalHeader}>
+                  <Text style={s.modalTitle}>Edit Profile</Text>
+                  <TouchableOpacity onPress={() => setShowEditProfile(false)}>
+                    <Ionicons name="close" size={24} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+                
+                <Text style={s.inputLabel}>Name *</Text>
+                <TextInput
+                  style={s.modalInput}
+                  placeholder="Your name"
+                  placeholderTextColor={colors.textSecondary}
+                  value={editName}
+                  onChangeText={setEditName}
+                  autoCapitalize="words"
+                />
+                
+                <Text style={s.inputLabel}>Phone Number</Text>
+                <TextInput
+                  style={s.modalInput}
+                  placeholder="e.g., (416) 555-1234"
+                  placeholderTextColor={colors.textSecondary}
+                  value={editPhone}
+                  onChangeText={setEditPhone}
+                  keyboardType="phone-pad"
+                />
+                
+                <View style={s.modalActions}>
+                  <TouchableOpacity 
+                    style={s.modalCancelBtn} 
+                    onPress={() => setShowEditProfile(false)}
+                  >
+                    <Text style={s.modalCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[s.modalConfirmBtn, !editName.trim() && s.modalConfirmBtnDisabled]} 
+                    onPress={saveClientProfile}
+                    disabled={saving || !editName.trim()}
+                  >
+                    {saving ? (
+                      <ActivityIndicator color={colors.paper} />
+                    ) : (
+                      <Text style={s.modalConfirmText}>Save</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        </Modal>
+
+        {/* Privacy Policy Modal */}
+        <Modal visible={showPrivacyPolicy} transparent animationType="slide">
+          <View style={s.modalOverlay}>
+            <View style={[s.modalContent, { maxHeight: '80%' }]}>
+              <View style={s.modalHeader}>
+                <Text style={s.modalTitle}>Privacy & Policy</Text>
+                <TouchableOpacity onPress={() => setShowPrivacyPolicy(false)}>
+                  <Ionicons name="close" size={24} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              
+              <ScrollView style={s.privacyScroll} showsVerticalScrollIndicator={false}>
+                <Text style={s.privacySection}>Data Collection</Text>
+                <Text style={s.privacyText}>
+                  MiPropertyGuru collects personal information you provide when creating an account, including your name, email address, and phone number. We also collect information about jobs you post or respond to.
+                </Text>
+                
+                <Text style={s.privacySection}>How We Use Your Data</Text>
+                <Text style={s.privacyText}>
+                  Your information is used to facilitate connections between property owners and service contractors. We use your contact details to enable communication between parties and to send important service updates.
+                </Text>
+                
+                <Text style={s.privacySection}>Data Security</Text>
+                <Text style={s.privacyText}>
+                  We implement industry-standard security measures to protect your personal information. Your data is encrypted during transmission and stored securely on our servers.
+                </Text>
+                
+                <Text style={s.privacySection}>Third-Party Sharing</Text>
+                <Text style={s.privacyText}>
+                  We do not sell your personal information to third parties. Your contact details are only shared with contractors or clients you choose to connect with through our platform.
+                </Text>
+                
+                <Text style={s.privacySection}>Your Rights</Text>
+                <Text style={s.privacyText}>
+                  You have the right to access, correct, or delete your personal information at any time. Contact our support team for assistance with data-related requests.
+                </Text>
+                
+                <Text style={s.privacySection}>Contact Us</Text>
+                <Text style={s.privacyText}>
+                  If you have questions about our privacy practices, please contact us at support@mipropertyguru.com
+                </Text>
+                
+                <Text style={s.privacyUpdated}>Last updated: June 2025</Text>
+              </ScrollView>
+              
+              <TouchableOpacity 
+                style={s.privacyCloseBtn} 
+                onPress={() => setShowPrivacyPolicy(false)}
+              >
+                <Text style={s.privacyCloseBtnText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -1528,5 +1642,56 @@ const s = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  // Privacy Policy Modal styles
+  privacyScroll: {
+    maxHeight: 400,
+    marginBottom: 16,
+  },
+  privacySection: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  privacyText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 22,
+  },
+  privacyUpdated: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  privacyCloseBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  privacyCloseBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  // Modal Save button styles (if missing)
+  modalSaveBtn: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  modalSaveBtnDisabled: {
+    backgroundColor: colors.border,
+  },
+  modalSaveText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.paper,
   },
 });

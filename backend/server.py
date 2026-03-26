@@ -1073,6 +1073,26 @@ async def update_profile(req: ProfileUpdate, user=Depends(get_current_user)):
     updated = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
     return updated
 
+# User profile update (for clients - name and phone only)
+class UserProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+
+@api_router.put("/users/profile")
+async def update_user_profile(req: UserProfileUpdate, user=Depends(get_current_user)):
+    """Update user profile - clients can only update name and phone"""
+    update = {}
+    if req.name is not None:
+        update["name"] = req.name
+    if req.phone is not None:
+        update["phone"] = req.phone
+    
+    if update:
+        await db.users.update_one({"id": user["id"]}, {"$set": update})
+    
+    updated = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
+    return updated
+
 @api_router.get("/contractors/stats")
 async def get_contractor_stats(user=Depends(get_current_user)):
     """Get contractor dashboard stats"""

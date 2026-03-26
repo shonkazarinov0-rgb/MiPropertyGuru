@@ -60,8 +60,6 @@ export default function ContractorSettingsScreen() {
   const [selectedTrades, setSelectedTrades] = useState<string[]>([]);
   const [bio, setBio] = useState('');
   const [experienceYears, setExperienceYears] = useState(0);
-  const [availabilityStart, setAvailabilityStart] = useState('08:00');
-  const [availabilityEnd, setAvailabilityEnd] = useState('18:00');
 
   useEffect(() => {
     if (user) {
@@ -69,10 +67,6 @@ export default function ContractorSettingsScreen() {
       setSelectedTrades(user.trades || []);
       setBio(user.bio || '');
       setExperienceYears(user.experience_years || 0);
-      if (user.availability_hours) {
-        setAvailabilityStart(user.availability_hours.start || '08:00');
-        setAvailabilityEnd(user.availability_hours.end || '18:00');
-      }
     }
   }, [user]);
 
@@ -99,7 +93,6 @@ export default function ContractorSettingsScreen() {
         trades: selectedTrades,
         bio,
         experience_years: experienceYears,
-        availability_hours: { start: availabilityStart, end: availabilityEnd },
       });
       
       if (refreshUser) refreshUser();
@@ -221,38 +214,6 @@ export default function ContractorSettingsScreen() {
             maxLength={500}
           />
           <Text style={styles.charCount}>{bio.length}/500</Text>
-        </View>
-
-        {/* Availability Hours */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Availability Hours</Text>
-          <Text style={styles.sectionSubtitle}>
-            When are you typically available for work?
-          </Text>
-          
-          <View style={styles.hoursRow}>
-            <View style={styles.hourInput}>
-              <Text style={styles.hourLabel}>From</Text>
-              <TextInput
-                style={styles.hourField}
-                value={availabilityStart}
-                onChangeText={setAvailabilityStart}
-                placeholder="08:00"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-            <Text style={styles.hourSeparator}>to</Text>
-            <View style={styles.hourInput}>
-              <Text style={styles.hourLabel}>Until</Text>
-              <TextInput
-                style={styles.hourField}
-                value={availabilityEnd}
-                onChangeText={setAvailabilityEnd}
-                placeholder="18:00"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-          </View>
         </View>
 
         <View style={{ height: 100 }} />
