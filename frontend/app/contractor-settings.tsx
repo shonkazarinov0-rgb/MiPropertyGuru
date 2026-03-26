@@ -130,11 +130,13 @@ export default function ContractorSettingsScreen() {
           </Text>
           
           <View style={styles.sliderContainer}>
-            <Text style={styles.radiusValue}>{serviceRadius} km</Text>
+            <Text style={styles.radiusValue}>
+              {serviceRadius >= 200 ? '200+ km' : `${serviceRadius} km`}
+            </Text>
             <Slider
               style={styles.slider}
-              minimumValue={5}
-              maximumValue={50}
+              minimumValue={0}
+              maximumValue={200}
               step={5}
               value={serviceRadius}
               onValueChange={setServiceRadius}
@@ -143,8 +145,8 @@ export default function ContractorSettingsScreen() {
               thumbTintColor={colors.primary}
             />
             <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabel}>5 km</Text>
-              <Text style={styles.sliderLabel}>50 km</Text>
+              <Text style={styles.sliderLabel}>0 km</Text>
+              <Text style={styles.sliderLabel}>200+ km</Text>
             </View>
           </View>
         </View>

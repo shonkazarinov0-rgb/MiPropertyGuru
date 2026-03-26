@@ -50,6 +50,11 @@ export default function ProfileScreen() {
   const [editName, setEditName] = useState(user?.name || '');
   const [editPhone, setEditPhone] = useState(user?.phone || '');
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  
+  // Edit work location states
+  const [showEditLocation, setShowEditLocation] = useState(false);
+  const [editLocationIndex, setEditLocationIndex] = useState<number>(-1);
+  const [editLocationName, setEditLocationName] = useState('');
 
   // Helper function to get trade-specific icon
   const getTradeIcon = (tradeType: string | null | undefined): keyof typeof Ionicons.glyphMap => {
@@ -153,6 +158,55 @@ export default function ProfileScreen() {
       setLocationName(''); setShowAddLocation(false);
     } catch (e: any) { Alert.alert('Error', e.message); }
     finally { setSaving(false); }
+  };
+
+  // Edit work location
+  const editWorkLocation = async () => {
+    if (!editLocationName.trim() || editLocationIndex < 0) return;
+    setSaving(true);
+    try {
+      const updatedLocs = [...(user?.work_locations || [])];
+      updatedLocs[editLocationIndex] = { 
+        ...updatedLocs[editLocationIndex], 
+        name: editLocationName.trim() 
+      };
+      await api.put('/contractors/location', {
+        live_location_enabled: liveLocation,
+        work_locations: updatedLocs,
+      });
+      await refreshUser();
+      setEditLocationName('');
+      setEditLocationIndex(-1);
+      setShowEditLocation(false);
+    } catch (e: any) { Alert.alert('Error', e.message); }
+    finally { setSaving(false); }
+  };
+
+  // Delete work location
+  const deleteWorkLocation = async (index: number) => {
+    Alert.alert(
+      'Delete Location',
+      'Are you sure you want to remove this work location?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            try {
+              const updatedLocs = (user?.work_locations || []).filter((_: any, i: number) => i !== index);
+              await api.put('/contractors/location', {
+                live_location_enabled: liveLocation,
+                work_locations: updatedLocs,
+              });
+              await refreshUser();
+            } catch (e: any) { Alert.alert('Error', e.message); }
+            finally { setSaving(false); }
+          }
+        }
+      ]
+    );
   };
 
   const addPortfolioItem = async () => {
@@ -559,9 +613,29 @@ export default function ProfileScreen() {
                 <View style={s.divider} />
                 <Text style={s.workLocTitle}>Work Locations ({(user?.work_locations || []).length}/3)</Text>
                 {(user?.work_locations || []).map((loc: any, i: number) => (
-                  <View key={i} style={s.workLocItem}>
-                    <Ionicons name="pin" size={16} color={colors.textSecondary} />
-                    <Text style={s.workLocText}>{loc.name}</Text>
+                  <View key={i} style={s.workLocItemRow}>
+                    <View style={s.workLocItem}>
+                      <Ionicons name="pin" size={16} color={colors.textSecondary} />
+                      <Text style={s.workLocText}>{loc.name}</Text>
+                    </View>
+                    <View style={s.workLocActions}>
+                      <TouchableOpacity 
+                        style={s.workLocEditBtn}
+                        onPress={() => {
+                          setEditLocationIndex(i);
+                          setEditLocationName(loc.name);
+                          setShowEditLocation(true);
+                        }}
+                      >
+                        <Ionicons name="pencil" size={16} color={colors.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={s.workLocDeleteBtn}
+                        onPress={() => deleteWorkLocation(i)}
+                      >
+                        <Ionicons name="trash-outline" size={16} color={colors.red} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))}
                 {(user?.work_locations || []).length < 3 && (
@@ -941,6 +1015,45 @@ export default function ProfileScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* Edit Work Location Modal */}
+        <Modal visible={showEditLocation} transparent animationType="slide">
+          <View style={s.modalOverlay}>
+            <View style={s.modalContent}>
+              <Text style={s.modalTitle}>Edit Work Location</Text>
+              <TextInput
+                style={s.modalInput}
+                placeholder="Location name (e.g., Downtown Toronto)"
+                placeholderTextColor={colors.textSecondary}
+                value={editLocationName}
+                onChangeText={setEditLocationName}
+              />
+              <View style={s.modalActions}>
+                <TouchableOpacity 
+                  style={s.modalCancelBtn} 
+                  onPress={() => {
+                    setShowEditLocation(false);
+                    setEditLocationIndex(-1);
+                    setEditLocationName('');
+                  }}
+                >
+                  <Text style={s.modalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={s.modalConfirmBtn} 
+                  onPress={editWorkLocation}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator color={colors.paper} />
+                  ) : (
+                    <Text style={s.modalConfirmText}>Save</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
@@ -1294,6 +1407,28 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
     gap: 8,
+    flex: 1,
+  },
+  workLocItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  workLocActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  workLocEditBtn: {
+    padding: 6,
+    backgroundColor: colors.primaryLight,
+    borderRadius: 8,
+  },
+  workLocDeleteBtn: {
+    padding: 6,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
   },
   workLocText: {
     fontSize: 14,

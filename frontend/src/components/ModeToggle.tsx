@@ -39,19 +39,13 @@ export default function ModeToggle() {
   const handleClientMode = async () => {
     if (isClientMode) return; // Already in client mode
     await switchMode('client');
-    // If on dashboard, redirect to My Jobs (clients don't have dashboard)
-    if (pathname === '/dashboard' || pathname === '/(tabs)/dashboard') {
-      router.replace('/(tabs)/posted-jobs');
-    }
+    // Stay on the same page - no redirection
   };
 
   const handleContractorMode = async () => {
     if (isContractorMode) return; // Already in contractor mode
     await switchMode('contractor');
-    // If on posted-jobs (My Jobs), redirect to Dashboard
-    if (pathname === '/posted-jobs' || pathname === '/(tabs)/posted-jobs') {
-      router.replace('/(tabs)/dashboard');
-    }
+    // Stay on the same page - no redirection
   };
 
   return (
