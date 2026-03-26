@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator, RefreshControl,
-  ScrollView,
+  Alert, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -149,28 +149,41 @@ export default function MessagesScreen() {
   };
 
   // Handle removing a pending conversation
-  const handleRemoveConversation = (conv: any) => {
-    Alert.alert(
-      'Remove Conversation',
-      'Are you sure you want to remove this conversation? This will end the discussion with this contractor.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.delete(`/conversations/${conv.id}`);
-              // Refresh conversations
-              const res = await api.get('/conversations');
-              setConversations(res.conversations || []);
-            } catch (e: any) {
-              Alert.alert('Error', e.message || 'Could not remove conversation');
-            }
-          }
+  const handleRemoveConversation = async (conv: any) => {
+    const doRemove = async () => {
+      try {
+        await api.delete(`/conversations/${conv.id}`);
+        // Refresh conversations
+        const res = await api.get('/conversations');
+        setConversations(res.conversations || []);
+        if (Platform.OS === 'web') {
+          window.alert('Conversation removed.');
         }
-      ]
-    );
+      } catch (e: any) {
+        const errorMsg = e.message || 'Could not remove conversation';
+        if (Platform.OS === 'web') {
+          window.alert('Error: ' + errorMsg);
+        } else {
+          Alert.alert('Error', errorMsg);
+        }
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to remove this conversation? This will end the discussion with this contractor.');
+      if (confirmed) {
+        await doRemove();
+      }
+    } else {
+      Alert.alert(
+        'Remove Conversation',
+        'Are you sure you want to remove this conversation?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: doRemove }
+        ]
+      );
+    }
   };
 
   const renderConversation = ({ item }: { item: any }) => {

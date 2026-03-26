@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet, ActivityIndicator, 
-  RefreshControl, Alert, Modal,
+  RefreshControl, Alert, Modal, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -261,29 +261,43 @@ export default function PostedJobsScreen() {
 
   // Handle deleting a job
   const handleDelete = async (job: any) => {
-    Alert.alert(
-      'Delete Job',
-      'Are you sure you want to delete this job? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setActionLoading(job.id);
-            try {
-              await api.delete(`/jobs/${job.id}`);
-              setJobs(jobs.filter(j => j.id !== job.id));
-              Alert.alert('Deleted', 'Job has been removed.');
-            } catch (e: any) {
-              Alert.alert('Error', e.message || 'Could not delete job');
-            } finally {
-              setActionLoading(null);
-            }
-          }
+    const doDelete = async () => {
+      setActionLoading(job.id);
+      try {
+        await api.delete(`/jobs/${job.id}`);
+        setJobs(jobs.filter(j => j.id !== job.id));
+        if (Platform.OS === 'web') {
+          window.alert('Job has been deleted.');
+        } else {
+          Alert.alert('Deleted', 'Job has been removed.');
         }
-      ]
-    );
+      } catch (e: any) {
+        const errorMsg = e.message || 'Could not delete job';
+        if (Platform.OS === 'web') {
+          window.alert('Error: ' + errorMsg);
+        } else {
+          Alert.alert('Error', errorMsg);
+        }
+      } finally {
+        setActionLoading(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to delete this job? This cannot be undone.');
+      if (confirmed) {
+        await doDelete();
+      }
+    } else {
+      Alert.alert(
+        'Delete Job',
+        'Are you sure you want to delete this job? This cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: doDelete }
+        ]
+      );
+    }
   };
 
   // Open chat with contractor
@@ -300,51 +314,49 @@ export default function PostedJobsScreen() {
     const iconName = tradeIcons[item.trade_required] || 'build';
 
     return (
-      <TouchableOpacity 
-        style={s.jobCard}
-        onPress={() => router.push(`/job/${item.id}`)}
-        activeOpacity={0.7}
-      >
-        <View style={s.jobHeader}>
-          <View style={s.tradeIconContainer}>
-            <Ionicons name={iconName as any} size={24} color={colors.primary} />
+      <View style={s.jobCard}>
+        <TouchableOpacity 
+          onPress={() => router.push(`/job/${item.id}`)}
+          activeOpacity={0.7}
+        >
+          <View style={s.jobHeader}>
+            <View style={s.tradeIconContainer}>
+              <Ionicons name={iconName as any} size={24} color={colors.primary} />
+            </View>
+            <View style={s.jobInfo}>
+              <Text style={s.jobTitle} numberOfLines={1}>{item.title}</Text>
+              <Text style={s.jobTrade}>{item.trade_required}</Text>
+            </View>
+            <View style={s.pendingBadge}>
+              <Ionicons name="time-outline" size={12} color={colors.primary} />
+              <Text style={s.pendingBadgeText}>Pending</Text>
+            </View>
           </View>
-          <View style={s.jobInfo}>
-            <Text style={s.jobTitle} numberOfLines={1}>{item.title}</Text>
-            <Text style={s.jobTrade}>{item.trade_required}</Text>
-          </View>
-          <View style={s.pendingBadge}>
-            <Ionicons name="time-outline" size={12} color={colors.primary} />
-            <Text style={s.pendingBadgeText}>Pending</Text>
-          </View>
-        </View>
 
-        <Text style={s.jobDescription} numberOfLines={2}>{item.description}</Text>
+          <Text style={s.jobDescription} numberOfLines={2}>{item.description}</Text>
 
-        {item.location && (
-          <View style={s.locationRow}>
-            <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
-            <Text style={s.locationText}>{item.location}</Text>
-          </View>
-        )}
-
-        <View style={s.jobFooter}>
-          <Text style={s.timeText}>{getTimestamp(item.created_at)}</Text>
-          {hasResponses && (
-            <View style={s.responseBadge}>
-              <Ionicons name="chatbubbles" size={12} color={colors.green} />
-              <Text style={s.responseText}>{item.responses.length} response(s)</Text>
+          {item.location && (
+            <View style={s.locationRow}>
+              <Ionicons name="location-outline" size={14} color={colors.textSecondary} />
+              <Text style={s.locationText}>{item.location}</Text>
             </View>
           )}
-        </View>
+
+          <View style={s.jobFooter}>
+            <Text style={s.timeText}>{getTimestamp(item.created_at)}</Text>
+            {hasResponses && (
+              <View style={s.responseBadge}>
+                <Ionicons name="chatbubbles" size={12} color={colors.green} />
+                <Text style={s.responseText}>{item.responses.length} response(s)</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
 
         <View style={s.actionRow}>
           <TouchableOpacity 
             style={s.editBtn}
-            onPress={(e) => {
-              e.stopPropagation();
-              router.push(`/job/${item.id}`);
-            }}
+            onPress={() => router.push(`/job/${item.id}`)}
             activeOpacity={0.7}
           >
             <Ionicons name="create-outline" size={16} color={colors.primary} />
@@ -352,10 +364,7 @@ export default function PostedJobsScreen() {
           </TouchableOpacity>
           <TouchableOpacity 
             style={s.deleteBtn}
-            onPress={(e) => {
-              e.stopPropagation();
-              handleDelete(item);
-            }}
+            onPress={() => handleDelete(item)}
             disabled={actionLoading === item.id}
             activeOpacity={0.7}
           >
@@ -369,7 +378,7 @@ export default function PostedJobsScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
