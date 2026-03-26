@@ -1232,9 +1232,36 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   </TouchableOpacity>
                 )}
               </View>
+              
+              {/* Category Search Bar */}
+              <View style={styles.browseCategorySearchContainer}>
+                <View style={styles.browseCategorySearchWrapper}>
+                  <Ionicons name="search" size={18} color={colors.textSecondary} />
+                  <TextInput
+                    style={styles.browseCategorySearchInput}
+                    placeholder="Search (e.g., electrician)"
+                    placeholderTextColor={colors.textSecondary}
+                    value={categorySearchText}
+                    onChangeText={setCategorySearchText}
+                    onSubmitEditing={handleCategorySearch}
+                    returnKeyType="search"
+                  />
+                  {categorySearchText.length > 0 && (
+                    <TouchableOpacity onPress={() => setCategorySearchText('')}>
+                      <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {categorySearchText.length > 0 && (
+                  <TouchableOpacity style={styles.browseCategorySearchBtn} onPress={handleCategorySearch}>
+                    <Ionicons name="search" size={18} color={colors.paper} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              
               <FlatList
                 horizontal
-                data={[{ name: 'All', icon: '🔍', color: '#666' }, ...CATEGORY_DATA]}
+                data={[{ name: 'All', icon: '🔍', color: '#666' }, ...(categorySearchText.trim() ? filteredCategoryData : CATEGORY_DATA)]}
                 renderItem={({ item }) => {
                   const isSelected = item.name === 'All' 
                     ? selectedCategories.length === 0 
@@ -1731,7 +1758,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                     <Ionicons name="search" size={16} color={colors.textSecondary} />
                     <TextInput
                       style={styles.fullMapSearchInput}
-                      placeholder="Search (e.g., lamp fixer)"
+                      placeholder="Search (e.g., electrician)"
                       placeholderTextColor={colors.textSecondary}
                       value={categorySearchText}
                       onChangeText={setCategorySearchText}
@@ -1948,7 +1975,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   <Ionicons name="search" size={18} color={colors.textSecondary} style={styles.categorySearchIcon} />
                   <TextInput
                     style={styles.categorySearchInput}
-                    placeholder="Search contractors (e.g., lamp fixer)"
+                    placeholder="Search (e.g., electrician)"
                     placeholderTextColor={colors.textSecondary}
                     value={categorySearchText}
                     onChangeText={setCategorySearchText}
@@ -2718,6 +2745,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.paper,
+  },
+  // Browse Categories Search Styles (on main page)
+  browseCategorySearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    gap: 8,
+  },
+  browseCategorySearchWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  browseCategorySearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    padding: 0,
+  },
+  browseCategorySearchBtn: {
+    backgroundColor: colors.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   selectedCountBadge: {
     alignItems: 'center',
