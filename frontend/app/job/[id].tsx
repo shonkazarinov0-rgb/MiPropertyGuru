@@ -38,6 +38,7 @@ export default function JobDetailScreen() {
   const [editDescription, setEditDescription] = useState('');
   const [editLocation, setEditLocation] = useState('');
   const [editBudget, setEditBudget] = useState('');
+  const [editBudgetNegotiable, setEditBudgetNegotiable] = useState(true);
   const [editTrades, setEditTrades] = useState<string[]>([]);
   const [editPhotos, setEditPhotos] = useState<string[]>([]);
   const [showTradeModal, setShowTradeModal] = useState(false);
@@ -71,6 +72,7 @@ export default function JobDetailScreen() {
       setEditDescription(res.job?.description || '');
       setEditLocation(res.job?.location || '');
       setEditBudget(res.job?.budget || '');
+      setEditBudgetNegotiable(res.job?.budget_negotiable !== false); // Default to true
       setEditTrades(parseTrades(res.job?.trades_required || res.job?.trade_required || res.job?.category));
       setEditPhotos(res.job?.photos || []);
     } catch (e) {
@@ -97,6 +99,7 @@ export default function JobDetailScreen() {
         description: editDescription.trim(),
         location: editLocation.trim(),
         budget: editBudget.trim(),
+        budget_negotiable: editBudgetNegotiable,
         trade_required: editTrades.join(', '),
         trades_required: editTrades,
         photos: editPhotos,
@@ -106,6 +109,7 @@ export default function JobDetailScreen() {
         description: editDescription.trim(), 
         location: editLocation.trim(),
         budget: editBudget.trim(),
+        budget_negotiable: editBudgetNegotiable,
         trade_required: editTrades.join(', '),
         trades_required: editTrades,
         photos: editPhotos,
@@ -401,21 +405,61 @@ export default function JobDetailScreen() {
           <View style={s.section}>
             <Text style={s.sectionTitle}>Budget</Text>
             {isEditing ? (
-              <TextInput
-                style={s.input}
-                value={editBudget}
-                onChangeText={setEditBudget}
-                placeholder="Enter budget (e.g., 500)"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType="numeric"
-              />
+              <>
+                <TextInput
+                  style={s.input}
+                  value={editBudget}
+                  onChangeText={setEditBudget}
+                  placeholder="Enter budget (e.g., 500)"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType="default"
+                />
+                {/* Negotiable Toggle */}
+                <View style={s.negotiableRow}>
+                  <TouchableOpacity 
+                    style={[
+                      s.negotiableOption,
+                      editBudgetNegotiable && s.negotiableOptionActive
+                    ]}
+                    onPress={() => setEditBudgetNegotiable(true)}
+                  >
+                    <View style={[s.radioCircle, editBudgetNegotiable && s.radioCircleActive]}>
+                      {editBudgetNegotiable && <View style={s.radioInner} />}
+                    </View>
+                    <Text style={[s.negotiableText, editBudgetNegotiable && s.negotiableTextActive]}>
+                      Negotiable
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[
+                      s.negotiableOption,
+                      !editBudgetNegotiable && s.negotiableOptionActive
+                    ]}
+                    onPress={() => setEditBudgetNegotiable(false)}
+                  >
+                    <View style={[s.radioCircle, !editBudgetNegotiable && s.radioCircleActive]}>
+                      {!editBudgetNegotiable && <View style={s.radioInner} />}
+                    </View>
+                    <Text style={[s.negotiableText, !editBudgetNegotiable && s.negotiableTextActive]}>
+                      Fixed Price
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
             ) : (
               <View style={s.card}>
                 <View style={s.budgetRow}>
                   <Ionicons name="cash" size={18} color={colors.green} />
                   <Text style={s.budgetText}>
-                    {job.budget ? (job.budget.startsWith('$') ? job.budget : `$${job.budget}`) : 'Not specified'}
+                    {job.budget ? (job.budget.toString().startsWith('$') ? job.budget : `$${job.budget}`) : 'Not specified'}
                   </Text>
+                  {job.budget && (
+                    <View style={[s.negotiableBadge, !job.budget_negotiable && s.fixedPriceBadge]}>
+                      <Text style={[s.negotiableBadgeText, !job.budget_negotiable && s.fixedPriceBadgeText]}>
+                        {job.budget_negotiable !== false ? 'Negotiable' : 'Fixed'}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
             )}
@@ -449,6 +493,7 @@ export default function JobDetailScreen() {
                   setEditDescription(job.description || '');
                   setEditLocation(job.location || '');
                   setEditBudget(job.budget || '');
+                  setEditBudgetNegotiable(job.budget_negotiable !== false);
                   setEditTrades(parseTrades(job.trades_required || job.trade_required || job.category));
                   setEditPhotos(job.photos || []);
                 }}
@@ -1089,5 +1134,72 @@ const s = StyleSheet.create({
   previewImage: {
     width: '100%',
     height: '80%',
+  },
+  // Negotiable toggle styles
+  negotiableRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  negotiableOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.paper,
+  },
+  negotiableOptionActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioCircleActive: {
+    borderColor: colors.primary,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.primary,
+  },
+  negotiableText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  negotiableTextActive: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  negotiableBadge: {
+    backgroundColor: colors.greenLight,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 'auto',
+  },
+  negotiableBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.green,
+  },
+  fixedPriceBadge: {
+    backgroundColor: colors.blueLight,
+  },
+  fixedPriceBadgeText: {
+    color: colors.blue,
   },
 });

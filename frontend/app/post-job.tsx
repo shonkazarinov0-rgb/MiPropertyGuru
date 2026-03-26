@@ -31,6 +31,7 @@ export default function PostJobScreen() {
   const [selectedTrades, setSelectedTrades] = useState<string[]>([]);
   const [location, setLocation] = useState('');
   const [budget, setBudget] = useState('');
+  const [budgetNegotiable, setBudgetNegotiable] = useState(true);
   const [showTradePicker, setShowTradePicker] = useState(false);
 
   const toggleTrade = (tradeName: string) => {
@@ -80,6 +81,7 @@ export default function PostJobScreen() {
         trades_required: selectedTrades,  // Also store as array
         location: location.trim() || null,
         budget: budget.trim() || null,
+        budget_negotiable: budgetNegotiable,
         urgency: 'normal',
       });
 
@@ -190,9 +192,41 @@ export default function PostJobScreen() {
               style={styles.input}
               value={budget}
               onChangeText={setBudget}
-              placeholder="e.g., $100-200 or Negotiable"
+              placeholder="e.g., $100-200"
               placeholderTextColor={colors.textSecondary}
+              keyboardType="default"
             />
+            {/* Negotiable Toggle */}
+            <View style={styles.negotiableRow}>
+              <TouchableOpacity 
+                style={[
+                  styles.negotiableOption,
+                  budgetNegotiable && styles.negotiableOptionActive
+                ]}
+                onPress={() => setBudgetNegotiable(true)}
+              >
+                <View style={[styles.radioCircle, budgetNegotiable && styles.radioCircleActive]}>
+                  {budgetNegotiable && <View style={styles.radioInner} />}
+                </View>
+                <Text style={[styles.negotiableText, budgetNegotiable && styles.negotiableTextActive]}>
+                  Negotiable
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[
+                  styles.negotiableOption,
+                  !budgetNegotiable && styles.negotiableOptionActive
+                ]}
+                onPress={() => setBudgetNegotiable(false)}
+              >
+                <View style={[styles.radioCircle, !budgetNegotiable && styles.radioCircleActive]}>
+                  {!budgetNegotiable && <View style={styles.radioInner} />}
+                </View>
+                <Text style={[styles.negotiableText, !budgetNegotiable && styles.negotiableTextActive]}>
+                  Fixed Price
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.noteBox}>
@@ -526,5 +560,54 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.red,
+  },
+  // Negotiable toggle styles
+  negotiableRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  negotiableOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.paper,
+  },
+  negotiableOptionActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  radioCircleActive: {
+    borderColor: colors.primary,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.primary,
+  },
+  negotiableText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+  },
+  negotiableTextActive: {
+    color: colors.primary,
+    fontWeight: '600',
   },
 });
