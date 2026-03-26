@@ -93,9 +93,33 @@ export default function ClientHomeScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterLicenseOnly, setFilterLicenseOnly] = useState(false);
   const [filterMinRating, setFilterMinRating] = useState(0); // 0 = no filter
-  const [filterLanguage, setFilterLanguage] = useState('All');
+  const [filterLanguages, setFilterLanguages] = useState<string[]>([]); // Multi-select languages
+  const [filterLanguage, setFilterLanguage] = useState('All'); // Keep for backwards compatibility
   const [customLanguage, setCustomLanguage] = useState('');
   const [showCustomLanguageInput, setShowCustomLanguageInput] = useState(false);
+  
+  // Filter popup modals
+  const [showRatingPopup, setShowRatingPopup] = useState(false);
+  const [showLanguagePopup, setShowLanguagePopup] = useState(false);
+  
+  // Rating options
+  const RATING_OPTIONS = [
+    { value: 0, label: 'All Ratings' },
+    { value: 1, label: '1+ Stars' },
+    { value: 2, label: '2+ Stars' },
+    { value: 3, label: '3+ Stars' },
+    { value: 4, label: '4+ Stars' },
+    { value: 5, label: '5 Stars' },
+  ];
+  
+  // Language options (alphabetical)
+  const LANGUAGE_OPTIONS = [
+    'Arabic', 'Bengali', 'Chinese (Cantonese)', 'Chinese (Mandarin)', 
+    'English', 'French', 'German', 'Greek', 'Gujarati', 'Hindi', 
+    'Italian', 'Japanese', 'Korean', 'Pashto', 'Persian (Farsi)', 
+    'Polish', 'Portuguese', 'Punjabi', 'Russian', 'Spanish', 
+    'Tagalog', 'Tamil', 'Turkish', 'Ukrainian', 'Urdu', 'Vietnamese'
+  ].sort();
   
   // FAB Menu State - Click to open
   const [showServiceMenu, setShowServiceMenu] = useState(false);
@@ -347,18 +371,19 @@ export default function ClientHomeScreen() {
       if (filterMinRating > 0) {
         filteredContractors = filteredContractors.filter((c: any) => (c.rating || 0) >= filterMinRating);
       }
-      if (filterLanguage !== 'All') {
+      // Multi-language filter
+      if (filterLanguages.length > 0) {
         filteredContractors = filteredContractors.filter((c: any) => {
-          const langs = c.languages || ['English'];
-          // Handle "Chinese (Mandarin)" filter matching both "Chinese (Mandarin)" and "Mandarin"
-          if (filterLanguage === 'Chinese (Mandarin)') {
-            return langs.some((l: string) => l.toLowerCase().includes('chinese') || l.toLowerCase().includes('mandarin'));
-          }
-          // Handle custom "Other" language search
-          if (filterLanguage === 'Other' && customLanguage.trim()) {
-            return langs.some((l: string) => l.toLowerCase().includes(customLanguage.toLowerCase().trim()));
-          }
-          return langs.includes(filterLanguage);
+          const contractorLangs = c.languages || ['English'];
+          return filterLanguages.some(filterLang => {
+            // Handle "Chinese" variants
+            if (filterLang.toLowerCase().includes('chinese')) {
+              return contractorLangs.some((l: string) => 
+                l.toLowerCase().includes('chinese') || l.toLowerCase().includes('mandarin') || l.toLowerCase().includes('cantonese')
+              );
+            }
+            return contractorLangs.some((l: string) => l.toLowerCase().includes(filterLang.toLowerCase()));
+          });
         });
       }
       
@@ -490,7 +515,7 @@ export default function ClientHomeScreen() {
     if (userLoc) {
       fetchContractors();
     }
-  }, [filterLicenseOnly, filterMinRating, filterLanguage, customLanguage]);
+  }, [filterLicenseOnly, filterMinRating, filterLanguages]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -1093,10 +1118,10 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 >
                   <Ionicons name="options-outline" size={18} color={colors.primary} />
                   <Text style={styles.filterBtnText}>Filters</Text>
-                  {(filterLicenseOnly || filterMinRating > 0 || filterLanguage !== 'All') && (
+                  {(filterLicenseOnly || filterMinRating > 0 || filterLanguages.length > 0) && (
                     <View style={styles.filterBadge}>
                       <Text style={styles.filterBadgeText}>
-                        {[filterLicenseOnly, filterMinRating > 0, filterLanguage !== 'All'].filter(Boolean).length}
+                        {[filterLicenseOnly, filterMinRating > 0, filterLanguages.length > 0].filter(Boolean).length}
                       </Text>
                     </View>
                   )}
@@ -1117,82 +1142,55 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                     <Text style={styles.filterOptionText}>🪪 License on file only</Text>
                   </TouchableOpacity>
                   
-                  {/* Rating Filter */}
+                  {/* Rating Filter - Button that opens popup */}
                   <View style={styles.filterGroup}>
                     <Text style={styles.filterLabel}>Minimum Rating</Text>
-                    <View style={styles.ratingOptions}>
-                      {[0, 3, 4, 4.5].map((rating) => (
-                        <TouchableOpacity
-                          key={rating}
-                          style={[styles.ratingChip, filterMinRating === rating && styles.ratingChipActive]}
-                          onPress={() => setFilterMinRating(rating)}
-                        >
-                          {rating === 0 ? (
-                            <Text style={[styles.ratingChipText, filterMinRating === 0 && styles.ratingChipTextActive]}>All</Text>
-                          ) : (
-                            <>
-                              <Ionicons name="star" size={12} color={filterMinRating === rating ? '#fff' : '#FFB800'} />
-                              <Text style={[styles.ratingChipText, filterMinRating === rating && styles.ratingChipTextActive]}>{rating}+</Text>
-                            </>
-                          )}
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-                  
-                  {/* Language Filter */}
-                  <View style={styles.filterGroup}>
-                    <Text style={styles.filterLabel}>Language</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      <View style={styles.languageOptions}>
-                        {['All', 'English', 'French', 'Spanish', 'Portuguese', 'Chinese (Mandarin)', 'Hindi', 'Arabic', 'Tagalog', 'Vietnamese', 'Korean', 'Italian', 'German', 'Polish', 'Ukrainian', 'Russian', 'Punjabi', 'Other'].map((lang) => (
-                          <TouchableOpacity
-                            key={lang}
-                            style={[styles.langChip, filterLanguage === lang && styles.langChipActive]}
-                            onPress={() => {
-                              setFilterLanguage(lang);
-                              if (lang !== 'Other') {
-                                setCustomLanguage('');
-                              }
-                            }}
-                          >
-                            <Text style={[styles.langChipText, filterLanguage === lang && styles.langChipTextActive]}>{lang}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </ScrollView>
-                    
-                    {/* Custom Language Input - shown when "Other" is selected */}
-                    {filterLanguage === 'Other' && (
-                      <View style={styles.customLanguageContainer}>
-                        <TextInput
-                          style={styles.customLanguageInput}
-                          placeholder="Type language to search..."
-                          placeholderTextColor={colors.textSecondary}
-                          value={customLanguage}
-                          onChangeText={setCustomLanguage}
-                          autoCapitalize="words"
-                        />
-                        {customLanguage.length > 0 && (
-                          <TouchableOpacity 
-                            style={styles.clearCustomBtn}
-                            onPress={() => setCustomLanguage('')}
-                          >
-                            <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-                          </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.filterSelectBtn}
+                      onPress={() => setShowRatingPopup(true)}
+                    >
+                      <View style={styles.filterSelectContent}>
+                        {filterMinRating === 0 ? (
+                          <Text style={styles.filterSelectText}>All Ratings</Text>
+                        ) : (
+                          <View style={styles.filterSelectRow}>
+                            <Ionicons name="star" size={16} color="#FFB800" />
+                            <Text style={styles.filterSelectText}>{filterMinRating}+ Stars</Text>
+                          </View>
                         )}
                       </View>
-                    )}
+                      <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {/* Language Filter - Button that opens popup */}
+                  <View style={styles.filterGroup}>
+                    <Text style={styles.filterLabel}>Language</Text>
+                    <TouchableOpacity 
+                      style={styles.filterSelectBtn}
+                      onPress={() => setShowLanguagePopup(true)}
+                    >
+                      <View style={styles.filterSelectContent}>
+                        {filterLanguages.length === 0 ? (
+                          <Text style={styles.filterSelectText}>All Languages</Text>
+                        ) : filterLanguages.length === 1 ? (
+                          <Text style={styles.filterSelectText}>{filterLanguages[0]}</Text>
+                        ) : (
+                          <Text style={styles.filterSelectText}>{filterLanguages.length} Languages</Text>
+                        )}
+                      </View>
+                      <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+                    </TouchableOpacity>
                   </View>
                   
                   {/* Clear Filters */}
-                  {(filterLicenseOnly || filterMinRating > 0 || filterLanguage !== 'All') && (
+                  {(filterLicenseOnly || filterMinRating > 0 || filterLanguages.length > 0) && (
                     <TouchableOpacity 
                       style={styles.clearFiltersBtn}
                       onPress={() => {
                         setFilterLicenseOnly(false);
                         setFilterMinRating(0);
-                        setFilterLanguage('All');
+                        setFilterLanguages([]);
                         setCustomLanguage('');
                       }}
                     >
@@ -1340,6 +1338,128 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* Rating Popup Modal */}
+      <Modal
+        visible={showRatingPopup}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRatingPopup(false)}
+      >
+        <TouchableOpacity 
+          style={styles.filterPopupOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowRatingPopup(false)}
+        >
+          <View style={styles.filterPopupContainer}>
+            <View style={styles.filterPopupHeader}>
+              <Text style={styles.filterPopupTitle}>Minimum Rating</Text>
+              <TouchableOpacity onPress={() => setShowRatingPopup(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.filterPopupList}>
+              {RATING_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.filterPopupItem,
+                    filterMinRating === option.value && styles.filterPopupItemActive
+                  ]}
+                  onPress={() => {
+                    setFilterMinRating(option.value);
+                    setShowRatingPopup(false);
+                  }}
+                >
+                  <View style={styles.filterPopupItemRow}>
+                    {option.value > 0 && (
+                      <View style={styles.filterPopupStars}>
+                        {[...Array(option.value)].map((_, i) => (
+                          <Ionicons key={i} name="star" size={16} color="#FFB800" />
+                        ))}
+                      </View>
+                    )}
+                    <Text style={[
+                      styles.filterPopupItemText,
+                      filterMinRating === option.value && styles.filterPopupItemTextActive
+                    ]}>{option.label}</Text>
+                  </View>
+                  {filterMinRating === option.value && (
+                    <Ionicons name="checkmark-circle" size={22} color={colors.green} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Language Popup Modal - Multi-select */}
+      <Modal
+        visible={showLanguagePopup}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLanguagePopup(false)}
+      >
+        <TouchableOpacity 
+          style={styles.filterPopupOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowLanguagePopup(false)}
+        >
+          <View style={[styles.filterPopupContainer, { maxHeight: 450 }]}>
+            <View style={styles.filterPopupHeader}>
+              <Text style={styles.filterPopupTitle}>Languages</Text>
+              <View style={styles.filterPopupHeaderRight}>
+                {filterLanguages.length > 0 && (
+                  <TouchableOpacity onPress={() => setFilterLanguages([])}>
+                    <Text style={styles.filterPopupClearText}>Clear</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setShowLanguagePopup(false)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <ScrollView style={styles.filterPopupList} showsVerticalScrollIndicator={true}>
+              {LANGUAGE_OPTIONS.map((lang) => {
+                const isSelected = filterLanguages.includes(lang);
+                return (
+                  <TouchableOpacity
+                    key={lang}
+                    style={[
+                      styles.filterPopupItem,
+                      isSelected && styles.filterPopupItemActive
+                    ]}
+                    onPress={() => {
+                      if (isSelected) {
+                        setFilterLanguages(prev => prev.filter(l => l !== lang));
+                      } else {
+                        setFilterLanguages(prev => [...prev, lang]);
+                      }
+                    }}
+                  >
+                    <Text style={[
+                      styles.filterPopupItemText,
+                      isSelected && styles.filterPopupItemTextActive
+                    ]}>{lang}</Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={22} color={colors.green} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            {filterLanguages.length > 0 && (
+              <TouchableOpacity 
+                style={styles.filterPopupDoneBtn}
+                onPress={() => setShowLanguagePopup(false)}
+              >
+                <Text style={styles.filterPopupDoneBtnText}>Done ({filterLanguages.length} selected)</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
       </Modal>
 
       {/* Full-Screen Map Modal - Complete Map Experience */}
@@ -3201,5 +3321,115 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.paper,
+  },
+  // Filter Popup Modal Styles
+  filterPopupOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  filterPopupContainer: {
+    backgroundColor: colors.paper,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 320,
+    maxHeight: 380,
+    overflow: 'hidden',
+  },
+  filterPopupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  filterPopupHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  filterPopupTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  filterPopupClearText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  filterPopupList: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  filterPopupItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginVertical: 2,
+  },
+  filterPopupItemActive: {
+    backgroundColor: colors.primaryLight,
+  },
+  filterPopupItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterPopupStars: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  filterPopupItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  filterPopupItemTextActive: {
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  filterPopupDoneBtn: {
+    backgroundColor: colors.primary,
+    margin: 12,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  filterPopupDoneBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  // Filter Select Button styles
+  filterSelectBtn: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterSelectContent: {
+    flex: 1,
+  },
+  filterSelectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  filterSelectText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
   },
 });
