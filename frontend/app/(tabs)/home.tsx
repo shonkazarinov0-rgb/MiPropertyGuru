@@ -559,8 +559,9 @@ export default function ClientHomeScreen() {
   };
 
   const selectCategory = (categoryName: string) => {
-    setCategory(categoryName);
-    closeServiceMenu();
+    // Use toggleCategory for multi-select support
+    toggleCategory(categoryName);
+    // Don't close menu - let user select multiple
   };
 
   const getMapHTML = () => {
@@ -1574,32 +1575,50 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
             ]}
           >
             <View style={styles.serviceMenuHeader}>
-              <Text style={styles.serviceMenuTitle}>Select a Service</Text>
-              <TouchableOpacity onPress={closeServiceMenu}>
-                <Ionicons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
+              <Text style={styles.serviceMenuTitle}>Select Services</Text>
+              <View style={styles.serviceMenuHeaderRight}>
+                {selectedCategories.length > 0 && (
+                  <TouchableOpacity onPress={() => setSelectedCategories([])}>
+                    <Text style={styles.serviceMenuClearText}>Clear</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={closeServiceMenu}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
             </View>
             <ScrollView style={styles.serviceMenuList} showsVerticalScrollIndicator={false}>
-              {CATEGORY_DATA.map((cat) => (
-                <TouchableOpacity 
-                  key={cat.name}
-                  style={[
-                    styles.serviceMenuItem,
-                    category === cat.name && styles.serviceMenuItemSelected
-                  ]}
-                  onPress={() => selectCategory(cat.name)}
-                >
-                  <Text style={styles.serviceMenuIcon}>{cat.icon}</Text>
-                  <Text style={[
-                    styles.serviceMenuText,
-                    category === cat.name && styles.serviceMenuTextSelected
-                  ]}>{cat.name}</Text>
-                  {category === cat.name && (
-                    <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
-              ))}
+              {CATEGORY_DATA.filter(c => c.name !== 'All').map((cat) => {
+                const isSelected = selectedCategories.includes(cat.name);
+                return (
+                  <TouchableOpacity 
+                    key={cat.name}
+                    style={[
+                      styles.serviceMenuItem,
+                      isSelected && styles.serviceMenuItemSelected
+                    ]}
+                    onPress={() => selectCategory(cat.name)}
+                  >
+                    <Text style={styles.serviceMenuIcon}>{cat.icon}</Text>
+                    <Text style={[
+                      styles.serviceMenuText,
+                      isSelected && styles.serviceMenuTextSelected
+                    ]}>{cat.name}</Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.green} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
+            {selectedCategories.length > 0 && (
+              <TouchableOpacity 
+                style={styles.serviceMenuDoneBtn}
+                onPress={closeServiceMenu}
+              >
+                <Text style={styles.serviceMenuDoneBtnText}>Done ({selectedCategories.length} selected)</Text>
+              </TouchableOpacity>
+            )}
           </Animated.View>
         </TouchableOpacity>
       </Modal>
@@ -2140,6 +2159,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  serviceMenuHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  serviceMenuClearText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
   serviceMenuTitle: {
     fontSize: 18,
     fontWeight: '700',
@@ -2172,6 +2201,20 @@ const styles = StyleSheet.create({
   serviceMenuTextSelected: {
     color: colors.primary,
     fontWeight: '700',
+  },
+  serviceMenuDoneBtn: {
+    backgroundColor: colors.primary,
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  serviceMenuDoneBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.paper,
   },
   // FAB Styles
   fab: {
