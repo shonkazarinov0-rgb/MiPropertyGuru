@@ -1745,11 +1745,16 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               <View style={styles.fullMapServiceMenu}>
                 <View style={styles.fullMapServiceMenuHeader}>
                   <Text style={styles.fullMapServiceMenuTitle}>Select Services</Text>
-                  {selectedCategories.length > 0 && (
-                    <TouchableOpacity onPress={() => { setSelectedCategories([]); }}>
-                      <Text style={styles.fullMapServiceMenuClear}>Clear</Text>
+                  <View style={styles.fullMapServiceMenuHeaderRight}>
+                    {selectedCategories.length > 0 && (
+                      <TouchableOpacity onPress={() => { setSelectedCategories([]); }}>
+                        <Text style={styles.fullMapServiceMenuClear}>Clear</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity onPress={() => setShowFullMapServiceMenu(false)}>
+                      <Ionicons name="close" size={20} color={colors.text} />
                     </TouchableOpacity>
-                  )}
+                  </View>
                 </View>
                 
                 {/* Search Bar in Full Map Menu */}
@@ -3916,6 +3921,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: colors.text,
+  },
+  fullMapServiceMenuHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   fullMapServiceMenuScroll: {
     maxHeight: 150,
