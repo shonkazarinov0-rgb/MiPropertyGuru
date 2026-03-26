@@ -1258,10 +1258,13 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               </View>
             )}
             
-            {/* FAB - All Contractors */}
+            {/* FAB - Show All Contractors List */}
             <TouchableOpacity 
               style={styles.fullMapFab}
-              onPress={() => setCategory('All')}
+              onPress={() => {
+                setCategory('All');
+                // Scroll to the bottom panel to show contractors
+              }}
             >
               <Ionicons name="people" size={24} color={colors.paper} />
             </TouchableOpacity>
@@ -1337,7 +1340,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               style={styles.fullMapContractorList}
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
+              contentContainerStyle={sortedContractors.length === 0 ? { flex: 1, justifyContent: 'center', alignItems: 'center' } : { paddingHorizontal: 16, gap: 12 }}
             >
               {sortedContractors.length === 0 ? (
                 <View style={styles.fullMapEmptyState}>
@@ -1441,7 +1444,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
             colors={['#FF6A00', '#FF8C33']}
             style={styles.fabGradient}
           >
-            <Ionicons name={showServiceMenu ? "close" : "flash"} size={28} color={colors.paper} />
+            <Ionicons name={showServiceMenu ? "close" : "people"} size={28} color={colors.paper} />
           </LinearGradient>
         </TouchableOpacity>
       )}
@@ -2731,7 +2734,8 @@ const styles = StyleSheet.create({
     maxHeight: 140,
   },
   fullMapEmptyState: {
-    width: 280,
+    flex: 1,
+    width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 20,
