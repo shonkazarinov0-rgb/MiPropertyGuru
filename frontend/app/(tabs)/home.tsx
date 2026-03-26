@@ -1233,10 +1233,9 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
             >
               <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
-            <View style={styles.fullMapHeaderCenter}>
-              <View style={styles.urgentBadge}>
+            <View style={styles.fullMapHeaderRow}>
+              <View style={styles.urgentBadgeSmall}>
                 <Text style={styles.urgentBadgeEmoji}>⚡</Text>
-                <Text style={styles.urgentBadgeText}>URGENT</Text>
               </View>
               <Text style={styles.fullMapTitle}>Online Contractors</Text>
             </View>
@@ -1258,10 +1257,48 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 <Text style={styles.fullMapLoadingText}>Getting your location...</Text>
               </View>
             )}
+            
+            {/* FAB - All Contractors */}
+            <TouchableOpacity 
+              style={styles.fullMapFab}
+              onPress={() => setCategory('All')}
+            >
+              <Ionicons name="people" size={24} color={colors.paper} />
+            </TouchableOpacity>
           </View>
           
-          {/* Bottom Panel - Slider & Contractors */}
+          {/* Bottom Panel - Categories, Slider & Contractors */}
           <View style={styles.fullMapBottomPanel}>
+            {/* Browse Categories - Select up to 5 */}
+            <View style={styles.fullMapCategoriesSection}>
+              <Text style={styles.fullMapCategoriesTitle}>Browse Categories</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+              >
+                {CATEGORY_DATA.map((cat) => {
+                  const isSelected = category === cat.name || (category === 'All' && cat.name === 'All');
+                  return (
+                    <TouchableOpacity
+                      key={cat.name}
+                      style={[
+                        styles.fullMapCategoryChip,
+                        isSelected && styles.fullMapCategoryChipActive
+                      ]}
+                      onPress={() => setCategory(cat.name === category ? 'All' : cat.name)}
+                    >
+                      <Text style={styles.fullMapCategoryIcon}>{cat.icon}</Text>
+                      <Text style={[
+                        styles.fullMapCategoryText,
+                        isSelected && styles.fullMapCategoryTextActive
+                      ]}>{cat.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+            
             {/* Radius Slider */}
             <View style={styles.fullMapSliderSection}>
               <View style={styles.radiusSliderHeader}>
@@ -2761,6 +2798,75 @@ const styles = StyleSheet.create({
   fullMapCardDistance: {
     fontSize: 11,
     fontWeight: '600',
+    color: colors.primary,
+  },
+  // Updated header styles for inline Urgent badge
+  fullMapHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  urgentBadgeSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#DCFCE7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // FAB Button styles
+  fullMapFab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  // Categories section in full map
+  fullMapCategoriesSection: {
+    marginBottom: 12,
+  },
+  fullMapCategoriesTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  fullMapCategoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  fullMapCategoryChipActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  fullMapCategoryIcon: {
+    fontSize: 16,
+  },
+  fullMapCategoryText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  fullMapCategoryTextActive: {
+    fontWeight: '700',
     color: colors.primary,
   },
 });
