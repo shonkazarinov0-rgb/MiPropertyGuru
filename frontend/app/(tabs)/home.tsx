@@ -77,6 +77,12 @@ export default function ClientHomeScreen() {
   // Guest prompt modal state
   const [showGuestPrompt, setShowGuestPrompt] = useState(false);
   
+  // "What do you need?" modal state - shows on app open for clients
+  const [showNeedPrompt, setShowNeedPrompt] = useState(false);
+  
+  // Sort by filter state
+  const [sortBy, setSortBy] = useState<'distance' | 'online'>('distance');
+  
   // Advanced Filters State
   const [showFilters, setShowFilters] = useState(false);
   const [filterLicenseOnly, setFilterLicenseOnly] = useState(false);
