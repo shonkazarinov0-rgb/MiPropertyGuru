@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
@@ -64,6 +65,13 @@ export default function PostedJobsScreen() {
   useEffect(() => { 
     fetchData(); 
   }, []);
+
+  // Auto-refresh when screen comes into focus (e.g., after editing a job)
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [])
+  );
 
   const fetchData = async () => {
     try {
