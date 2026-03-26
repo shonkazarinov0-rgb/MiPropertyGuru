@@ -2089,9 +2089,9 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
             <View style={styles.smartSuggestionIcon}>
               <Ionicons name="bulb" size={32} color="#FFB800" />
             </View>
-            <Text style={styles.smartSuggestionTitle}>Did you mean?</Text>
+            <Text style={styles.smartSuggestionTitle}>Did you mean {suggestedCategory}?</Text>
             <Text style={styles.smartSuggestionText}>
-              We found <Text style={styles.smartSuggestionHighlight}>{suggestedCategory}</Text> that matches your search for &quot;{categorySearchText}&quot;
+              We found a match for your search &quot;{categorySearchText}&quot;
             </Text>
             <View style={styles.smartSuggestionButtons}>
               <TouchableOpacity 
@@ -2111,7 +2111,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
         </View>
       </Modal>
 
-      {/* Add More Contractors Prompt Modal */}
+      {/* Add More Contractors Popup Modal - Shows scrollable category list */}
       <Modal
         visible={showAddMorePrompt}
         transparent
@@ -2119,28 +2119,41 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
         onRequestClose={() => setShowAddMorePrompt(false)}
       >
         <View style={styles.smartSuggestionOverlay}>
-          <View style={styles.smartSuggestionContainer}>
-            <View style={styles.addMoreIcon}>
-              <Ionicons name="add-circle" size={32} color={colors.primary} />
+          <View style={styles.addMoreContainer}>
+            <View style={styles.addMoreHeader}>
+              <Text style={styles.addMoreTitle}>Add More Contractors</Text>
+              <TouchableOpacity onPress={() => setShowAddMorePrompt(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
             </View>
-            <Text style={styles.smartSuggestionTitle}>Add More?</Text>
-            <Text style={styles.smartSuggestionText}>
-              Would you like to select any more contractor types? You can select up to 5.
+            <Text style={styles.addMoreSubtitle}>
+              Select up to {5 - selectedCategories.length} more ({selectedCategories.length}/5 selected)
             </Text>
-            <View style={styles.smartSuggestionButtons}>
-              <TouchableOpacity 
-                style={styles.smartSuggestionBtnNo}
-                onPress={() => handleAddMoreResponse(false)}
-              >
-                <Text style={styles.smartSuggestionBtnNoText}>Done</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.smartSuggestionBtnYes}
-                onPress={() => handleAddMoreResponse(true)}
-              >
-                <Text style={styles.smartSuggestionBtnYesText}>Add More</Text>
-              </TouchableOpacity>
-            </View>
+            <ScrollView style={styles.addMoreScrollView} showsVerticalScrollIndicator={true}>
+              {CATEGORY_DATA.filter(c => c.name !== 'All' && !selectedCategories.includes(c.name)).map((cat) => (
+                <TouchableOpacity
+                  key={cat.name}
+                  style={styles.addMoreItem}
+                  onPress={() => {
+                    if (selectedCategories.length < 5) {
+                      toggleCategory(cat.name);
+                    }
+                  }}
+                >
+                  <View style={styles.addMoreItemIcon}>
+                    <Text style={styles.addMoreItemEmoji}>{cat.icon}</Text>
+                  </View>
+                  <Text style={styles.addMoreItemText}>{cat.name}</Text>
+                  <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity 
+              style={styles.addMoreDoneBtn}
+              onPress={() => setShowAddMorePrompt(false)}
+            >
+              <Text style={styles.addMoreDoneBtnText}>Done</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -2870,6 +2883,80 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  // Add More Contractors Popup Styles
+  addMoreContainer: {
+    backgroundColor: colors.paper,
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 340,
+    maxHeight: '70%',
+    overflow: 'hidden',
+  },
+  addMoreHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  addMoreTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  addMoreSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  addMoreScrollView: {
+    maxHeight: 320,
+    paddingHorizontal: 12,
+  },
+  addMoreItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 4,
+    backgroundColor: '#F9FAFB',
+  },
+  addMoreItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: colors.paper,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  addMoreItemEmoji: {
+    fontSize: 20,
+  },
+  addMoreItemText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  addMoreDoneBtn: {
+    backgroundColor: colors.primary,
+    marginHorizontal: 20,
+    marginVertical: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  addMoreDoneBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.paper,
   },
   smartSuggestionTitle: {
     fontSize: 20,
