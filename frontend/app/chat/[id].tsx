@@ -35,7 +35,7 @@ const colors = {
 export default function ChatScreen() {
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { user, isClientMode } = useAuth();
+  const { user, isClientMode, isContractorMode } = useAuth();
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);

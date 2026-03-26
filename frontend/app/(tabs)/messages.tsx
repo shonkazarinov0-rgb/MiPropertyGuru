@@ -25,6 +25,8 @@ const colors = {
   gray: '#6B7280',
   grayLight: '#F3F4F6',
   border: '#E5E7EB',
+  red: '#EF4444',
+  redLight: '#FEE2E2',
 };
 
 type TabType = 'pending' | 'confirmed' | 'archived';
