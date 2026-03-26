@@ -212,12 +212,7 @@ export default function MessagesScreen() {
       </View>
 
       {/* 3 Tabs: Pending, Confirmed, Archived */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={s.tabScrollContainer}
-        contentContainerStyle={s.tabContainer}
-      >
+      <View style={s.tabContainer}>
         {/* Pending Tab - Orange */}
         <TouchableOpacity 
           style={[s.tab, activeTab === 'pending' && s.pendingTabActive]}
@@ -244,7 +239,7 @@ export default function MessagesScreen() {
           onPress={() => setActiveTab('confirmed')}
         >
           <Ionicons 
-            name="checkmark-circle" 
+            name="checkmark-circle-outline" 
             size={14} 
             color={activeTab === 'confirmed' ? colors.green : colors.textSecondary} 
           />
@@ -264,7 +259,7 @@ export default function MessagesScreen() {
           onPress={() => setActiveTab('archived')}
         >
           <Ionicons 
-            name="archive" 
+            name="checkmark-done-outline" 
             size={14} 
             color={activeTab === 'archived' ? colors.blue : colors.textSecondary} 
           />
@@ -277,7 +272,7 @@ export default function MessagesScreen() {
             </View>
           )}
         </TouchableOpacity>
-      </ScrollView>
+      </View>
 
       {loading ? (
         <View style={s.center}>
@@ -337,26 +332,25 @@ const s = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
-  tabScrollContainer: {
-    backgroundColor: colors.paper,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    maxHeight: 56,
-  },
   tabContainer: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    backgroundColor: colors.paper,
     gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   tab: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 18,
-    backgroundColor: colors.grayLight,
-    gap: 5,
+    paddingHorizontal: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    gap: 4,
   },
   // Pending tab styles (Orange)
   pendingTabActive: {
@@ -380,14 +374,14 @@ const s = StyleSheet.create({
     color: colors.blue,
   },
   tabText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '600',
     color: colors.textSecondary,
   },
   tabBadge: {
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 6,
-    paddingVertical: 1,
+    paddingVertical: 2,
     minWidth: 18,
     alignItems: 'center',
   },

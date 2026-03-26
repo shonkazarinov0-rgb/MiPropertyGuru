@@ -458,12 +458,17 @@ export default function ContractorDashboard() {
           style={[styles.tab, activeTab === 'incoming' && styles.tabActiveOrange]}
           onPress={() => setActiveTab('incoming')}
         >
+          <Ionicons 
+            name="time-outline" 
+            size={14} 
+            color={activeTab === 'incoming' ? colors.primary : colors.textSecondary} 
+          />
           <Text style={[styles.tabText, activeTab === 'incoming' && styles.tabTextActiveOrange]}>
             Incoming
           </Text>
           {isOnline && incomingJobs.length > 0 && (
             <View style={[styles.tabBadge, activeTab === 'incoming' && styles.tabBadgeActiveOrange]}>
-              <Text style={[styles.tabBadgeText, activeTab === 'incoming' && styles.tabBadgeTextActive]}>
+              <Text style={styles.tabBadgeText}>
                 {incomingJobs.length}
               </Text>
             </View>
@@ -474,12 +479,17 @@ export default function ContractorDashboard() {
           style={[styles.tab, activeTab === 'inProgress' && styles.tabActiveGreen]}
           onPress={() => setActiveTab('inProgress')}
         >
+          <Ionicons 
+            name="checkmark-circle-outline" 
+            size={14} 
+            color={activeTab === 'inProgress' ? colors.green : colors.textSecondary} 
+          />
           <Text style={[styles.tabText, activeTab === 'inProgress' && styles.tabTextActiveGreen]}>
             In Progress
           </Text>
           {inProgressJobs.length > 0 && (
             <View style={[styles.tabBadge, activeTab === 'inProgress' && styles.tabBadgeActiveGreen]}>
-              <Text style={[styles.tabBadgeText, activeTab === 'inProgress' && styles.tabBadgeTextActive]}>
+              <Text style={styles.tabBadgeText}>
                 {inProgressJobs.length}
               </Text>
             </View>
@@ -490,12 +500,17 @@ export default function ContractorDashboard() {
           style={[styles.tab, activeTab === 'completed' && styles.tabActiveBlue]}
           onPress={() => setActiveTab('completed')}
         >
+          <Ionicons 
+            name="checkmark-done-outline" 
+            size={14} 
+            color={activeTab === 'completed' ? colors.blue : colors.textSecondary} 
+          />
           <Text style={[styles.tabText, activeTab === 'completed' && styles.tabTextActiveBlue]}>
             Completed
           </Text>
           {completedJobs.length > 0 && (
             <View style={[styles.tabBadge, activeTab === 'completed' && styles.tabBadgeActiveBlue]}>
-              <Text style={[styles.tabBadgeText, activeTab === 'completed' && styles.tabBadgeTextActive]}>
+              <Text style={styles.tabBadgeText}>
                 {completedJobs.length}
               </Text>
             </View>
@@ -767,7 +782,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.blueLight,
   },
   tabText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: colors.textSecondary,
   },
