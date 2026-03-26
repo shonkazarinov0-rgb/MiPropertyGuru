@@ -188,13 +188,19 @@ export default function ChatScreen() {
   };
 
   const confirmJob = async () => {
+    console.log('[Chat] confirmJob called');
+    console.log('[Chat] conversationId:', conversationId);
+    console.log('[Chat] user:', user?.id, user?.role);
+    
     // Use a simple confirmation since Alert.alert may not work on web
     if (Platform.OS === 'web') {
       const confirmed = window.confirm('Are you sure you want to confirm this job? Both parties must confirm for the job to be marked as confirmed.');
       if (!confirmed) return;
       
       try {
+        console.log('[Chat] Calling API to confirm job...');
         const res = await api.post(`/conversations/${conversationId}/confirm-job`);
+        console.log('[Chat] API response:', res);
         setConversation(res.conversation);
         
         if (res.conversation.job_status === 'confirmed') {
@@ -205,6 +211,7 @@ export default function ChatScreen() {
           window.alert(`Confirmation Sent ✓ You've confirmed! Waiting for the ${otherType} to confirm.`);
         }
       } catch (e: any) {
+        console.log('[Chat] API error:', e);
         window.alert('Error: ' + (e.message || 'Could not confirm job'));
       }
     } else {
@@ -217,7 +224,9 @@ export default function ChatScreen() {
             text: 'Confirm', 
             onPress: async () => {
               try {
+                console.log('[Chat] Calling API to confirm job (native)...');
                 const res = await api.post(`/conversations/${conversationId}/confirm-job`);
+                console.log('[Chat] API response:', res);
                 setConversation(res.conversation);
                 
                 if (res.conversation.job_status === 'confirmed') {
@@ -239,6 +248,7 @@ export default function ChatScreen() {
                   );
                 }
               } catch (e: any) {
+                console.log('[Chat] API error:', e);
                 Alert.alert('Error', e.message || 'Could not confirm job');
               }
             }
@@ -533,6 +543,19 @@ export default function ChatScreen() {
             }}
           >
             <Text style={s.removeContractorText}>Remove Contractor</Text>
+          </Pressable>
+        )}
+
+        {/* Remove Client Button - Only for pending conversations in Contractor mode */}
+        {!isFullyConfirmed && !isArchived && isContractorMode && (
+          <Pressable 
+            style={({ pressed }) => [s.removeContractorBtn, pressed && { opacity: 0.7 }]}
+            onPress={() => {
+              console.log('[Chat] Remove Client button pressed');
+              handleRemoveConversation();
+            }}
+          >
+            <Text style={s.removeContractorText}>Remove Client</Text>
           </Pressable>
         )}
 

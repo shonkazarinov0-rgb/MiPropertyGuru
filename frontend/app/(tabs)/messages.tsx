@@ -247,6 +247,20 @@ export default function MessagesScreen() {
             <Text style={s.removeBtnText}>Remove</Text>
           </Pressable>
         )}
+        
+        {/* Remove button for pending conversations in Contractor mode */}
+        {isPending && isContractorMode && (
+          <Pressable 
+            style={({ pressed }) => [s.removeBtn, pressed && { opacity: 0.7 }]}
+            onPress={() => {
+              console.log('[Messages] Remove button pressed for:', item.id);
+              handleRemoveConversation(item);
+            }}
+          >
+            <Ionicons name="close-circle" size={16} color={colors.red} />
+            <Text style={s.removeBtnText}>Remove</Text>
+          </Pressable>
+        )}
       </View>
     );
   };
