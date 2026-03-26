@@ -80,8 +80,10 @@ export default function ClientHomeScreen() {
   // "What do you need?" modal state - shows on app open for clients
   const [showNeedPrompt, setShowNeedPrompt] = useState(false);
   
-  // Sort by filter state
-  const [sortBy, setSortBy] = useState<'distance' | 'online'>('distance');
+  // Filter toggle states - can combine multiple
+  const [showOnline, setShowOnline] = useState(false);
+  const [showOffline, setShowOffline] = useState(false);
+  const [sortByNearest, setSortByNearest] = useState(true);
   
   // Distance radius filter (in km) - 0 means no limit
   const [radiusKm, setRadiusKm] = useState<number>(50);
@@ -370,35 +372,35 @@ export default function ClientHomeScreen() {
     }
   };
 
-  // Sort contractors based on selected sort option and filter by radius
+  // Sort and filter contractors based on selected options
   const sortedContractors = React.useMemo(() => {
-    // First filter by radius - only include contractors within the selected distance
-    // Only filter if they have a distance and are online (live location)
-    let filtered = contractors.filter(c => {
+    let filtered = [...contractors];
+    
+    // Filter by radius - only include contractors within the selected distance
+    filtered = filtered.filter(c => {
       const distance = c.distance_km || c.distance;
-      // If no distance data, include them (they might be nearby)
       if (!distance) return true;
-      // If radius is 200+, include everyone
       if (radiusKm >= 200) return true;
-      // Filter by radius - for live/urgent, prioritize online contractors' live location
       return distance <= radiusKm;
     });
     
-    // Then sort
-    const sorted = [...filtered];
-    if (sortBy === 'online') {
-      // Online contractors first, then by distance
-      sorted.sort((a, b) => {
-        if (a.is_online && !b.is_online) return -1;
-        if (!a.is_online && b.is_online) return 1;
-        return (a.distance_km || 999) - (b.distance_km || 999);
-      });
-    } else {
-      // Sort by distance
-      sorted.sort((a, b) => (a.distance_km || 999) - (b.distance_km || 999));
+    // Filter by online/offline status
+    if (showOnline && !showOffline) {
+      // Only online contractors
+      filtered = filtered.filter(c => c.is_online);
+    } else if (showOffline && !showOnline) {
+      // Only offline contractors
+      filtered = filtered.filter(c => !c.is_online);
     }
-    return sorted;
-  }, [contractors, sortBy, radiusKm]);
+    // If both or neither selected, show all
+    
+    // Sort by distance if enabled
+    if (sortByNearest) {
+      filtered.sort((a, b) => (a.distance_km || 999) - (b.distance_km || 999));
+    }
+    
+    return filtered;
+  }, [contractors, radiusKm, showOnline, showOffline, sortByNearest]);
 
   // Re-fetch when filters change
   useEffect(() => {
@@ -480,18 +482,49 @@ export default function ClientHomeScreen() {
 
   const getMapHTML = () => {
     if (!userLoc) return '';
-    // Use sortedContractors which already has radius filter applied
-    const markers = sortedContractors.slice(0, 15).map(c => {
-      let lat = userLoc.lat, lng = userLoc.lng;
+    
+    // Build markers array - for offline show all work locations, for online show live location
+    const markers: any[] = [];
+    sortedContractors.slice(0, 15).forEach(c => {
       if (c.is_online && c.current_location) {
-        lat = c.current_location.lat;
-        lng = c.current_location.lng;
-      } else if (c.work_locations && c.work_locations.length > 0) {
-        lat = c.work_locations[0].lat;
-        lng = c.work_locations[0].lng;
+        // Online: show only live location (green marker)
+        markers.push({
+          id: c.id,
+          name: c.name,
+          type: c.contractor_type,
+          lat: c.current_location.lat,
+          lng: c.current_location.lng,
+          online: true,
+          locationType: 'live'
+        });
+      } else if (!c.is_online && c.work_locations && c.work_locations.length > 0) {
+        // Offline: show all work locations (up to 3, orange markers)
+        c.work_locations.slice(0, 3).forEach((loc: any, idx: number) => {
+          markers.push({
+            id: c.id,
+            name: c.name,
+            type: c.contractor_type,
+            lat: loc.lat,
+            lng: loc.lng,
+            online: false,
+            locationType: `work${idx + 1}`,
+            locationName: loc.name || `Work Area ${idx + 1}`
+          });
+        });
+      } else {
+        // Fallback to user location area
+        markers.push({
+          id: c.id,
+          name: c.name,
+          type: c.contractor_type,
+          lat: userLoc.lat + (Math.random() - 0.5) * 0.02,
+          lng: userLoc.lng + (Math.random() - 0.5) * 0.02,
+          online: c.is_online,
+          locationType: 'unknown'
+        });
       }
-      return { id: c.id, name: c.name, type: c.contractor_type, lat, lng, online: c.is_online };
     });
+    
     const mJSON = JSON.stringify(markers);
     // Calculate zoom level based on radius (larger radius = lower zoom)
     let zoomLevel = 13;
@@ -520,7 +553,8 @@ L.circleMarker([${userLoc.lat},${userLoc.lng}],{radius:10,fillColor:'#007AFF',co
 var ms=${mJSON};
 ms.forEach(function(m){
 var col=m.online?'#22C55E':'#FF6A00';
-var icon=L.divIcon({className:'',html:'<div style="background:'+col+';width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>',iconSize:[12,12],iconAnchor:[6,6]});
+var size=m.online?12:10;
+var icon=L.divIcon({className:'',html:'<div style="background:'+col+';width:'+size+'px;height:'+size+'px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.3)"></div>',iconSize:[size,size],iconAnchor:[size/2,size/2]});
 L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'tap',id:m.id}))});
 });
 </script></body></html>`;
@@ -791,21 +825,28 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   <Text style={styles.urgentMapSubtitle}>Find contractors available right now</Text>
                 </View>
                 
-                {/* Sort/Filter Toggle */}
-                <View style={styles.sortToggleRow}>
+                {/* Filter Toggles - Online, Offline, Nearest */}
+                <View style={styles.filterToggleRow}>
                   <TouchableOpacity 
-                    style={[styles.sortChip, sortBy === 'online' && styles.sortChipActive]}
-                    onPress={() => setSortBy('online')}
+                    style={[styles.filterChip, showOnline && styles.filterChipOnline]}
+                    onPress={() => setShowOnline(!showOnline)}
                   >
-                    <View style={styles.sortChipDot} />
-                    <Text style={[styles.sortChipText, sortBy === 'online' && styles.sortChipTextActive]}>Online First</Text>
+                    <View style={[styles.filterChipDot, { backgroundColor: colors.green }]} />
+                    <Text style={[styles.filterChipText, showOnline && styles.filterChipTextActive]}>Online</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={[styles.sortChip, sortBy === 'distance' && styles.sortChipActive]}
-                    onPress={() => setSortBy('distance')}
+                    style={[styles.filterChip, showOffline && styles.filterChipOffline]}
+                    onPress={() => setShowOffline(!showOffline)}
                   >
-                    <Ionicons name="location" size={14} color={sortBy === 'distance' ? '#fff' : colors.textSecondary} />
-                    <Text style={[styles.sortChipText, sortBy === 'distance' && styles.sortChipTextActive]}>Nearest</Text>
+                    <View style={[styles.filterChipDot, { backgroundColor: colors.primary }]} />
+                    <Text style={[styles.filterChipText, showOffline && styles.filterChipTextActive]}>Offline</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.filterChip, sortByNearest && styles.filterChipNearest]}
+                    onPress={() => setSortByNearest(!sortByNearest)}
+                  >
+                    <Ionicons name="location" size={14} color={sortByNearest ? '#fff' : colors.textSecondary} />
+                    <Text style={[styles.filterChipText, sortByNearest && styles.filterChipTextActive]}>Nearest</Text>
                   </TouchableOpacity>
                 </View>
                 
@@ -893,21 +934,28 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   <Text style={styles.urgentMapSubtitle}>Find contractors available right now</Text>
                 </View>
                 
-                {/* Sort/Filter Toggle */}
-                <View style={styles.sortToggleRow}>
+                {/* Filter Toggles - Online, Offline, Nearest */}
+                <View style={styles.filterToggleRow}>
                   <TouchableOpacity 
-                    style={[styles.sortChip, sortBy === 'online' && styles.sortChipActive]}
-                    onPress={() => setSortBy('online')}
+                    style={[styles.filterChip, showOnline && styles.filterChipOnline]}
+                    onPress={() => setShowOnline(!showOnline)}
                   >
-                    <View style={styles.sortChipDot} />
-                    <Text style={[styles.sortChipText, sortBy === 'online' && styles.sortChipTextActive]}>Online First</Text>
+                    <View style={[styles.filterChipDot, { backgroundColor: colors.green }]} />
+                    <Text style={[styles.filterChipText, showOnline && styles.filterChipTextActive]}>Online</Text>
                   </TouchableOpacity>
                   <TouchableOpacity 
-                    style={[styles.sortChip, sortBy === 'distance' && styles.sortChipActive]}
-                    onPress={() => setSortBy('distance')}
+                    style={[styles.filterChip, showOffline && styles.filterChipOffline]}
+                    onPress={() => setShowOffline(!showOffline)}
                   >
-                    <Ionicons name="location" size={14} color={sortBy === 'distance' ? '#fff' : colors.textSecondary} />
-                    <Text style={[styles.sortChipText, sortBy === 'distance' && styles.sortChipTextActive]}>Nearest</Text>
+                    <View style={[styles.filterChipDot, { backgroundColor: colors.primary }]} />
+                    <Text style={[styles.filterChipText, showOffline && styles.filterChipTextActive]}>Offline</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.filterChip, sortByNearest && styles.filterChipNearest]}
+                    onPress={() => setSortByNearest(!sortByNearest)}
+                  >
+                    <Ionicons name="location" size={14} color={sortByNearest ? '#fff' : colors.textSecondary} />
+                    <Text style={[styles.filterChipText, sortByNearest && styles.filterChipTextActive]}>Nearest</Text>
                   </TouchableOpacity>
                 </View>
                 
@@ -968,45 +1016,50 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               </View>
             )}
 
-            {/* Post a Job - For Planned Quotes (Not Urgent) */}
-            <View style={styles.postJobSection}>
-              <View style={styles.plannedBadgeRow}>
-                <View style={styles.plannedBadge}>
-                  <Text style={styles.plannedBadgeEmoji}>📋</Text>
-                  <Text style={styles.plannedBadgeText}>PLANNED</Text>
-                </View>
-              </View>
-              <TouchableOpacity 
-                style={styles.postJobBtn}
-                onPress={() => {
-                  if (!user) {
-                    // Guest user - show sign in/register prompt
-                    Alert.alert(
-                      'Sign In Required',
-                      'You need to sign in or create an account to post a job.',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Register', onPress: () => router.push('/?mode=register') },
-                        { text: 'Sign In', onPress: () => router.push('/?mode=login'), style: 'default' },
-                      ]
-                    );
-                  } else {
-                    router.push('/post-job');
-                  }
-                }}
-              >
-                <View style={styles.postJobContent}>
-                  <Ionicons name="add-circle" size={22} color={colors.primary} />
-                  <View>
-                    <Text style={styles.postJobTitle}>Post a Job for Quotes</Text>
-                    <Text style={styles.postJobSubtitle}>Get multiple quotes from contractors</Text>
+            {/* Post a Job - PLANNED Section - Professional Box Design */}
+            <View style={styles.plannedSection}>
+              <View style={styles.plannedCard}>
+                <View style={styles.plannedCardHeader}>
+                  <View style={styles.plannedBadge}>
+                    <Text style={styles.plannedBadgeEmoji}>📋</Text>
+                    <Text style={styles.plannedBadgeText}>PLANNED</Text>
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-              </TouchableOpacity>
-              <Text style={styles.postJobHint}>
-                Not urgent? Post your project and let contractors come to you with quotes.
-              </Text>
+                
+                <View style={styles.plannedCardContent}>
+                  <View style={styles.plannedIconContainer}>
+                    <Ionicons name="document-text-outline" size={32} color={colors.primary} />
+                  </View>
+                  <View style={styles.plannedTextContent}>
+                    <Text style={styles.plannedTitle}>Post a Job for Quotes</Text>
+                    <Text style={styles.plannedDescription}>
+                      Not urgent? Describe your project and receive quotes from multiple contractors.
+                    </Text>
+                  </View>
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.plannedActionBtn}
+                  onPress={() => {
+                    if (!user) {
+                      Alert.alert(
+                        'Sign In Required',
+                        'You need to sign in or create an account to post a job.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Register', onPress: () => router.push('/?mode=register') },
+                          { text: 'Sign In', onPress: () => router.push('/?mode=login'), style: 'default' },
+                        ]
+                      );
+                    } else {
+                      router.push('/post-job');
+                    }
+                  }}
+                >
+                  <Ionicons name="add-circle" size={20} color={colors.paper} />
+                  <Text style={styles.plannedActionBtnText}>Post a Job</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
           {/* Categories */}
@@ -2471,5 +2524,112 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 10,
     textAlign: 'center',
+  },
+  // Filter Toggle Styles (Online, Offline, Nearest)
+  filterToggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+    flexWrap: 'wrap',
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    gap: 6,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  filterChipOnline: {
+    backgroundColor: '#DCFCE7',
+    borderColor: colors.green,
+  },
+  filterChipOffline: {
+    backgroundColor: '#FFF3EB',
+    borderColor: colors.primary,
+  },
+  filterChipNearest: {
+    backgroundColor: '#E0F2FE',
+    borderColor: '#0284C7',
+  },
+  filterChipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  filterChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  filterChipTextActive: {
+    color: colors.text,
+    fontWeight: '700',
+  },
+  // Professional Planned Section Styles
+  plannedSection: {
+    marginHorizontal: 16,
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  plannedCard: {
+    backgroundColor: colors.paper,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#FFE4D6',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  plannedCardHeader: {
+    marginBottom: 16,
+  },
+  plannedCardContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 16,
+    marginBottom: 16,
+  },
+  plannedIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: '#FFF3EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  plannedTextContent: {
+    flex: 1,
+  },
+  plannedTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  plannedDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  plannedActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  plannedActionBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.paper,
   },
 });
