@@ -1823,12 +1823,39 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   </TouchableOpacity>
                 )}
               </View>
+              
+              {/* Search Bar in Full Map Bottom Panel */}
+              <View style={styles.fullMapBottomSearchContainer}>
+                <View style={styles.fullMapBottomSearchWrapper}>
+                  <Ionicons name="search" size={16} color={colors.textSecondary} />
+                  <TextInput
+                    style={styles.fullMapBottomSearchInput}
+                    placeholder="Search (e.g., electrician)"
+                    placeholderTextColor={colors.textSecondary}
+                    value={categorySearchText}
+                    onChangeText={setCategorySearchText}
+                    onSubmitEditing={handleCategorySearch}
+                    returnKeyType="search"
+                  />
+                  {categorySearchText.length > 0 && (
+                    <TouchableOpacity onPress={() => setCategorySearchText('')}>
+                      <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {categorySearchText.length > 0 && (
+                  <TouchableOpacity style={styles.fullMapBottomSearchBtn} onPress={handleCategorySearch}>
+                    <Ionicons name="search" size={16} color={colors.paper} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              
               <ScrollView 
                 horizontal 
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
               >
-                {CATEGORY_DATA.filter(c => c.name !== 'All').map((cat) => {
+                {(categorySearchText.trim() ? filteredCategoryData : CATEGORY_DATA).filter(c => c.name !== 'All').map((cat) => {
                   const isSelected = selectedCategories.includes(cat.name);
                   return (
                     <TouchableOpacity
@@ -2915,6 +2942,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: colors.primary,
+  },
+  // Full Map Bottom Panel Search Styles
+  fullMapBottomSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    gap: 8,
+  },
+  fullMapBottomSearchWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  fullMapBottomSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
+    padding: 0,
+  },
+  fullMapBottomSearchBtn: {
+    backgroundColor: colors.primary,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   // FAB Styles
   fab: {
