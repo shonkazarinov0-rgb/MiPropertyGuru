@@ -13,8 +13,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
-FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', 'info@mipropertyguru.ca')
+# Email for sending TO users (noreply)
+NOREPLY_EMAIL = os.getenv('SENDGRID_NOREPLY_EMAIL', 'noreply@mipropertyguru.ca')
+# Email for receiving admin notifications
+ADMIN_EMAIL = os.getenv('ADMIN_NOTIFICATION_EMAIL', 'info@mipropertyguru.ca')
+# Email for receiving support requests
+SUPPORT_EMAIL = os.getenv('SUPPORT_NOTIFICATION_EMAIL', 'support@mipropertyguru.ca')
 FROM_NAME = os.getenv('SENDGRID_FROM_NAME', 'MiPropertyGuru')
+
+# Legacy - keep for backward compatibility
+FROM_EMAIL = NOREPLY_EMAIL
 
 # Store verification codes temporarily (in production, use Redis or database)
 verification_codes = {}
@@ -558,7 +566,8 @@ def send_support_email(from_email: str, user_name: str, subject: str, message: s
     """
     
     html = get_email_template("New Support Request", content)
-    return send_email(FROM_EMAIL, f"Support Request: {subject}", html)
+    # Send support requests to support@ email
+    return send_email(SUPPORT_EMAIL, f"Support Request: {subject}", html)
 
 
 def send_support_confirmation(to_email: str, user_name: str, subject: str) -> bool:
@@ -665,4 +674,5 @@ def send_admin_new_user_notification(user_name: str, user_email: str, user_phone
     """
     
     html = get_email_template("New User Registration", content)
-    return send_email(FROM_EMAIL, f"New {role_display}: {user_name} just registered!", html)
+    # Send admin notifications to info@ email
+    return send_email(ADMIN_EMAIL, f"New {role_display}: {user_name} just registered!", html)
