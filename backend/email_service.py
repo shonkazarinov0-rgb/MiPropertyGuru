@@ -162,18 +162,18 @@ def get_email_template(title: str, content: str, show_footer_cta: bool = False) 
                 font-weight: 700;
             }}
             .step-number {{
+                display: inline-block;
                 width: 36px;
                 height: 36px;
                 background: linear-gradient(135deg, #D35400 0%, #E67E22 100%);
                 border-radius: 50%;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
                 margin-right: 16px;
-                flex-shrink: 0;
                 color: #ffffff;
                 font-size: 16px;
                 font-weight: 700;
+                text-align: center;
+                line-height: 36px;
+                vertical-align: middle;
             }}
             .feature-text {{
                 color: #4a5568;
