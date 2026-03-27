@@ -108,6 +108,8 @@ export default function AuthScreen() {
         bio,
         accepted_terms: acceptedTerms,
       });
+      // After registration, redirect to email verification
+      router.push({ pathname: '/verify-email', params: { email, type: 'email' } });
     } catch (e: any) { setError(e.message || 'Registration failed'); }
     finally { setSubmitting(false); }
   };

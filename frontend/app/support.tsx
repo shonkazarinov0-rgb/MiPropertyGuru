@@ -1,59 +1,91 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import { useAuth } from '../src/auth-context';
-import { api } from '../src/api';
+
+const API_URL = Constants.expoConfig?.extra?.EXPO_BACKEND_URL || '';
 
 const colors = {
-  primary: '#FF6A00',
-  primaryLight: '#FFF3EB',
-  background: '#F7F7F7',
-  paper: '#FFFFFF',
-  text: '#1A1A1A',
+  primary: '#D35400',
+  primaryLight: '#FFF5F0',
+  text: '#1A1A2E',
   textSecondary: '#6B7280',
-  green: '#22C55E',
+  paper: '#FFFFFF',
   border: '#E5E7EB',
+  green: '#10B981',
+  red: '#EF4444',
 };
 
 export default function SupportScreen() {
   const router = useRouter();
-  const { user } = useAuth();
-  
+  const { user, token } = useAuth();
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [phone, setPhone] = useState(user?.phone || '');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async () => {
-    if (!name.trim() || !email.trim() || !message.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields');
+    if (!name.trim() || !email.trim() || !subject.trim() || !message.trim()) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
       return;
     }
 
     setLoading(true);
+    setError('');
+
     try {
-      // Send support request to backend
-      await api.post('/support/request', {
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        subject: subject.trim() || 'Support Request',
-        message: message.trim(),
-        user_id: user?.id,
+      const endpoint = token ? '/api/support/contact' : '/api/support/contact-guest';
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          subject: subject.trim(),
+          message: message.trim(),
+        }),
       });
-      
-      setSubmitted(true);
-    } catch (e: any) {
-      // Even if API fails, show success (we'll store locally)
-      setSubmitted(true);
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSubmitted(true);
+      } else {
+        setError(data.detail || 'Failed to send message. Please try again.');
+      }
+    } catch (err) {
+      setError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -61,20 +93,23 @@ export default function SupportScreen() {
 
   if (submitted) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.successContainer}>
           <View style={styles.successIcon}>
-            <Ionicons name="checkmark-circle" size={80} color={colors.green} />
+            <Ionicons name="checkmark-circle" size={64} color={colors.green} />
           </View>
-          <Text style={styles.successTitle}>Request Submitted!</Text>
+          <Text style={styles.successTitle}>Message Sent!</Text>
           <Text style={styles.successText}>
-            Thank you for reaching out. We'll get back to you as soon as possible.
+            Thank you for contacting us. We have received your message and will get back to you within 24-48 hours.
           </Text>
-          <TouchableOpacity 
-            style={styles.backHomeBtn}
+          <Text style={styles.successEmail}>
+            A confirmation email has been sent to {email}
+          </Text>
+          <TouchableOpacity
+            style={styles.button}
             onPress={() => router.back()}
           >
-            <Text style={styles.backHomeBtnText}>Go Back</Text>
+            <Text style={styles.buttonText}>Back to App</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -82,131 +117,123 @@ export default function SupportScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <KeyboardAvoidingView 
-        style={styles.flex}
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
       >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Support</Text>
-          <View style={styles.placeholder} />
-        </View>
-
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.infoCard}>
-            <Ionicons name="headset-outline" size={32} color={colors.primary} />
-            <Text style={styles.infoTitle}>How can we help?</Text>
-            <Text style={styles.infoText}>
-              Fill out the form below and our support team will get back to you within 24-48 hours.
-            </Text>
-          </View>
-
-          <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Name *</Text>
-              <TextInput
-                style={styles.input}
-                value={name}
-                onChangeText={setName}
-                placeholder="Your full name"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email *</Text>
-              <TextInput
-                style={styles.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="your@email.com"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Phone (Optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={phone}
-                onChangeText={setPhone}
-                placeholder="(555) 123-4567"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType="phone-pad"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Subject (Optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={subject}
-                onChangeText={setSubject}
-                placeholder="Brief description of your issue"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Message *</Text>
-              <TextInput
-                style={styles.messageInput}
-                value={message}
-                onChangeText={setMessage}
-                placeholder="Please describe your issue or question in detail..."
-                placeholderTextColor={colors.textSecondary}
-                multiline
-                numberOfLines={6}
-                textAlignVertical="top"
-                maxLength={1000}
-              />
-              <Text style={styles.charCount}>{message.length}/1000</Text>
-            </View>
-
-            <TouchableOpacity 
-              style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
-              onPress={handleSubmit}
-              disabled={loading}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
             >
-              {loading ? (
-                <ActivityIndicator color={colors.paper} />
-              ) : (
-                <>
-                  <Ionicons name="send" size={20} color={colors.paper} />
-                  <Text style={styles.submitBtnText}>Submit Request</Text>
-                </>
-              )}
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
+            <Text style={styles.headerTitle}>Contact Support</Text>
+            <View style={{ width: 44 }} />
           </View>
 
-          <View style={styles.faqSection}>
-            <Text style={styles.faqTitle}>Frequently Asked Questions</Text>
-            
-            <TouchableOpacity style={styles.faqItem}>
-              <Text style={styles.faqQuestion}>How do I verify a contractor's license?</Text>
-              <Text style={styles.faqAnswer}>
-                We recommend confirming licenses and experience directly with the contractor before hiring.
-              </Text>
-            </TouchableOpacity>
+          {/* Content */}
+          <View style={styles.content}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="chatbubbles" size={48} color={colors.primary} />
+            </View>
+            <Text style={styles.title}>How can we help?</Text>
+            <Text style={styles.subtitle}>
+              Fill out the form below and our support team will get back to you as soon as possible.
+            </Text>
 
-            <TouchableOpacity style={styles.faqItem}>
-              <Text style={styles.faqQuestion}>How do payments work?</Text>
-              <Text style={styles.faqAnswer}>
-                All payments are made directly between you and the contractor. MiPropertyGuru does not handle payments.
-              </Text>
-            </TouchableOpacity>
+            {error ? (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={18} color={colors.red} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
 
-            <TouchableOpacity style={styles.faqItem}>
-              <Text style={styles.faqQuestion}>What if I have a dispute?</Text>
-              <Text style={styles.faqAnswer}>
-                Disputes should be resolved directly with the contractor. Contact us if you need assistance.
-              </Text>
-            </TouchableOpacity>
+            {/* Form */}
+            <View style={styles.form}>
+              <Text style={styles.label}>Your Name</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your name"
+                  placeholderTextColor={colors.textSecondary}
+                  value={name}
+                  onChangeText={setName}
+                />
+              </View>
+
+              <Text style={styles.label}>Email Address</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="mail-outline" size={20} color={colors.textSecondary} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your email"
+                  placeholderTextColor={colors.textSecondary}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <Text style={styles.label}>Subject</Text>
+              <View style={styles.inputContainer}>
+                <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="What is this about?"
+                  placeholderTextColor={colors.textSecondary}
+                  value={subject}
+                  onChangeText={setSubject}
+                />
+              </View>
+
+              <Text style={styles.label}>Message</Text>
+              <View style={[styles.inputContainer, styles.messageContainer]}>
+                <TextInput
+                  style={styles.messageInput}
+                  placeholder="Describe your issue or question in detail..."
+                  placeholderTextColor={colors.textSecondary}
+                  value={message}
+                  onChangeText={setMessage}
+                  multiline
+                  numberOfLines={6}
+                  textAlignVertical="top"
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.paper} />
+                ) : (
+                  <>
+                    <Ionicons name="send" size={20} color={colors.paper} />
+                    <Text style={styles.buttonText}>Send Message</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Contact Info */}
+            <View style={styles.contactInfo}>
+              <Text style={styles.contactInfoTitle}>Other ways to reach us:</Text>
+              <View style={styles.contactItem}>
+                <Ionicons name="mail" size={18} color={colors.primary} />
+                <Text style={styles.contactItemText}>info@mipropertyguru.ca</Text>
+              </View>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -217,63 +244,78 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.paper,
   },
-  flex: {
+  keyboardView: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: colors.paper,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  backBtn: {
-    padding: 4,
+  backButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
   },
-  placeholder: {
-    width: 32,
-  },
   content: {
-    flex: 1,
-    padding: 16,
+    padding: 24,
+    alignItems: 'center',
   },
-  infoCard: {
+  iconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: colors.primaryLight,
-    padding: 20,
-    borderRadius: 16,
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
   },
-  infoTitle: {
-    fontSize: 20,
+  title: {
+    fontSize: 26,
     fontWeight: '700',
     color: colors.text,
-    marginTop: 12,
+    marginBottom: 8,
+    textAlign: 'center',
   },
-  infoText: {
-    fontSize: 14,
+  subtitle: {
+    fontSize: 15,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    width: '100%',
+  },
+  errorText: {
+    color: colors.red,
+    fontSize: 14,
+    marginLeft: 8,
+    flex: 1,
   },
   form: {
-    backgroundColor: colors.paper,
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 20,
-  },
-  inputGroup: {
-    marginBottom: 16,
+    width: '100%',
   },
   label: {
     fontSize: 14,
@@ -281,108 +323,109 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 8,
   },
-  input: {
-    backgroundColor: colors.background,
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
     borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    color: colors.text,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+    marginLeft: 12,
+  },
+  messageContainer: {
+    alignItems: 'flex-start',
+    paddingVertical: 12,
   },
   messageInput: {
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 14,
+    flex: 1,
     fontSize: 16,
     color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-    height: 150,
+    minHeight: 120,
+    width: '100%',
   },
-  charCount: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'right',
-    marginTop: 4,
-  },
-  submitBtn: {
+  button: {
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 8,
     gap: 8,
+    marginTop: 8,
   },
-  submitBtnDisabled: {
+  buttonDisabled: {
     opacity: 0.7,
   },
-  submitBtnText: {
+  buttonText: {
+    color: colors.paper,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.paper,
   },
-  faqSection: {
-    backgroundColor: colors.paper,
+  contactInfo: {
+    marginTop: 32,
     padding: 20,
-    borderRadius: 16,
-    marginBottom: 40,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    width: '100%',
   },
-  faqTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  faqItem: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  faqQuestion: {
-    fontSize: 15,
+  contactInfoTitle: {
+    fontSize: 14,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 12,
   },
-  faqAnswer: {
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  contactItemText: {
     fontSize: 14,
     color: colors.textSecondary,
-    lineHeight: 20,
   },
+  // Success Screen
   successContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    padding: 32,
   },
   successIcon: {
-    marginBottom: 20,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#D1FAE5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   successTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 12,
+    textAlign: 'center',
   },
   successText: {
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 30,
+    marginBottom: 16,
   },
-  backHomeBtn: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 25,
-  },
-  backHomeBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.paper,
+  successEmail: {
+    fontSize: 14,
+    color: colors.primary,
+    textAlign: 'center',
+    marginBottom: 32,
   },
 });

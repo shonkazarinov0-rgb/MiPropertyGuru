@@ -674,6 +674,22 @@ export default function ProfileScreen() {
             </TouchableOpacity>
             <TouchableOpacity 
               style={s.menuItem}
+              onPress={() => router.push('/forgot-password')}
+            >
+              <Ionicons name="lock-closed-outline" size={22} color={colors.primary} />
+              <Text style={s.menuItemText}>Reset Password</Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={s.menuItem}
+              onPress={() => router.push('/support')}
+            >
+              <Ionicons name="help-circle-outline" size={22} color={colors.primary} />
+              <Text style={s.menuItemText}>Support / Contact Us</Text>
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={s.menuItem}
               onPress={() => setShowPrivacyPolicy(true)}
             >
               <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />

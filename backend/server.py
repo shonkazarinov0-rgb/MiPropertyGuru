@@ -420,6 +420,26 @@ async def register(req: RegisterReq):
     except Exception as e:
         logger.error(f"Failed to send welcome email: {e}")
     
+    # Send verification code email
+    try:
+        code = generate_verification_code()
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        await db.verification_codes.update_one(
+            {"email": req.email.lower(), "type": "email"},
+            {"$set": {
+                "email": req.email.lower(),
+                "type": "email",
+                "code": code,
+                "expires_at": expires_at.isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }},
+            upsert=True
+        )
+        send_verification_code(req.email, req.name)
+        logger.info(f"Verification email sent to {req.email}")
+    except Exception as e:
+        logger.error(f"Failed to send verification email: {e}")
+    
     return {"token": token, "user": safe}
 
 # Upgrade client to contractor
