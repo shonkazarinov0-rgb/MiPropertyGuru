@@ -149,15 +149,17 @@ def get_email_template(title: str, content: str, show_footer_cta: bool = False) 
             .feature-icon {{
                 width: 32px;
                 height: 32px;
-                background: linear-gradient(135deg, #D35400 0%, #E67E22 100%);
-                border-radius: 8px;
+                background: #f0f0f0;
+                border: 2px solid #d0d0d0;
+                border-radius: 6px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 margin-right: 16px;
                 flex-shrink: 0;
-                color: white;
-                font-size: 16px;
+                color: #4a5568;
+                font-size: 14px;
+                font-weight: 700;
             }}
             .feature-text {{
                 color: #4a5568;
@@ -550,7 +552,7 @@ def send_support_confirmation(to_email: str, user_name: str, subject: str) -> bo
     content = f"""
         <div class="email-header">
             <div class="logo">
-                <span class="logo-icon">✅</span>
+                <span class="logo-icon">📬</span>
             </div>
             <h1>We Got Your Message!</h1>
             <p>Our team is on it</p>
@@ -571,15 +573,15 @@ def send_support_confirmation(to_email: str, user_name: str, subject: str) -> bo
             
             <ul class="feature-list">
                 <li>
-                    <span class="feature-icon">1️⃣</span>
+                    <span class="feature-icon">1</span>
                     <span class="feature-text">Our support team will review your message</span>
                 </li>
                 <li>
-                    <span class="feature-icon">2️⃣</span>
+                    <span class="feature-icon">2</span>
                     <span class="feature-text">We'll investigate and prepare a response</span>
                 </li>
                 <li>
-                    <span class="feature-icon">3️⃣</span>
+                    <span class="feature-icon">3</span>
                     <span class="feature-text">You'll hear back from us within <strong>24-48 hours</strong></span>
                 </li>
             </ul>
@@ -620,11 +622,11 @@ def send_admin_new_user_notification(user_name: str, user_email: str, user_phone
             <h2 class="greeting">New {role_display} Signed Up!</h2>
             
             <div class="highlight-box">
-                <p>👤 <strong>Name:</strong> {user_name}<br>
-                📧 <strong>Email:</strong> {user_email}<br>
-                📱 <strong>Phone:</strong> {user_phone}<br>
-                🏷️ <strong>Role:</strong> {role_display}<br>
-                📅 <strong>Date:</strong> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+                <p><strong>Name:</strong> {user_name}<br>
+                <strong>Email:</strong> {user_email}<br>
+                <strong>Phone:</strong> {user_phone}<br>
+                <strong>Role:</strong> {role_display}<br>
+                <strong>Date:</strong> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
             </div>
             
             <p class="message">
@@ -633,15 +635,15 @@ def send_admin_new_user_notification(user_name: str, user_email: str, user_phone
             
             <ul class="feature-list">
                 <li>
-                    <span class="feature-icon">✅</span>
+                    <span class="feature-icon">1</span>
                     <span class="feature-text">Account created successfully</span>
                 </li>
                 <li>
-                    <span class="feature-icon">📧</span>
+                    <span class="feature-icon">2</span>
                     <span class="feature-text">Welcome email sent to user</span>
                 </li>
                 <li>
-                    <span class="feature-icon">🔐</span>
+                    <span class="feature-icon">3</span>
                     <span class="feature-text">Verification code sent</span>
                 </li>
             </ul>
@@ -655,4 +657,4 @@ def send_admin_new_user_notification(user_name: str, user_email: str, user_phone
     """
     
     html = get_email_template("New User Registration", content)
-    return send_email(FROM_EMAIL, f"🎉 New {role_display}: {user_name} just registered!", html)
+    return send_email(FROM_EMAIL, f"New {role_display}: {user_name} just registered!", html)
