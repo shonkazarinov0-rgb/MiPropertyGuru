@@ -22,6 +22,17 @@ import stripe
 import httpx
 import asyncio
 
+# Import email service
+from email_service import (
+    send_welcome_email, 
+    send_verification_code, 
+    verify_code,
+    send_password_reset_email,
+    verify_reset_code,
+    send_support_email,
+    send_support_confirmation
+)
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -400,6 +411,15 @@ async def register(req: RegisterReq):
     await db.users.insert_one(user.copy())
     token = create_token(uid, req.email or req.phone, req.role)
     safe = {k: v for k, v in user.items() if k != "password_hash"}
+    
+    # Send welcome email (async, don't block registration)
+    try:
+        is_contractor = req.role == "contractor"
+        send_welcome_email(req.email, req.name, is_contractor)
+        logger.info(f"Welcome email sent to {req.email}")
+    except Exception as e:
+        logger.error(f"Failed to send welcome email: {e}")
+    
     return {"token": token, "user": safe}
 
 # Upgrade client to contractor
@@ -602,7 +622,7 @@ async def forgot_password(req: ForgotPasswordReq):
     
     # Generate 6-digit code
     code = generate_verification_code()
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
     
     # Store the code in database
     await db.password_resets.update_one(
@@ -616,13 +636,15 @@ async def forgot_password(req: ForgotPasswordReq):
         upsert=True
     )
     
-    # In production, send email. For now, log it (TEMPORARY SOLUTION)
-    logger.info(f"Password reset code for {req.email}: {code}")
+    # Send password reset email
+    try:
+        send_password_reset_email(req.email.lower(), user.get("name", "User"))
+        logger.info(f"Password reset email sent to {req.email}")
+    except Exception as e:
+        logger.error(f"Failed to send password reset email: {e}")
     
-    # Store code in response for testing (REMOVE IN PRODUCTION)
     return {
-        "message": "Verification code sent to your email",
-        "debug_code": code  # TEMPORARY - Remove in production
+        "message": "Verification code sent to your email"
     }
 
 @api_router.post("/auth/verify-reset-code")
@@ -726,12 +748,85 @@ async def resend_verification(req: ResendVerificationReq):
         upsert=True
     )
     
-    logger.info(f"Verification code for {req.email} ({req.type}): {code}")
+    # Send verification code email
+    try:
+        send_verification_code(req.email.lower(), user.get("name", "User"))
+        logger.info(f"Verification email sent to {req.email}")
+    except Exception as e:
+        logger.error(f"Failed to send verification email: {e}")
     
     return {
-        "message": f"Verification code sent to your {req.type}",
-        "debug_code": code  # TEMPORARY - Remove in production
+        "message": f"Verification code sent to your {req.type}"
     }
+
+# ── Support Contact Endpoint ──
+
+class SupportContactReq(BaseModel):
+    subject: str
+    message: str
+    name: Optional[str] = None
+    email: Optional[str] = None
+
+@api_router.post("/support/contact")
+async def contact_support(req: SupportContactReq, user=Depends(get_current_user)):
+    """Send a support request email"""
+    user_name = req.name or user.get("name", "User")
+    user_email = req.email or user.get("email", "")
+    
+    if not user_email:
+        raise HTTPException(400, "Email is required")
+    
+    # Send support email to admin
+    try:
+        send_support_email(user_email, user_name, req.subject, req.message)
+        # Send confirmation to user
+        send_support_confirmation(user_email, user_name, req.subject)
+        logger.info(f"Support request from {user_email}: {req.subject}")
+    except Exception as e:
+        logger.error(f"Failed to send support email: {e}")
+        raise HTTPException(500, "Failed to send support request")
+    
+    # Store support request in database
+    await db.support_requests.insert_one({
+        "user_id": user["id"],
+        "user_name": user_name,
+        "user_email": user_email,
+        "subject": req.subject,
+        "message": req.message,
+        "status": "open",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {"message": "Support request sent successfully", "success": True}
+
+@api_router.post("/support/contact-guest")
+async def contact_support_guest(req: SupportContactReq):
+    """Send a support request email (for non-logged in users)"""
+    if not req.email or not req.name:
+        raise HTTPException(400, "Name and email are required")
+    
+    # Send support email to admin
+    try:
+        send_support_email(req.email, req.name, req.subject, req.message)
+        # Send confirmation to user
+        send_support_confirmation(req.email, req.name, req.subject)
+        logger.info(f"Guest support request from {req.email}: {req.subject}")
+    except Exception as e:
+        logger.error(f"Failed to send support email: {e}")
+        raise HTTPException(500, "Failed to send support request")
+    
+    # Store support request in database
+    await db.support_requests.insert_one({
+        "user_id": None,
+        "user_name": req.name,
+        "user_email": req.email,
+        "subject": req.subject,
+        "message": req.message,
+        "status": "open",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    return {"message": "Support request sent successfully", "success": True}
 
 @api_router.post("/switch-mode")
 async def switch_mode_api(user=Depends(get_current_user)):
