@@ -26,6 +26,250 @@ def generate_code(length=6):
     return ''.join(random.choices(string.digits, k=length))
 
 
+# Modern email base template
+def get_email_template(title: str, content: str, show_footer_cta: bool = False) -> str:
+    return f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{title}</title>
+        <style>
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body {{ 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                padding: 40px 20px;
+            }}
+            .email-wrapper {{
+                max-width: 600px;
+                margin: 0 auto;
+            }}
+            .email-container {{
+                background: #ffffff;
+                border-radius: 24px;
+                overflow: hidden;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            }}
+            .email-header {{
+                background: linear-gradient(135deg, #D35400 0%, #E67E22 50%, #F39C12 100%);
+                padding: 40px 30px;
+                text-align: center;
+            }}
+            .logo {{
+                width: 60px;
+                height: 60px;
+                background: rgba(255,255,255,0.2);
+                border-radius: 16px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 16px;
+            }}
+            .logo-icon {{
+                font-size: 32px;
+            }}
+            .email-header h1 {{
+                color: #ffffff;
+                font-size: 28px;
+                font-weight: 700;
+                margin: 0;
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            .email-header p {{
+                color: rgba(255,255,255,0.9);
+                font-size: 14px;
+                margin-top: 8px;
+            }}
+            .email-body {{
+                padding: 40px 30px;
+            }}
+            .greeting {{
+                font-size: 24px;
+                font-weight: 700;
+                color: #1a1a2e;
+                margin-bottom: 16px;
+            }}
+            .message {{
+                font-size: 16px;
+                line-height: 1.7;
+                color: #4a5568;
+                margin-bottom: 24px;
+            }}
+            .highlight-box {{
+                background: linear-gradient(135deg, #FFF5F0 0%, #FEF3E2 100%);
+                border-left: 4px solid #D35400;
+                border-radius: 12px;
+                padding: 20px 24px;
+                margin: 24px 0;
+            }}
+            .highlight-box p {{
+                color: #744210;
+                font-size: 15px;
+                margin: 0;
+            }}
+            .highlight-box strong {{
+                color: #D35400;
+            }}
+            .code-container {{
+                background: linear-gradient(135deg, #1a1a2e 0%, #2d3748 100%);
+                border-radius: 16px;
+                padding: 30px;
+                text-align: center;
+                margin: 30px 0;
+            }}
+            .code {{
+                font-size: 42px;
+                font-weight: 800;
+                letter-spacing: 12px;
+                color: #ffffff;
+                font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+            }}
+            .code-expiry {{
+                color: rgba(255,255,255,0.6);
+                font-size: 13px;
+                margin-top: 12px;
+            }}
+            .feature-list {{
+                list-style: none;
+                padding: 0;
+                margin: 24px 0;
+            }}
+            .feature-list li {{
+                display: flex;
+                align-items: flex-start;
+                padding: 12px 0;
+                border-bottom: 1px solid #f0f0f0;
+            }}
+            .feature-list li:last-child {{
+                border-bottom: none;
+            }}
+            .feature-icon {{
+                width: 32px;
+                height: 32px;
+                background: linear-gradient(135deg, #D35400 0%, #E67E22 100%);
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-right: 16px;
+                flex-shrink: 0;
+                color: white;
+                font-size: 16px;
+            }}
+            .feature-text {{
+                color: #4a5568;
+                font-size: 15px;
+                line-height: 1.5;
+            }}
+            .cta-button {{
+                display: inline-block;
+                background: linear-gradient(135deg, #D35400 0%, #E67E22 100%);
+                color: #ffffff !important;
+                text-decoration: none;
+                padding: 16px 40px;
+                border-radius: 12px;
+                font-weight: 600;
+                font-size: 16px;
+                margin: 20px 0;
+                box-shadow: 0 4px 14px rgba(211, 84, 0, 0.4);
+            }}
+            .divider {{
+                height: 1px;
+                background: linear-gradient(to right, transparent, #e2e8f0, transparent);
+                margin: 30px 0;
+            }}
+            .signature {{
+                margin-top: 30px;
+                padding-top: 20px;
+                border-top: 1px solid #f0f0f0;
+            }}
+            .signature p {{
+                color: #718096;
+                font-size: 15px;
+                margin: 4px 0;
+            }}
+            .signature strong {{
+                color: #D35400;
+            }}
+            .email-footer {{
+                background: #f8fafc;
+                padding: 30px;
+                text-align: center;
+                border-top: 1px solid #e2e8f0;
+            }}
+            .footer-logo {{
+                font-size: 20px;
+                font-weight: 700;
+                color: #D35400;
+                margin-bottom: 12px;
+            }}
+            .footer-text {{
+                color: #a0aec0;
+                font-size: 13px;
+                line-height: 1.6;
+            }}
+            .footer-links {{
+                margin-top: 16px;
+            }}
+            .footer-links a {{
+                color: #D35400;
+                text-decoration: none;
+                font-size: 13px;
+            }}
+            .social-links {{
+                margin-top: 20px;
+            }}
+            .social-links a {{
+                display: inline-block;
+                width: 36px;
+                height: 36px;
+                background: #e2e8f0;
+                border-radius: 50%;
+                margin: 0 6px;
+                line-height: 36px;
+                color: #718096;
+                text-decoration: none;
+            }}
+            .warning-box {{
+                background: #FEF3C7;
+                border-radius: 12px;
+                padding: 16px 20px;
+                margin: 20px 0;
+            }}
+            .warning-box p {{
+                color: #92400E;
+                font-size: 14px;
+                margin: 0;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="email-wrapper">
+            <div class="email-container">
+                {content}
+                <div class="email-footer">
+                    <div class="footer-logo">MiPropertyGuru</div>
+                    <p class="footer-text">
+                        Connecting property owners with trusted contractors.<br>
+                        Your home projects, made simple.
+                    </p>
+                    <div class="footer-links">
+                        <a href="mailto:info@mipropertyguru.ca">info@mipropertyguru.ca</a>
+                    </div>
+                    <p class="footer-text" style="margin-top: 20px;">
+                        &copy; 2025 MiPropertyGuru. All rights reserved.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+
 def send_email(to_email: str, subject: str, html_content: str) -> bool:
     """Send an email using SendGrid"""
     try:
@@ -49,50 +293,83 @@ def send_welcome_email(to_email: str, user_name: str, is_contractor: bool = Fals
     """Send welcome email after registration"""
     user_type = "contractor" if is_contractor else "client"
     
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }}
-            .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; }}
-            .header {{ background: linear-gradient(135deg, #D35400 0%, #E67E22 100%); padding: 40px 20px; text-align: center; }}
-            .header h1 {{ color: #ffffff; margin: 0; font-size: 28px; }}
-            .content {{ padding: 40px 30px; }}
-            .content h2 {{ color: #333333; margin-top: 0; }}
-            .content p {{ color: #666666; line-height: 1.6; font-size: 16px; }}
-            .button {{ display: inline-block; background-color: #D35400; color: #ffffff; padding: 14px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; margin: 20px 0; }}
-            .features {{ background-color: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; }}
-            .features li {{ color: #666666; margin: 10px 0; }}
-            .footer {{ background-color: #333333; padding: 30px; text-align: center; }}
-            .footer p {{ color: #999999; margin: 5px 0; font-size: 14px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>Welcome to MiPropertyGuru!</h1>
+    if is_contractor:
+        features = """
+            <ul class="feature-list">
+                <li>
+                    <span class="feature-icon">📋</span>
+                    <span class="feature-text"><strong>Receive Job Requests</strong> - Get notified when clients in your area need your services</span>
+                </li>
+                <li>
+                    <span class="feature-icon">🖼️</span>
+                    <span class="feature-text"><strong>Showcase Your Work</strong> - Build a portfolio that highlights your best projects</span>
+                </li>
+                <li>
+                    <span class="feature-icon">⭐</span>
+                    <span class="feature-text"><strong>Build Your Reputation</strong> - Collect reviews and grow your business</span>
+                </li>
+                <li>
+                    <span class="feature-icon">💬</span>
+                    <span class="feature-text"><strong>Direct Messaging</strong> - Chat with clients and close deals faster</span>
+                </li>
+            </ul>
+        """
+    else:
+        features = """
+            <ul class="feature-list">
+                <li>
+                    <span class="feature-icon">🔍</span>
+                    <span class="feature-text"><strong>Find Trusted Contractors</strong> - Browse verified professionals in your area</span>
+                </li>
+                <li>
+                    <span class="feature-icon">📝</span>
+                    <span class="feature-text"><strong>Post Jobs Easily</strong> - Describe your project and receive competitive quotes</span>
+                </li>
+                <li>
+                    <span class="feature-icon">💬</span>
+                    <span class="feature-text"><strong>Chat Directly</strong> - Communicate with contractors in real-time</span>
+                </li>
+                <li>
+                    <span class="feature-icon">✅</span>
+                    <span class="feature-text"><strong>Get Things Done</strong> - Complete your home projects with confidence</span>
+                </li>
+            </ul>
+        """
+    
+    content = f"""
+        <div class="email-header">
+            <div class="logo">
+                <span class="logo-icon">🏠</span>
             </div>
-            <div class="content">
-                <h2>Hi {user_name}!</h2>
-                <p>Thank you for joining MiPropertyGuru as a {user_type}. We're excited to have you on board!</p>
-                
-                {"<p>As a contractor, you can now:</p><ul class='features'><li>Receive job requests from clients in your area</li><li>Showcase your portfolio and skills</li><li>Build your reputation with reviews</li><li>Grow your business</li></ul>" if is_contractor else "<p>As a client, you can now:</p><ul class='features'><li>Find trusted contractors near you</li><li>Post jobs and receive quotes</li><li>Chat directly with contractors</li><li>Get your projects done!</li></ul>"}
-                
-                <p>If you have any questions, our support team is here to help.</p>
-                
-                <p>Best regards,<br><strong>The MiPropertyGuru Team</strong></p>
+            <h1>Welcome to the Family!</h1>
+            <p>Your journey to better home projects starts here</p>
+        </div>
+        <div class="email-body">
+            <h2 class="greeting">Hi {user_name}! 👋</h2>
+            <p class="message">
+                We're thrilled to have you join MiPropertyGuru as a {user_type}! 
+                You've just taken the first step towards making your home projects easier and more efficient.
+            </p>
+            
+            <div class="highlight-box">
+                <p>🎉 <strong>Your account is now active!</strong> You can start exploring the app right away.</p>
             </div>
-            <div class="footer">
-                <p>&copy; 2025 MiPropertyGuru. All rights reserved.</p>
-                <p>info@mipropertyguru.ca</p>
+            
+            <p class="message">Here's what you can do with MiPropertyGuru:</p>
+            
+            {features}
+            
+            <div class="divider"></div>
+            
+            <div class="signature">
+                <p>Welcome aboard!</p>
+                <p><strong>The MiPropertyGuru Team</strong></p>
             </div>
         </div>
-    </body>
-    </html>
     """
     
-    return send_email(to_email, "Welcome to MiPropertyGuru! 🎉", html_content)
+    html = get_email_template("Welcome to MiPropertyGuru!", content)
+    return send_email(to_email, "Welcome to MiPropertyGuru! 🎉", html)
 
 
 def send_verification_code(to_email: str, user_name: str) -> str:
@@ -105,49 +382,42 @@ def send_verification_code(to_email: str, user_name: str) -> str:
         'expires': datetime.now() + timedelta(minutes=15)
     }
     
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }}
-            .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; }}
-            .header {{ background: linear-gradient(135deg, #D35400 0%, #E67E22 100%); padding: 40px 20px; text-align: center; }}
-            .header h1 {{ color: #ffffff; margin: 0; font-size: 28px; }}
-            .content {{ padding: 40px 30px; text-align: center; }}
-            .content p {{ color: #666666; line-height: 1.6; font-size: 16px; }}
-            .code-box {{ background-color: #f5f5f5; padding: 30px; border-radius: 12px; margin: 30px 0; }}
-            .code {{ font-size: 42px; font-weight: bold; color: #D35400; letter-spacing: 8px; }}
-            .expiry {{ color: #999999; font-size: 14px; margin-top: 15px; }}
-            .footer {{ background-color: #333333; padding: 30px; text-align: center; }}
-            .footer p {{ color: #999999; margin: 5px 0; font-size: 14px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>Verify Your Email</h1>
+    content = f"""
+        <div class="email-header">
+            <div class="logo">
+                <span class="logo-icon">✉️</span>
             </div>
-            <div class="content">
-                <p>Hi {user_name}!</p>
-                <p>Please use the following verification code to complete your registration:</p>
-                
-                <div class="code-box">
-                    <div class="code">{code}</div>
-                    <p class="expiry">This code expires in 15 minutes</p>
-                </div>
-                
-                <p>If you didn't request this code, please ignore this email.</p>
+            <h1>Verify Your Email</h1>
+            <p>Just one more step to get started</p>
+        </div>
+        <div class="email-body">
+            <h2 class="greeting">Hi {user_name}! 👋</h2>
+            <p class="message">
+                Thanks for signing up! Please use the verification code below to confirm your email address and activate your account.
+            </p>
+            
+            <div class="code-container">
+                <div class="code">{code}</div>
+                <p class="code-expiry">⏱️ This code expires in 15 minutes</p>
             </div>
-            <div class="footer">
-                <p>&copy; 2025 MiPropertyGuru. All rights reserved.</p>
+            
+            <div class="highlight-box">
+                <p>💡 <strong>Tip:</strong> Enter this code in the app to complete your registration.</p>
+            </div>
+            
+            <div class="warning-box">
+                <p>🔒 If you didn't create an account with MiPropertyGuru, you can safely ignore this email.</p>
+            </div>
+            
+            <div class="signature">
+                <p>Best regards,</p>
+                <p><strong>The MiPropertyGuru Team</strong></p>
             </div>
         </div>
-    </body>
-    </html>
     """
     
-    send_email(to_email, "Your Verification Code - MiPropertyGuru", html_content)
+    html = get_email_template("Verify Your Email", content)
+    send_email(to_email, "Verify Your Email - MiPropertyGuru", html)
     return code
 
 
@@ -178,53 +448,42 @@ def send_password_reset_email(to_email: str, user_name: str) -> str:
         'expires': datetime.now() + timedelta(minutes=30)
     }
     
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }}
-            .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; }}
-            .header {{ background: linear-gradient(135deg, #D35400 0%, #E67E22 100%); padding: 40px 20px; text-align: center; }}
-            .header h1 {{ color: #ffffff; margin: 0; font-size: 28px; }}
-            .content {{ padding: 40px 30px; text-align: center; }}
-            .content p {{ color: #666666; line-height: 1.6; font-size: 16px; }}
-            .code-box {{ background-color: #f5f5f5; padding: 30px; border-radius: 12px; margin: 30px 0; }}
-            .code {{ font-size: 42px; font-weight: bold; color: #D35400; letter-spacing: 8px; }}
-            .expiry {{ color: #999999; font-size: 14px; margin-top: 15px; }}
-            .warning {{ background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; color: #856404; }}
-            .footer {{ background-color: #333333; padding: 30px; text-align: center; }}
-            .footer p {{ color: #999999; margin: 5px 0; font-size: 14px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>Reset Your Password</h1>
+    content = f"""
+        <div class="email-header">
+            <div class="logo">
+                <span class="logo-icon">🔐</span>
             </div>
-            <div class="content">
-                <p>Hi {user_name}!</p>
-                <p>We received a request to reset your password. Use the code below to proceed:</p>
-                
-                <div class="code-box">
-                    <div class="code">{code}</div>
-                    <p class="expiry">This code expires in 30 minutes</p>
-                </div>
-                
-                <div class="warning">
-                    <strong>Didn't request this?</strong><br>
-                    If you didn't request a password reset, please ignore this email or contact support if you're concerned.
-                </div>
+            <h1>Reset Your Password</h1>
+            <p>We received a request to reset your password</p>
+        </div>
+        <div class="email-body">
+            <h2 class="greeting">Hi {user_name}! 👋</h2>
+            <p class="message">
+                No worries, it happens to the best of us! Use the code below to reset your password and get back to your account.
+            </p>
+            
+            <div class="code-container">
+                <div class="code">{code}</div>
+                <p class="code-expiry">⏱️ This code expires in 30 minutes</p>
             </div>
-            <div class="footer">
-                <p>&copy; 2025 MiPropertyGuru. All rights reserved.</p>
+            
+            <div class="highlight-box">
+                <p>🔑 <strong>Next step:</strong> Enter this code in the app, then create your new password.</p>
+            </div>
+            
+            <div class="warning-box">
+                <p>⚠️ <strong>Didn't request this?</strong> If you didn't request a password reset, please ignore this email. Your account is safe.</p>
+            </div>
+            
+            <div class="signature">
+                <p>Stay secure,</p>
+                <p><strong>The MiPropertyGuru Team</strong></p>
             </div>
         </div>
-    </body>
-    </html>
     """
     
-    send_email(to_email, "Password Reset Request - MiPropertyGuru", html_content)
+    html = get_email_template("Reset Your Password", content)
+    send_email(to_email, "Reset Your Password - MiPropertyGuru", html)
     return code
 
 
@@ -247,92 +506,96 @@ def verify_reset_code(email: str, code: str) -> bool:
 
 def send_support_email(from_email: str, user_name: str, subject: str, message: str) -> bool:
     """Send support request to the support inbox"""
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }}
-            .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 30px; }}
-            .header {{ border-bottom: 2px solid #D35400; padding-bottom: 20px; margin-bottom: 20px; }}
-            .header h1 {{ color: #D35400; margin: 0; font-size: 24px; }}
-            .info {{ background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 15px 0; }}
-            .info p {{ margin: 5px 0; color: #666; }}
-            .info strong {{ color: #333; }}
-            .message {{ padding: 20px; background-color: #f5f5f5; border-radius: 8px; border-left: 4px solid #D35400; }}
-            .message p {{ color: #333; white-space: pre-wrap; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>New Support Request</h1>
+    content = f"""
+        <div class="email-header">
+            <div class="logo">
+                <span class="logo-icon">📬</span>
             </div>
-            
-            <div class="info">
-                <p><strong>From:</strong> {user_name}</p>
-                <p><strong>Email:</strong> {from_email}</p>
-                <p><strong>Subject:</strong> {subject}</p>
-                <p><strong>Date:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
-            </div>
-            
-            <h3>Message:</h3>
-            <div class="message">
-                <p>{message}</p>
-            </div>
+            <h1>New Support Request</h1>
+            <p>A user needs your assistance</p>
         </div>
-    </body>
-    </html>
+        <div class="email-body">
+            <h2 class="greeting">Support Ticket Received</h2>
+            
+            <div class="highlight-box">
+                <p><strong>From:</strong> {user_name}<br>
+                <strong>Email:</strong> {from_email}<br>
+                <strong>Date:</strong> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+            </div>
+            
+            <p class="message" style="margin-top: 24px;"><strong>Subject:</strong></p>
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                <p style="color: #1a1a2e; font-size: 16px; margin: 0;">{subject}</p>
+            </div>
+            
+            <p class="message"><strong>Message:</strong></p>
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #D35400;">
+                <p style="color: #4a5568; font-size: 15px; line-height: 1.7; margin: 0; white-space: pre-wrap;">{message}</p>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <p class="message" style="font-size: 14px; color: #718096;">
+                Reply directly to this email to respond to the user, or contact them at: <a href="mailto:{from_email}" style="color: #D35400;">{from_email}</a>
+            </p>
+        </div>
     """
     
-    # Send to support inbox
-    return send_email(FROM_EMAIL, f"Support Request: {subject}", html_content)
+    html = get_email_template("New Support Request", content)
+    return send_email(FROM_EMAIL, f"Support Request: {subject}", html)
 
 
 def send_support_confirmation(to_email: str, user_name: str, subject: str) -> bool:
     """Send confirmation to user that their support request was received"""
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <style>
-            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }}
-            .container {{ max-width: 600px; margin: 0 auto; background-color: #ffffff; }}
-            .header {{ background: linear-gradient(135deg, #D35400 0%, #E67E22 100%); padding: 40px 20px; text-align: center; }}
-            .header h1 {{ color: #ffffff; margin: 0; font-size: 28px; }}
-            .content {{ padding: 40px 30px; }}
-            .content h2 {{ color: #333333; margin-top: 0; }}
-            .content p {{ color: #666666; line-height: 1.6; font-size: 16px; }}
-            .ticket-box {{ background-color: #e8f5e9; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center; }}
-            .ticket-box p {{ color: #2e7d32; margin: 0; }}
-            .footer {{ background-color: #333333; padding: 30px; text-align: center; }}
-            .footer p {{ color: #999999; margin: 5px 0; font-size: 14px; }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="header">
-                <h1>We Got Your Message!</h1>
+    content = f"""
+        <div class="email-header">
+            <div class="logo">
+                <span class="logo-icon">✅</span>
             </div>
-            <div class="content">
-                <h2>Hi {user_name}!</h2>
-                <p>Thank you for contacting MiPropertyGuru support. We've received your message regarding:</p>
-                
-                <div class="ticket-box">
-                    <p><strong>"{subject}"</strong></p>
-                </div>
-                
-                <p>Our team will review your request and get back to you as soon as possible, usually within 24-48 hours.</p>
-                
-                <p>Best regards,<br><strong>The MiPropertyGuru Support Team</strong></p>
+            <h1>We Got Your Message!</h1>
+            <p>Our team is on it</p>
+        </div>
+        <div class="email-body">
+            <h2 class="greeting">Hi {user_name}! 👋</h2>
+            <p class="message">
+                Thank you for reaching out to MiPropertyGuru support. We've received your message and our team is already reviewing it.
+            </p>
+            
+            <div class="highlight-box">
+                <p>📋 <strong>Your Request:</strong><br>"{subject}"</p>
             </div>
-            <div class="footer">
-                <p>&copy; 2025 MiPropertyGuru. All rights reserved.</p>
-                <p>info@mipropertyguru.ca</p>
+            
+            <p class="message">
+                <strong>What happens next?</strong>
+            </p>
+            
+            <ul class="feature-list">
+                <li>
+                    <span class="feature-icon">1️⃣</span>
+                    <span class="feature-text">Our support team will review your message</span>
+                </li>
+                <li>
+                    <span class="feature-icon">2️⃣</span>
+                    <span class="feature-text">We'll investigate and prepare a response</span>
+                </li>
+                <li>
+                    <span class="feature-icon">3️⃣</span>
+                    <span class="feature-text">You'll hear back from us within <strong>24-48 hours</strong></span>
+                </li>
+            </ul>
+            
+            <div class="divider"></div>
+            
+            <p class="message" style="font-size: 14px; color: #718096;">
+                Need urgent help? Reply to this email or contact us directly at <a href="mailto:info@mipropertyguru.ca" style="color: #D35400;">info@mipropertyguru.ca</a>
+            </p>
+            
+            <div class="signature">
+                <p>We're here to help!</p>
+                <p><strong>The MiPropertyGuru Support Team</strong></p>
             </div>
         </div>
-    </body>
-    </html>
     """
     
-    return send_email(to_email, "We received your support request - MiPropertyGuru", html_content)
+    html = get_email_template("We Got Your Message!", content)
+    return send_email(to_email, "We received your support request - MiPropertyGuru", html)
