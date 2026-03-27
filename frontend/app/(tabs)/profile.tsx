@@ -606,42 +606,36 @@ export default function ProfileScreen() {
                     How far are you willing to travel for jobs?
                   </Text>
                 </View>
-
-                <View style={s.divider} />
-                <Text style={s.workLocTitle}>Work Locations ({(user?.work_locations || []).length}/3)</Text>
-                {(user?.work_locations || []).map((loc: any, i: number) => (
-                  <View key={i} style={s.workLocItemRow}>
-                    <View style={s.workLocItem}>
-                      <Ionicons name="pin" size={16} color={colors.textSecondary} />
-                      <Text style={s.workLocText}>{loc.name}</Text>
-                    </View>
-                    <View style={s.workLocActions}>
-                      <TouchableOpacity 
-                        style={s.workLocEditBtn}
-                        onPress={() => {
-                          setEditLocationIndex(i);
-                          setEditLocationName(loc.name);
-                          setShowEditLocation(true);
-                        }}
-                      >
-                        <Ionicons name="pencil" size={16} color={colors.primary} />
-                      </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={s.workLocDeleteBtn}
-                        onPress={() => deleteWorkLocation(i)}
-                      >
-                        <Ionicons name="trash-outline" size={16} color={colors.red} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))}
-                {(user?.work_locations || []).length < 3 && (
-                  <TouchableOpacity style={s.addBtn} onPress={() => setShowAddLocation(true)}>
-                    <Ionicons name="add-circle" size={20} color={colors.primary} />
-                    <Text style={s.addBtnText}>Add Work Location</Text>
-                  </TouchableOpacity>
-                )}
               </View>
+            </View>
+
+            {/* Account Settings for Contractor */}
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Account Settings</Text>
+              <TouchableOpacity 
+                style={s.menuItem}
+                onPress={() => router.push('/forgot-password')}
+              >
+                <Ionicons name="lock-closed-outline" size={22} color={colors.primary} />
+                <Text style={s.menuItemText}>Reset Password</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={s.menuItem}
+                onPress={() => router.push('/support')}
+              >
+                <Ionicons name="help-circle-outline" size={22} color={colors.primary} />
+                <Text style={s.menuItemText}>Support / Contact Us</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={s.menuItem}
+                onPress={() => setShowPrivacyPolicy(true)}
+              >
+                <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
+                <Text style={s.menuItemText}>Privacy & Policy</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
             </View>
 
             {/* Contractor Settings */}
@@ -704,41 +698,6 @@ export default function ProfileScreen() {
           <Ionicons name="log-out-outline" size={22} color={colors.red} />
           <Text style={s.logoutBtnText}>Log Out</Text>
         </TouchableOpacity>
-
-        {/* Add Work Location Modal */}
-        <Modal visible={showAddLocation} transparent animationType="slide">
-          <View style={s.modalOverlay}>
-            <View style={s.modalContent}>
-              <Text style={s.modalTitle}>Add Work Location</Text>
-              <TextInput
-                style={s.modalInput}
-                placeholder="Location name (e.g., Downtown Toronto)"
-                placeholderTextColor={colors.textSecondary}
-                value={locationName}
-                onChangeText={setLocationName}
-              />
-              <View style={s.modalActions}>
-                <TouchableOpacity 
-                  style={s.modalCancelBtn} 
-                  onPress={() => setShowAddLocation(false)}
-                >
-                  <Text style={s.modalCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={s.modalConfirmBtn} 
-                  onPress={addWorkLocation}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <ActivityIndicator color={colors.paper} />
-                  ) : (
-                    <Text style={s.modalConfirmText}>Add</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
 
         {/* Add Portfolio Modal */}
         <Modal visible={showAddPortfolio} transparent animationType="slide">
@@ -1025,45 +984,6 @@ export default function ProfileScreen() {
               >
                 <Text style={s.privacyCloseBtnText}>Close</Text>
               </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Edit Work Location Modal */}
-        <Modal visible={showEditLocation} transparent animationType="slide">
-          <View style={s.modalOverlay}>
-            <View style={s.modalContent}>
-              <Text style={s.modalTitle}>Edit Work Location</Text>
-              <TextInput
-                style={s.modalInput}
-                placeholder="Location name (e.g., Downtown Toronto)"
-                placeholderTextColor={colors.textSecondary}
-                value={editLocationName}
-                onChangeText={setEditLocationName}
-              />
-              <View style={s.modalActions}>
-                <TouchableOpacity 
-                  style={s.modalCancelBtn} 
-                  onPress={() => {
-                    setShowEditLocation(false);
-                    setEditLocationIndex(-1);
-                    setEditLocationName('');
-                  }}
-                >
-                  <Text style={s.modalCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={s.modalConfirmBtn} 
-                  onPress={editWorkLocation}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <ActivityIndicator color={colors.paper} />
-                  ) : (
-                    <Text style={s.modalConfirmText}>Save</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
             </View>
           </View>
         </Modal>
