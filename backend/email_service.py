@@ -276,7 +276,7 @@ def get_email_template(title: str, content: str, show_footer_cta: bool = False) 
                         <a href="mailto:info@mipropertyguru.ca">info@mipropertyguru.ca</a>
                     </div>
                     <p class="footer-text" style="margin-top: 20px;">
-                        &copy; 2025 MiPropertyGuru. All rights reserved.
+                        &copy; MiPropertyGuru. All rights reserved.
                     </p>
                 </div>
             </div>
