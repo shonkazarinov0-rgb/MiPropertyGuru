@@ -609,7 +609,7 @@ def send_support_confirmation(to_email: str, user_name: str, subject: str) -> bo
             <div class="divider"></div>
             
             <p class="message" style="font-size: 14px; color: #718096;">
-                Need urgent help? Reply to this email or contact us directly at <a href="mailto:info@mipropertyguru.ca" style="color: #D35400;">info@mipropertyguru.ca</a>
+                Need urgent help? Contact us directly at <a href="mailto:support@mipropertyguru.ca" style="color: #D35400;">support@mipropertyguru.ca</a>
             </p>
             
             <div class="signature">
