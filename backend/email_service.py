@@ -161,6 +161,20 @@ def get_email_template(title: str, content: str, show_footer_cta: bool = False) 
                 font-size: 14px;
                 font-weight: 700;
             }}
+            .step-number {{
+                width: 36px;
+                height: 36px;
+                background: linear-gradient(135deg, #D35400 0%, #E67E22 100%);
+                border-radius: 50%;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                margin-right: 16px;
+                flex-shrink: 0;
+                color: #ffffff;
+                font-size: 16px;
+                font-weight: 700;
+            }}
             .feature-text {{
                 color: #4a5568;
                 font-size: 15px;
@@ -551,9 +565,6 @@ def send_support_confirmation(to_email: str, user_name: str, subject: str) -> bo
     """Send confirmation to user that their support request was received"""
     content = f"""
         <div class="email-header">
-            <div class="logo">
-                <span class="logo-icon">📬</span>
-            </div>
             <h1>We Got Your Message!</h1>
             <p>Our team is on it</p>
         </div>
@@ -564,7 +575,7 @@ def send_support_confirmation(to_email: str, user_name: str, subject: str) -> bo
             </p>
             
             <div class="highlight-box">
-                <p>📋 <strong>Your Request:</strong><br>"{subject}"</p>
+                <p><strong>Your Request:</strong><br>"{subject}"</p>
             </div>
             
             <p class="message">
@@ -573,15 +584,15 @@ def send_support_confirmation(to_email: str, user_name: str, subject: str) -> bo
             
             <ul class="feature-list">
                 <li>
-                    <span class="feature-icon">1</span>
+                    <span class="step-number">1</span>
                     <span class="feature-text">Our support team will review your message</span>
                 </li>
                 <li>
-                    <span class="feature-icon">2</span>
+                    <span class="step-number">2</span>
                     <span class="feature-text">We'll investigate and prepare a response</span>
                 </li>
                 <li>
-                    <span class="feature-icon">3</span>
+                    <span class="step-number">3</span>
                     <span class="feature-text">You'll hear back from us within <strong>24-48 hours</strong></span>
                 </li>
             </ul>
@@ -612,9 +623,6 @@ def send_admin_new_user_notification(user_name: str, user_email: str, user_phone
     
     content = f"""
         <div class="email-header">
-            <div class="logo">
-                <span class="logo-icon">🎉</span>
-            </div>
             <h1>New User Registration!</h1>
             <p>Someone just joined MiPropertyGuru</p>
         </div>
@@ -635,15 +643,15 @@ def send_admin_new_user_notification(user_name: str, user_email: str, user_phone
             
             <ul class="feature-list">
                 <li>
-                    <span class="feature-icon">1</span>
+                    <span class="step-number">1</span>
                     <span class="feature-text">Account created successfully</span>
                 </li>
                 <li>
-                    <span class="feature-icon">2</span>
+                    <span class="step-number">2</span>
                     <span class="feature-text">Welcome email sent to user</span>
                 </li>
                 <li>
-                    <span class="feature-icon">3</span>
+                    <span class="step-number">3</span>
                     <span class="feature-text">Verification code sent</span>
                 </li>
             </ul>
