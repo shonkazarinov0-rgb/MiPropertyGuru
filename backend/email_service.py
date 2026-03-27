@@ -599,3 +599,60 @@ def send_support_confirmation(to_email: str, user_name: str, subject: str) -> bo
     
     html = get_email_template("We Got Your Message!", content)
     return send_email(to_email, "We received your support request - MiPropertyGuru", html)
+
+
+
+def send_admin_new_user_notification(user_name: str, user_email: str, user_phone: str, user_role: str, contractor_type: str = None) -> bool:
+    """Send notification to admin when a new user registers"""
+    role_display = user_role.title()
+    if user_role == "contractor" and contractor_type:
+        role_display = f"Contractor ({contractor_type})"
+    
+    content = f"""
+        <div class="email-header">
+            <div class="logo">
+                <span class="logo-icon">🎉</span>
+            </div>
+            <h1>New User Registration!</h1>
+            <p>Someone just joined MiPropertyGuru</p>
+        </div>
+        <div class="email-body">
+            <h2 class="greeting">New {role_display} Signed Up!</h2>
+            
+            <div class="highlight-box">
+                <p>👤 <strong>Name:</strong> {user_name}<br>
+                📧 <strong>Email:</strong> {user_email}<br>
+                📱 <strong>Phone:</strong> {user_phone}<br>
+                🏷️ <strong>Role:</strong> {role_display}<br>
+                📅 <strong>Date:</strong> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+            </div>
+            
+            <p class="message">
+                A new user has registered on MiPropertyGuru. You can view their profile in the admin dashboard.
+            </p>
+            
+            <ul class="feature-list">
+                <li>
+                    <span class="feature-icon">✅</span>
+                    <span class="feature-text">Account created successfully</span>
+                </li>
+                <li>
+                    <span class="feature-icon">📧</span>
+                    <span class="feature-text">Welcome email sent to user</span>
+                </li>
+                <li>
+                    <span class="feature-icon">🔐</span>
+                    <span class="feature-text">Verification code sent</span>
+                </li>
+            </ul>
+            
+            <div class="divider"></div>
+            
+            <p class="message" style="font-size: 14px; color: #718096;">
+                This is an automated notification. The user can now access the app.
+            </p>
+        </div>
+    """
+    
+    html = get_email_template("New User Registration", content)
+    return send_email(FROM_EMAIL, f"🎉 New {role_display}: {user_name} just registered!", html)

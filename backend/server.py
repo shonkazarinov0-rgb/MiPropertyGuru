@@ -30,7 +30,8 @@ from email_service import (
     send_password_reset_email,
     verify_reset_code,
     send_support_email,
-    send_support_confirmation
+    send_support_confirmation,
+    send_admin_new_user_notification
 )
 
 ROOT_DIR = Path(__file__).parent
@@ -440,6 +441,19 @@ async def register(req: RegisterReq):
     except Exception as e:
         logger.error(f"Failed to send verification email: {e}")
     
+    # Send admin notification about new registration
+    try:
+        send_admin_new_user_notification(
+            user_name=req.name,
+            user_email=req.email,
+            user_phone=req.phone,
+            user_role=req.role,
+            contractor_type=req.contractor_type if req.role == "contractor" else None
+        )
+        logger.info(f"Admin notification sent for new user: {req.email}")
+    except Exception as e:
+        logger.error(f"Failed to send admin notification: {e}")
+    
     return {"token": token, "user": safe}
 
 # Upgrade client to contractor
@@ -509,6 +523,19 @@ async def upgrade_to_contractor(req: UpgradeToContractorReq, user=Depends(get_cu
     
     # Create new token with contractor role
     token = create_token(user["id"], user["email"], "contractor")
+    
+    # Send admin notification about upgrade to contractor
+    try:
+        send_admin_new_user_notification(
+            user_name=req.name,
+            user_email=user["email"],
+            user_phone=req.phone,
+            user_role="contractor",
+            contractor_type=req.trades[0] if req.trades else None
+        )
+        logger.info(f"Admin notification sent for client upgrade to contractor: {user['email']}")
+    except Exception as e:
+        logger.error(f"Failed to send admin notification for upgrade: {e}")
     
     return {"token": token, "user": updated_user}
 
