@@ -995,22 +995,39 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 <Text style={styles.tagline}>Your home, our experts</Text>
               </View>
             </View>
-            {/* Mode Toggle and Bell in same column on right */}
+            {/* Mode Toggle and Bell/Auth buttons in same column on right */}
             <View style={styles.headerRightColumn}>
               <ModeToggle />
-              <TouchableOpacity 
-                style={[
-                  styles.notificationBtn, 
-                  notificationsEnabled && styles.notificationBtnActive
-                ]}
-                onPress={handleNotificationToggle}
-              >
-                <Ionicons 
-                  name={notificationsEnabled ? "notifications" : "notifications-outline"} 
-                  size={22} 
-                  color={notificationsEnabled ? '#FFD700' : colors.paper} 
-                />
-              </TouchableOpacity>
+              {user ? (
+                <TouchableOpacity 
+                  style={[
+                    styles.notificationBtn, 
+                    notificationsEnabled && styles.notificationBtnActive
+                  ]}
+                  onPress={handleNotificationToggle}
+                >
+                  <Ionicons 
+                    name={notificationsEnabled ? "notifications" : "notifications-outline"} 
+                    size={22} 
+                    color={notificationsEnabled ? '#FFD700' : colors.paper} 
+                  />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.headerAuthButtons}>
+                  <TouchableOpacity 
+                    style={styles.headerSignInBtn}
+                    onPress={() => router.push('/?mode=login')}
+                  >
+                    <Text style={styles.headerSignInBtnText}>Sign In</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.headerRegisterBtn}
+                    onPress={() => router.push('/?mode=register')}
+                  >
+                    <Text style={styles.headerRegisterBtnText}>Register</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
           
@@ -1051,31 +1068,6 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
             </View>
           </View>
         </LinearGradient>
-
-        {/* Guest Auth Banner - Sign In / Register buttons */}
-        {!user && (
-          <View style={styles.guestAuthBanner}>
-            <View style={styles.guestAuthContent}>
-              <Text style={styles.guestAuthText}>Join MiPropertyGuru</Text>
-              <View style={styles.guestAuthButtons}>
-                <TouchableOpacity 
-                  style={styles.guestSignInBtn}
-                  onPress={() => router.push('/?mode=login')}
-                >
-                  <Ionicons name="log-in-outline" size={18} color={colors.primary} />
-                  <Text style={styles.guestSignInBtnText}>Sign In</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.guestRegisterBtn}
-                  onPress={() => router.push('/?mode=register')}
-                >
-                  <Ionicons name="person-add-outline" size={18} color={colors.paper} />
-                  <Text style={styles.guestRegisterBtnText}>Register</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
 
         {/* Show switch prompt for contractors in contractor mode */}
         {isContractorMode && (
@@ -2283,6 +2275,34 @@ const styles = StyleSheet.create({
   },
   notificationBtnActive: {
     backgroundColor: 'rgba(255,215,0,0.3)',
+  },
+  headerAuthButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerSignInBtn: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  headerSignInBtnText: {
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  headerRegisterBtn: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  headerRegisterBtnText: {
+    color: colors.paper,
+    fontWeight: '600',
+    fontSize: 13,
   },
   headerContent: {
     gap: 12,
