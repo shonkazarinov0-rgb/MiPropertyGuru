@@ -341,7 +341,7 @@ def send_welcome_email(to_email: str, user_name: str, is_contractor: bool = Fals
             <ul class="feature-list">
                 <li>
                     <span class="step-number">1</span>
-                    <span class="feature-text">Browse verified contractors in your area</span>
+                    <span class="feature-text">Browse contractors in your area</span>
                 </li>
                 <li>
                     <span class="step-number">2</span>
