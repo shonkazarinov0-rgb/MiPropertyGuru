@@ -1219,6 +1219,22 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   <Ionicons name="add-circle" size={20} color={colors.paper} />
                   <Text style={styles.plannedActionBtnText}>Post a Job</Text>
                 </TouchableOpacity>
+                
+                {/* Sign in/Register prompt for guests */}
+                {!user && (
+                  <View style={styles.guestSignInPrompt}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      <TouchableOpacity onPress={() => router.push('/?mode=login')}>
+                        <Text style={styles.guestSignInLink}>Sign in</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.guestSignInText}> or </Text>
+                      <TouchableOpacity onPress={() => router.push('/?mode=register')}>
+                        <Text style={styles.guestSignInLink}>Register</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.guestSignInText}> to post a job</Text>
+                    </View>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -3769,6 +3785,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: colors.paper,
+  },
+  guestSignInPrompt: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  guestSignInText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  guestSignInLink: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
   },
   // Full-Screen Map Modal Styles
   fullMapContainer: {
