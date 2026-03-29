@@ -180,7 +180,7 @@ export default function AuthScreen() {
       <SafeAreaView style={s.container}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.flex}>
           <ScrollView contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled">
-            <TouchableOpacity testID="back-to-welcome" style={s.backBtn} onPress={() => setMode('welcome')}>
+            <TouchableOpacity testID="back-to-welcome" style={s.backBtn} onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color={colors.secondary} />
             </TouchableOpacity>
 
@@ -288,7 +288,7 @@ export default function AuthScreen() {
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.flex}>
         <ScrollView contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity testID="back-to-welcome-reg" style={s.backBtn} onPress={() => setMode('welcome')}>
+          <TouchableOpacity testID="back-to-welcome-reg" style={s.backBtn} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color={colors.secondary} />
           </TouchableOpacity>
 
