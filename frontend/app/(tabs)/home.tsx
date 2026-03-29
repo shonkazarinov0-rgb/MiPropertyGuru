@@ -210,21 +210,20 @@ export default function ClientHomeScreen() {
   // Check if contractor is in client mode (browsing as client)
   const isContractorInClientMode = user?.role === 'contractor' && isClientMode;
   
-  // Track if we've already shown the modal this session
-  const [hasShownNeedPrompt, setHasShownNeedPrompt] = useState(false);
+  // Track if we've already shown the modal this session (using ref to persist across re-renders)
+  const hasShownModalRef = useRef(false);
   
-  // Show "What do you need?" modal on app open for verified logged-in clients only (ONCE per session)
+  // Show "What do you need?" modal ONLY on initial login, NOT on mode switch
   useEffect(() => {
-    const checkShowIntentModal = async () => {
-      // Only show for VERIFIED LOGGED IN clients (not guests, not unverified users, not contractors in contractor mode)
-      // AND only if we haven't already shown it this session
-      if (user && user.email_verified && !hasShownNeedPrompt && (user.role === 'client' || (user.role === 'contractor' && isClientMode))) {
-        setShowNeedPrompt(true);
-        setHasShownNeedPrompt(true);
-      }
-    };
-    checkShowIntentModal();
-  }, [user, isClientMode, hasShownNeedPrompt]);
+    // Only run once per app session
+    if (hasShownModalRef.current) return;
+    
+    // Only show for verified logged-in clients
+    if (user && user.email_verified && user.role === 'client') {
+      setShowNeedPrompt(true);
+      hasShownModalRef.current = true;
+    }
+  }, [user]); // Only depend on user, not isClientMode
   
   // Contractor types with emojis for dynamic stat
   const CONTRACTOR_STATS = [
