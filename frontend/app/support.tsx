@@ -231,7 +231,7 @@ export default function SupportScreen() {
               <Text style={styles.contactInfoTitle}>Other ways to reach us:</Text>
               <View style={styles.contactItem}>
                 <Ionicons name="mail" size={18} color={colors.primary} />
-                <Text style={styles.contactItemText}>info@mipropertyguru.ca</Text>
+                <Text style={styles.contactItemText}>support@mipropertyguru.ca</Text>
               </View>
             </View>
           </View>
