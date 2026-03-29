@@ -284,7 +284,7 @@ def get_email_template(title: str, content: str, show_footer_cta: bool = False) 
                         Your home projects, made simple.
                     </p>
                     <div class="footer-links">
-                        <a href="mailto:info@mipropertyguru.ca">info@mipropertyguru.ca</a>
+                        <a href="mailto:support@mipropertyguru.ca">support@mipropertyguru.ca</a>
                     </div>
                     <p class="footer-text" style="margin-top: 20px;">
                         &copy; MiPropertyGuru. All rights reserved.
@@ -477,30 +477,42 @@ def send_password_reset_email(to_email: str, user_name: str, code: str = None) -
     
     content = f"""
         <div class="email-header">
-            <div class="logo">
-                <span class="logo-icon">🔐</span>
-            </div>
             <h1>Reset Your Password</h1>
             <p>We received a request to reset your password</p>
         </div>
         <div class="email-body">
-            <h2 class="greeting">Hi {user_name}! 👋</h2>
+            <h2 class="greeting">Hi {user_name}!</h2>
             <p class="message">
-                No worries, it happens to the best of us! Use the code below to reset your password and get back to your account.
+                Use the code below to reset your password and get back to your account.
             </p>
             
             <div class="code-container">
                 <div class="code">{code}</div>
-                <p class="code-expiry">⏱️ This code expires in 30 minutes</p>
+                <p class="code-expiry">This code expires in 30 minutes</p>
             </div>
             
-            <div class="highlight-box">
-                <p>🔑 <strong>Next step:</strong> Enter this code in the app, then create your new password.</p>
-            </div>
+            <p class="message"><strong>What happens next?</strong></p>
             
-            <div class="warning-box">
-                <p>⚠️ <strong>Didn't request this?</strong> If you didn't request a password reset, please ignore this email. Your account is safe.</p>
-            </div>
+            <ul class="feature-list">
+                <li>
+                    <span class="step-number">1</span>
+                    <span class="feature-text">Enter this code in the app</span>
+                </li>
+                <li>
+                    <span class="step-number">2</span>
+                    <span class="feature-text">Create your new password</span>
+                </li>
+                <li>
+                    <span class="step-number">3</span>
+                    <span class="feature-text">Log in with your new credentials</span>
+                </li>
+            </ul>
+            
+            <div class="divider"></div>
+            
+            <p class="message" style="font-size: 14px; color: #718096;">
+                Didn't request this? If you didn't request a password reset, please ignore this email or contact us at <a href="mailto:support@mipropertyguru.ca" style="color: #D35400;">support@mipropertyguru.ca</a>
+            </p>
             
             <div class="signature">
                 <p>Stay secure,</p>
@@ -535,25 +547,37 @@ def send_password_changed_email(to_email: str, user_name: str) -> bool:
     """Send notification that password was successfully changed"""
     content = f"""
         <div class="email-header">
-            <div class="logo">
-                <span class="logo-icon">&#x2705;</span>
-            </div>
             <h1>Password Changed</h1>
             <p>Your password has been updated successfully</p>
         </div>
         <div class="email-body">
             <h2 class="greeting">Hi {user_name}!</h2>
             <p class="message">
-                This is to confirm that your MiPropertyGuru account password was just changed. If you made this change, no further action is needed.
+                This is to confirm that your MiPropertyGuru account password was just changed.
             </p>
             
-            <div class="highlight-box">
-                <p><strong>Changed on:</strong> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
-            </div>
+            <p class="message"><strong>What this means:</strong></p>
             
-            <div class="warning-box">
-                <p><strong>Didn't make this change?</strong> If you didn't reset your password, please contact our support team immediately at support@mipropertyguru.ca to secure your account.</p>
-            </div>
+            <ul class="feature-list">
+                <li>
+                    <span class="step-number">1</span>
+                    <span class="feature-text">Your password was updated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</span>
+                </li>
+                <li>
+                    <span class="step-number">2</span>
+                    <span class="feature-text">You can now log in with your new password</span>
+                </li>
+                <li>
+                    <span class="step-number">3</span>
+                    <span class="feature-text">Your account security has been maintained</span>
+                </li>
+            </ul>
+            
+            <div class="divider"></div>
+            
+            <p class="message" style="font-size: 14px; color: #718096;">
+                Didn't make this change? Contact our support team immediately at <a href="mailto:support@mipropertyguru.ca" style="color: #D35400;">support@mipropertyguru.ca</a> to secure your account.
+            </p>
             
             <div class="signature">
                 <p>Stay secure,</p>
@@ -618,7 +642,7 @@ def send_support_confirmation(to_email: str, user_name: str, subject: str) -> bo
             <p>Our team is on it</p>
         </div>
         <div class="email-body">
-            <h2 class="greeting">Hi {user_name}! 👋</h2>
+            <h2 class="greeting">Hi {user_name}!</h2>
             <p class="message">
                 Thank you for reaching out to MiPropertyGuru support. We've received your message and our team is already reviewing it.
             </p>
@@ -649,7 +673,7 @@ def send_support_confirmation(to_email: str, user_name: str, subject: str) -> bo
             <div class="divider"></div>
             
             <p class="message" style="font-size: 14px; color: #718096;">
-                Need urgent help? Contact us directly at <a href="mailto:support@mipropertyguru.ca" style="color: #D35400;">support@mipropertyguru.ca</a>
+                Need urgent help? Reply to this email or contact us directly at <a href="mailto:support@mipropertyguru.ca" style="color: #D35400;">support@mipropertyguru.ca</a>
             </p>
             
             <div class="signature">
