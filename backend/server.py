@@ -362,97 +362,169 @@ api_router = APIRouter(prefix="/api")
 
 @api_router.post("/auth/register")
 async def register(req: RegisterReq):
-    # Check if user exists by email or phone
-    existing = await db.users.find_one({"$or": [{"email": req.email}, {"phone": req.phone}]})
+    """
+    Step 1: Store pending registration and send verification code.
+    Account is NOT created until code is verified via /auth/complete-registration
+    """
+    # Check if user already exists
+    existing = await db.users.find_one({"$or": [{"email": req.email.lower()}, {"phone": req.phone}]})
     if existing:
         raise HTTPException(400, "Email or phone already registered")
+    
+    # Check if there's already a pending registration for this email
+    existing_pending = await db.pending_registrations.find_one({"email": req.email.lower()})
+    if existing_pending:
+        # Delete old pending registration
+        await db.pending_registrations.delete_one({"email": req.email.lower()})
     
     if req.role == "contractor" and not req.contractor_type and not req.trades:
         raise HTTPException(400, "Contractor type or trades required")
     
-    uid = str(uuid.uuid4())
-    session_id = str(uuid.uuid4())  # Unique session ID
+    # Generate verification code
+    code = generate_verification_code()
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
     
-    user = {
-        "id": uid, 
-        "name": req.name, 
-        "email": req.email,
+    # Store pending registration (NOT creating the actual account yet)
+    pending_data = {
+        "email": req.email.lower(),
+        "name": req.name,
         "phone": req.phone,
-        "password_hash": hash_pw(req.password), 
+        "password_hash": hash_pw(req.password),
         "role": req.role,
         "contractor_type": req.contractor_type if req.role == "contractor" else None,
         "trades": req.trades or ([req.contractor_type] if req.contractor_type else []),
-        "bio": req.bio or "", 
+        "bio": req.bio or "",
         "experience_years": req.experience_years or 0,
         "service_radius": req.service_radius or 15,
         "business_name": req.business_name,
         "languages": req.languages or ["English"],
         "has_license": req.has_license or False,
         "license_confirmed": req.license_confirmed or False,
-        "availability_hours": {"start": "08:00", "end": "18:00"},
-        "profile_photo": None,
-        "live_location_enabled": False, 
-        "current_location": None, 
-        "work_locations": [],
-        "is_online": False,
-        "last_online": None,
-        "rating": 0, 
-        "review_count": 0,
-        "response_rate": 100,
-        "avg_response_time": 5,  # minutes
-        "jobs_received": 0,
-        "jobs_completed": 0,
-        "profile_views": 0,
-        "subscription_status": "active",  # Free for testing - remove payment requirement
-        "subscription_fee": 0,  # Free for now
-        "terms_accepted": True,
-        "email_verified": False,
-        "phone_verified": False,
-        "active_session_id": session_id,  # For single session management
+        "verification_code": code,
+        "code_expires_at": expires_at.isoformat(),
         "created_at": datetime.now(timezone.utc).isoformat()
     }
-    await db.users.insert_one(user.copy())
-    token = create_token(uid, req.email or req.phone, req.role)
-    safe = {k: v for k, v in user.items() if k != "password_hash"}
     
-    # Send welcome email (async, don't block registration)
-    try:
-        is_contractor = req.role == "contractor"
-        send_welcome_email(req.email, req.name, is_contractor)
-        logger.info(f"Welcome email sent to {req.email}")
-    except Exception as e:
-        logger.error(f"Failed to send welcome email: {e}")
+    await db.pending_registrations.insert_one(pending_data)
     
-    # Send verification code email
+    # Send ONLY the verification code email (no welcome email, no admin notification yet)
     try:
-        code = generate_verification_code()
-        expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-        await db.verification_codes.update_one(
-            {"email": req.email.lower(), "type": "email"},
-            {"$set": {
-                "email": req.email.lower(),
-                "type": "email",
-                "code": code,
-                "expires_at": expires_at.isoformat(),
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }},
-            upsert=True
-        )
         send_verification_code(req.email, req.name, code)
-        logger.info(f"Verification email sent to {req.email}")
+        logger.info(f"Verification code sent to {req.email}")
     except Exception as e:
         logger.error(f"Failed to send verification email: {e}")
     
-    # Send admin notification about new registration
+    # Return success but NO token (user is not logged in yet)
+    return {
+        "message": "Verification code sent to your email",
+        "email": req.email.lower(),
+        "requires_verification": True
+    }
+
+
+class CompleteRegistrationReq(BaseModel):
+    email: str
+    code: str
+
+
+@api_router.post("/auth/complete-registration")
+async def complete_registration(req: CompleteRegistrationReq):
+    """
+    Step 2: Verify code and create the actual account.
+    This is when welcome email and admin notification are sent.
+    """
+    # Find pending registration
+    pending = await db.pending_registrations.find_one({"email": req.email.lower()})
+    if not pending:
+        raise HTTPException(400, "No pending registration found. Please register again.")
+    
+    # Verify code
+    if pending["verification_code"] != req.code:
+        raise HTTPException(400, "Invalid verification code")
+    
+    # Check expiry
+    expires_at = datetime.fromisoformat(pending["code_expires_at"].replace('Z', '+00:00'))
+    if datetime.now(timezone.utc) > expires_at:
+        # Delete expired pending registration
+        await db.pending_registrations.delete_one({"email": req.email.lower()})
+        raise HTTPException(400, "Verification code has expired. Please register again.")
+    
+    # Check again if user was created in the meantime
+    existing = await db.users.find_one({"email": req.email.lower()})
+    if existing:
+        await db.pending_registrations.delete_one({"email": req.email.lower()})
+        raise HTTPException(400, "Account already exists. Please login instead.")
+    
+    # NOW create the actual user account
+    uid = str(uuid.uuid4())
+    session_id = str(uuid.uuid4())
+    
+    user = {
+        "id": uid,
+        "name": pending["name"],
+        "email": pending["email"],
+        "phone": pending["phone"],
+        "password_hash": pending["password_hash"],
+        "role": pending["role"],
+        "contractor_type": pending.get("contractor_type"),
+        "trades": pending.get("trades", []),
+        "bio": pending.get("bio", ""),
+        "experience_years": pending.get("experience_years", 0),
+        "service_radius": pending.get("service_radius", 15),
+        "business_name": pending.get("business_name"),
+        "languages": pending.get("languages", ["English"]),
+        "has_license": pending.get("has_license", False),
+        "license_confirmed": pending.get("license_confirmed", False),
+        "availability_hours": {"start": "08:00", "end": "18:00"},
+        "profile_photo": None,
+        "live_location_enabled": False,
+        "current_location": None,
+        "work_locations": [],
+        "is_online": False,
+        "last_online": None,
+        "rating": 0,
+        "review_count": 0,
+        "response_rate": 100,
+        "avg_response_time": 5,
+        "jobs_received": 0,
+        "jobs_completed": 0,
+        "profile_views": 0,
+        "subscription_status": "active",
+        "subscription_fee": 0,
+        "terms_accepted": True,
+        "email_verified": True,  # Already verified!
+        "phone_verified": False,
+        "active_session_id": session_id,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.users.insert_one(user.copy())
+    
+    # Delete pending registration
+    await db.pending_registrations.delete_one({"email": req.email.lower()})
+    
+    # Create token
+    token = create_token(uid, pending["email"], pending["role"])
+    safe = {k: v for k, v in user.items() if k != "password_hash"}
+    
+    # NOW send welcome email
+    try:
+        is_contractor = pending["role"] == "contractor"
+        send_welcome_email(pending["email"], pending["name"], is_contractor)
+        logger.info(f"Welcome email sent to {pending['email']}")
+    except Exception as e:
+        logger.error(f"Failed to send welcome email: {e}")
+    
+    # NOW send admin notification
     try:
         send_admin_new_user_notification(
-            user_name=req.name,
-            user_email=req.email,
-            user_phone=req.phone,
-            user_role=req.role,
-            contractor_type=req.contractor_type if req.role == "contractor" else None
+            user_name=pending["name"],
+            user_email=pending["email"],
+            user_phone=pending["phone"],
+            user_role=pending["role"],
+            contractor_type=pending.get("contractor_type")
         )
-        logger.info(f"Admin notification sent for new user: {req.email}")
+        logger.info(f"Admin notification sent for new user: {pending['email']}")
     except Exception as e:
         logger.error(f"Failed to send admin notification: {e}")
     

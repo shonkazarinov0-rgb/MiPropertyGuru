@@ -33,7 +33,8 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string, keepLoggedIn?: boolean) => Promise<void>;
-  register: (data: any) => Promise<void>;
+  register: (data: any) => Promise<any>;
+  completeRegistration: (email: string, code: string) => Promise<any>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   switchMode: (mode: 'client' | 'contractor') => Promise<void>;
@@ -199,17 +200,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsGuest(false);
     await AsyncStorage.removeItem('guest_mode');
     
+    // Step 1: Submit registration (sends verification code, doesn't create account yet)
     const res = await api.post('/auth/register', data);
+    
+    // Don't set user or token yet - they need to verify first
+    // Return the response so frontend can redirect to verification
+    return res;
+  };
+  
+  const completeRegistration = async (email: string, code: string) => {
+    // Step 2: Complete registration after code verification
+    const res = await api.post('/auth/complete-registration', { email, code });
+    
+    // NOW set token and user
     await AsyncStorage.setItem('auth_token', res.token);
+    await AsyncStorage.setItem('keep_logged_in', 'true');
+    
     // Set default mode
     if (res.user.role === 'contractor') {
       res.user.currentMode = 'contractor';
     }
     setUser(res.user);
-    // Register for push notifications after registration
+    
+    // Register for push notifications
     if (Platform.OS !== 'web') {
       registerForPushNotifications();
     }
+    
+    return res;
   };
 
   const logout = async () => {
@@ -274,7 +292,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user, 
       loading, 
       login, 
-      register, 
+      register,
+      completeRegistration,
       logout, 
       refreshUser, 
       switchMode,

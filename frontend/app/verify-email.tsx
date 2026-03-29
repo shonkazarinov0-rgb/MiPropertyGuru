@@ -26,14 +26,14 @@ const colors = {
 export default function VerifyEmailScreen() {
   const router = useRouter();
   const { email, type } = useLocalSearchParams<{ email: string; type: string }>(); // type: 'email' or 'phone'
-  const { user, refreshUser } = useAuth();
+  const { user, completeRegistration } = useAuth();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
   const verifyType = type || 'email';
-  const verifyTarget = email || user?.email;
+  const verifyTarget = email;
 
   // Prevent back navigation - user MUST verify to proceed
   useFocusEffect(
@@ -82,15 +82,16 @@ export default function VerifyEmailScreen() {
       return;
     }
 
+    if (!verifyTarget) {
+      Alert.alert('Error', 'Email not found. Please register again.');
+      router.replace('/');
+      return;
+    }
+
     setLoading(true);
     try {
-      await api.post('/auth/verify-code', {
-        email: verifyTarget,
-        code: code,
-        type: verifyType,
-      });
-      
-      await refreshUser();
+      // Complete registration - this creates the account and returns token
+      await completeRegistration(verifyTarget, code);
       
       // Auto-redirect to home after successful verification
       router.replace('/(tabs)/home');
