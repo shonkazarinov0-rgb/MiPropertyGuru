@@ -80,7 +80,7 @@ const LANGUAGES = [
 
 export default function ContractorRegisterScreen() {
   const router = useRouter();
-  const { login, user } = useAuth();
+  const { login, user, refreshUser } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   
@@ -370,8 +370,10 @@ export default function ContractorRegisterScreen() {
         await AsyncStorage.removeItem('guest_mode'); // Clear guest mode if was browsing as guest
         
         if (isUpgrading) {
-          // For upgrade, go to contractor dashboard (not client explore)
-          router.replace('/(tabs)/dashboard');
+          // Refresh user context to get updated role
+          await refreshUser();
+          // For upgrade, go to home page with mode switcher
+          router.replace('/(tabs)/home');
         } else {
           // New contractor registration - go to email verification
           router.replace({
