@@ -323,20 +323,16 @@ def send_welcome_email(to_email: str, user_name: str, is_contractor: bool = Fals
         features = """
             <ul class="feature-list">
                 <li>
-                    <span class="feature-icon">📋</span>
-                    <span class="feature-text"><strong>Receive Job Requests</strong> - Get notified when clients in your area need your services</span>
+                    <span class="step-number">1</span>
+                    <span class="feature-text">Receive job requests from clients in your area</span>
                 </li>
                 <li>
-                    <span class="feature-icon">🖼️</span>
-                    <span class="feature-text"><strong>Showcase Your Work</strong> - Build a portfolio that highlights your best projects</span>
+                    <span class="step-number">2</span>
+                    <span class="feature-text">Build a portfolio showcasing your best projects</span>
                 </li>
                 <li>
-                    <span class="feature-icon">⭐</span>
-                    <span class="feature-text"><strong>Build Your Reputation</strong> - Collect reviews and grow your business</span>
-                </li>
-                <li>
-                    <span class="feature-icon">💬</span>
-                    <span class="feature-text"><strong>Direct Messaging</strong> - Chat with clients and close deals faster</span>
+                    <span class="step-number">3</span>
+                    <span class="feature-text">Collect reviews and grow your business</span>
                 </li>
             </ul>
         """
@@ -344,42 +340,33 @@ def send_welcome_email(to_email: str, user_name: str, is_contractor: bool = Fals
         features = """
             <ul class="feature-list">
                 <li>
-                    <span class="feature-icon">🔍</span>
-                    <span class="feature-text"><strong>Find Trusted Contractors</strong> - Browse verified professionals in your area</span>
+                    <span class="step-number">1</span>
+                    <span class="feature-text">Browse verified contractors in your area</span>
                 </li>
                 <li>
-                    <span class="feature-icon">📝</span>
-                    <span class="feature-text"><strong>Post Jobs Easily</strong> - Describe your project and receive competitive quotes</span>
+                    <span class="step-number">2</span>
+                    <span class="feature-text">Post jobs and receive competitive quotes</span>
                 </li>
                 <li>
-                    <span class="feature-icon">💬</span>
-                    <span class="feature-text"><strong>Chat Directly</strong> - Communicate with contractors in real-time</span>
-                </li>
-                <li>
-                    <span class="feature-icon">✅</span>
-                    <span class="feature-text"><strong>Get Things Done</strong> - Complete your home projects with confidence</span>
+                    <span class="step-number">3</span>
+                    <span class="feature-text">Chat directly with contractors in real-time</span>
                 </li>
             </ul>
         """
     
     content = f"""
         <div class="email-header">
-            <div class="logo">
-                <span class="logo-icon">🏠</span>
-            </div>
             <h1>Welcome to the Family!</h1>
             <p>Your journey to better home projects starts here</p>
         </div>
         <div class="email-body">
-            <h2 class="greeting">Hi {user_name}! 👋</h2>
+            <h2 class="greeting">Hi {user_name}!</h2>
             <p class="message">
                 We're thrilled to have you join MiPropertyGuru as a {user_type}! 
                 You've just taken the first step towards making your home projects easier and more efficient.
             </p>
             
-            <div class="highlight-box">
-                <p>🎉 <strong>Your account is now active!</strong> You can start exploring the app right away.</p>
-            </div>
+            <p class="message"><strong>Your account is now active!</strong> You can start exploring the app right away.</p>
             
             <p class="message">Here's what you can do with MiPropertyGuru:</p>
             
@@ -395,7 +382,7 @@ def send_welcome_email(to_email: str, user_name: str, is_contractor: bool = Fals
     """
     
     html = get_email_template("Welcome to MiPropertyGuru!", content)
-    return send_email(to_email, "Welcome to MiPropertyGuru! 🎉", html)
+    return send_email(to_email, "Welcome to MiPropertyGuru!", html)
 
 
 def send_verification_code(to_email: str, user_name: str, code: str = None) -> str:

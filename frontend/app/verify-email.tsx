@@ -57,11 +57,8 @@ export default function VerifyEmailScreen() {
       
       await refreshUser();
       
-      Alert.alert(
-        'Verified!',
-        `Your ${verifyType} has been successfully verified.`,
-        [{ text: 'Continue', onPress: () => router.replace('/(tabs)/home') }]
-      );
+      // Auto-redirect to home after successful verification
+      router.replace('/(tabs)/home');
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Invalid or expired code. Please try again.');
     } finally {
@@ -87,17 +84,6 @@ export default function VerifyEmailScreen() {
     }
   };
 
-  const handleSkip = () => {
-    Alert.alert(
-      'Skip Verification?',
-      'You can verify your account later from your profile settings. Some features may be limited.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Skip', onPress: () => router.replace('/(tabs)/home') },
-      ]
-    );
-  };
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView
@@ -109,9 +95,7 @@ export default function VerifyEmailScreen() {
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Verify {verifyType === 'phone' ? 'Phone' : 'Email'}</Text>
-          <TouchableOpacity onPress={handleSkip}>
-            <Text style={styles.skipText}>Skip</Text>
-          </TouchableOpacity>
+          <View style={{ width: 40 }} />
         </View>
 
         <View style={styles.content}>
