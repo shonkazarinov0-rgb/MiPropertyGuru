@@ -592,7 +592,8 @@ export default function ChatScreen() {
                 <>
                   <Text style={s.confirmTitle}>Confirm the job</Text>
                   <Text style={s.confirmSubtext}>
-                    Both parties must confirm to proceed
+                    Both you and the {otherPartyType} must confirm.{'\n'}
+                    Once confirmed, job moves to In Progress.
                   </Text>
                 </>
               )}
