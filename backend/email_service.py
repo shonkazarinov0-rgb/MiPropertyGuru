@@ -122,26 +122,25 @@ def get_email_template(title: str, content: str, show_footer_cta: bool = False) 
                 color: #D35400;
             }}
             .code-container {{
-                background: linear-gradient(135deg, #FFF5F0 0%, #FEF3E2 100%);
-                border: 3px solid #D35400;
-                border-radius: 16px;
-                padding: 30px;
+                background: transparent;
+                border: 2px solid #D35400;
+                border-radius: 12px;
+                padding: 24px;
                 text-align: center;
                 margin: 30px 0;
             }}
             .code {{
-                font-size: 48px;
+                font-size: 44px;
                 font-weight: 800;
-                letter-spacing: 14px;
+                letter-spacing: 12px;
                 color: #D35400;
                 font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
-                text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
             }}
             .code-expiry {{
-                color: #744210;
+                color: #718096;
                 font-size: 14px;
-                margin-top: 16px;
-                font-weight: 500;
+                margin-top: 12px;
+                font-weight: 400;
             }}
             .feature-list {{
                 list-style: none;
@@ -561,7 +560,7 @@ def send_password_changed_email(to_email: str, user_name: str) -> bool:
             <ul class="feature-list">
                 <li>
                     <span class="step-number">1</span>
-                    <span class="feature-text">Your password was updated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</span>
+                    <span class="feature-text">Password updated on {datetime.now().strftime('%B %d, %Y')}</span>
                 </li>
                 <li>
                     <span class="step-number">2</span>
