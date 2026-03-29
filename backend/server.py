@@ -457,6 +457,22 @@ async def register(req: RegisterReq):
     
     return {"token": token, "user": safe}
 
+# Cancel registration endpoint - delete unverified account
+class CancelRegistrationReq(BaseModel):
+    email: str
+
+@api_router.post("/auth/cancel-registration")
+async def cancel_registration(req: CancelRegistrationReq):
+    """Delete unverified account when user cancels registration"""
+    # Only delete if account exists and is not verified
+    user = await db.users.find_one({"email": req.email.lower()})
+    if user and not user.get("email_verified", False):
+        await db.users.delete_one({"email": req.email.lower()})
+        await db.verification_codes.delete_many({"email": req.email.lower()})
+        logger.info(f"Cancelled registration for unverified user: {req.email}")
+        return {"message": "Registration cancelled"}
+    return {"message": "No action needed"}
+
 # Upgrade client to contractor
 class UpgradeToContractorReq(BaseModel):
     name: str

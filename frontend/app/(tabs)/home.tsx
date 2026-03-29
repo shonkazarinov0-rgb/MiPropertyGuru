@@ -210,12 +210,12 @@ export default function ClientHomeScreen() {
   // Check if contractor is in client mode (browsing as client)
   const isContractorInClientMode = user?.role === 'contractor' && isClientMode;
   
-  // Show "What do you need?" modal on app open for logged-in clients only
+  // Show "What do you need?" modal on app open for verified logged-in clients only
   useEffect(() => {
     const checkShowIntentModal = async () => {
-      // Only show for LOGGED IN clients (not guests, not contractors in contractor mode)
-      if (user && (user.role === 'client' || (user.role === 'contractor' && isClientMode))) {
-        // Show the modal every time the app opens for logged-in clients
+      // Only show for VERIFIED LOGGED IN clients (not guests, not unverified users, not contractors in contractor mode)
+      if (user && user.email_verified && (user.role === 'client' || (user.role === 'contractor' && isClientMode))) {
+        // Show the modal every time the app opens for logged-in verified clients
         setShowNeedPrompt(true);
       }
     };

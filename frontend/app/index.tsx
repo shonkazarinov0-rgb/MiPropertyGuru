@@ -63,6 +63,25 @@ export default function AuthScreen() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true); // Keep me logged in option
 
+  // Phone number formatter: (000) 000 0000
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '');
+    
+    // Format as (XXX) XXX XXXX
+    if (digits.length <= 3) {
+      return digits.length > 0 ? `(${digits}` : '';
+    } else if (digits.length <= 6) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    } else {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
+    }
+  };
+
+  const handlePhoneChange = (value: string) => {
+    setPhone(formatPhoneNumber(value));
+  };
+
   // Handle direct navigation to login or register
   useEffect(() => {
     if (params.mode === 'login') {
@@ -317,9 +336,9 @@ export default function AuthScreen() {
           </View>
           <View style={s.inputGroup}>
             <Text style={s.label}>Phone Number</Text>
-            <TextInput testID="register-phone" style={s.input} placeholder="+1 555 123 4567"
-              placeholderTextColor={colors.placeholder} value={phone} onChangeText={setPhone}
-              keyboardType="phone-pad" />
+            <TextInput testID="register-phone" style={s.input} placeholder="(555) 555 5555"
+              placeholderTextColor={colors.placeholder} value={phone} onChangeText={handlePhoneChange}
+              keyboardType="phone-pad" maxLength={14} />
           </View>
           <View style={s.inputGroup}>
             <Text style={s.label}>Password</Text>

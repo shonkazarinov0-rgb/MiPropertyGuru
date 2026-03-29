@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../src/api';
 import { useAuth } from '../src/auth-context';
@@ -33,6 +34,40 @@ export default function VerifyEmailScreen() {
 
   const verifyType = type || 'email';
   const verifyTarget = email || user?.email;
+
+  // Prevent back navigation - user MUST verify to proceed
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        Alert.alert(
+          'Email Verification Required',
+          'You must verify your email to complete registration. Your account will not be created if you leave now.',
+          [
+            { text: 'Stay and Verify', style: 'cancel' },
+            { 
+              text: 'Cancel Registration', 
+              style: 'destructive',
+              onPress: async () => {
+                // Delete unverified account and logout
+                try {
+                  if (verifyTarget) {
+                    await api.post('/auth/cancel-registration', { email: verifyTarget });
+                  }
+                } catch (e) {
+                  console.log('Error canceling registration:', e);
+                }
+                router.replace('/');
+              }
+            },
+          ]
+        );
+        return true; // Prevent default back behavior
+      };
+
+      BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+    }, [verifyTarget])
+  );
 
   useEffect(() => {
     if (countdown > 0) {
@@ -91,9 +126,7 @@ export default function VerifyEmailScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color={colors.text} />
-          </TouchableOpacity>
+          <View style={{ width: 40 }} />
           <Text style={styles.headerTitle}>Verify {verifyType === 'phone' ? 'Phone' : 'Email'}</Text>
           <View style={{ width: 40 }} />
         </View>
