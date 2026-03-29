@@ -1504,7 +1504,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   onPress={() => {
                     setShowNeedPrompt(false);
                     if (!user) {
-                      showAuthRequiredAlert();
+                      setShowGuestPrompt(true);
                     } else {
                       router.push('/(tabs)/home');
                       setTimeout(() => setShowFullMap(true), 300);
@@ -1534,7 +1534,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   onPress={() => {
                     setShowNeedPrompt(false);
                     if (!user) {
-                      showAuthRequiredAlert();
+                      setShowGuestPrompt(true);
                     } else {
                       router.push('/post-job');
                     }
