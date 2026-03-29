@@ -122,23 +122,26 @@ def get_email_template(title: str, content: str, show_footer_cta: bool = False) 
                 color: #D35400;
             }}
             .code-container {{
-                background: linear-gradient(135deg, #1a1a2e 0%, #2d3748 100%);
+                background: linear-gradient(135deg, #FFF5F0 0%, #FEF3E2 100%);
+                border: 3px solid #D35400;
                 border-radius: 16px;
                 padding: 30px;
                 text-align: center;
                 margin: 30px 0;
             }}
             .code {{
-                font-size: 42px;
+                font-size: 48px;
                 font-weight: 800;
-                letter-spacing: 12px;
-                color: #ffffff;
+                letter-spacing: 14px;
+                color: #D35400;
                 font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+                text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
             }}
             .code-expiry {{
-                color: rgba(255,255,255,0.6);
-                font-size: 13px;
-                margin-top: 12px;
+                color: #744210;
+                font-size: 14px;
+                margin-top: 16px;
+                font-weight: 500;
             }}
             .feature-list {{
                 list-style: none;
@@ -462,15 +465,15 @@ def verify_code(email: str, code: str) -> bool:
     return False
 
 
-def send_password_reset_email(to_email: str, user_name: str) -> str:
-    """Send password reset code"""
-    code = generate_code()
-    
-    # Store code with expiry (30 minutes)
-    password_reset_codes[to_email] = {
-        'code': code,
-        'expires': datetime.now() + timedelta(minutes=30)
-    }
+def send_password_reset_email(to_email: str, user_name: str, code: str = None) -> str:
+    """Send password reset code - accepts code from server or generates one"""
+    if code is None:
+        code = generate_code()
+        # Only store code locally if not provided (backward compatibility)
+        password_reset_codes[to_email] = {
+            'code': code,
+            'expires': datetime.now() + timedelta(minutes=30)
+        }
     
     content = f"""
         <div class="email-header">

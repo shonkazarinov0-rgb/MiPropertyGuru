@@ -683,9 +683,9 @@ async def forgot_password(req: ForgotPasswordReq):
         upsert=True
     )
     
-    # Send password reset email
+    # Send password reset email with the code
     try:
-        send_password_reset_email(req.email.lower(), user.get("name", "User"))
+        send_password_reset_email(req.email.lower(), user.get("name", "User"), code)
         logger.info(f"Password reset email sent to {req.email}")
     except Exception as e:
         logger.error(f"Failed to send password reset email: {e}")
