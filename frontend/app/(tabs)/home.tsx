@@ -1257,7 +1257,10 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Browse Categories</Text>
                 {selectedCategories.length > 0 && (
-                  <TouchableOpacity onPress={() => setSelectedCategories([])}>
+                  <TouchableOpacity onPress={() => {
+                    setSelectedCategories([]);
+                    setCategory('All');
+                  }}>
                     <Text style={styles.clearCategoriesText}>Clear all</Text>
                   </TouchableOpacity>
                 )}
@@ -1426,6 +1429,8 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                         setFilterMinRating(0);
                         setFilterLanguages([]);
                         setCustomLanguage('');
+                        setSelectedCategories([]);
+                        setCategory('All');
                       }}
                     >
                       <Text style={styles.clearFiltersBtnText}>Clear all filters</Text>
@@ -1557,41 +1562,59 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
         </View>
       </Modal>
 
-      {/* Guest Prompt Modal */}
+      {/* Guest Prompt Modal - Professional Design */}
       <Modal
         visible={showGuestPrompt}
         transparent
         animationType="fade"
         onRequestClose={() => setShowGuestPrompt(false)}
       >
-        <View style={styles.intentModalOverlay}>
-          <View style={styles.intentModalContainer}>
-            <View style={styles.intentModalHeader}>
-              <Text style={styles.intentModalTitle}>Sign In Required</Text>
-              <TouchableOpacity 
-                style={styles.intentModalClose}
-                onPress={() => setShowGuestPrompt(false)}
+        <View style={styles.guestAuthModalOverlay}>
+          <View style={styles.guestAuthModalContainer}>
+            {/* Icon */}
+            <View style={styles.guestAuthIconWrapper}>
+              <LinearGradient
+                colors={[colors.primary, '#FF8C33']}
+                style={styles.guestAuthIconBg}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
               >
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
-              </TouchableOpacity>
+                <Ionicons name="person-circle-outline" size={40} color="#fff" />
+              </LinearGradient>
             </View>
-            <Text style={styles.guestModalText}>
-              You need to sign in or create an account to contact contractors.
+            
+            {/* Content */}
+            <Text style={styles.guestAuthTitle}>Join MiPropertyGuru</Text>
+            <Text style={styles.guestAuthSubtitle}>
+              Create an account or sign in to connect with contractors and get quotes for your projects.
             </Text>
-            <View style={styles.guestModalButtons}>
+            
+            {/* Buttons */}
+            <View style={styles.guestAuthButtons}>
               <TouchableOpacity 
-                style={styles.guestModalBtnOutline}
+                style={styles.guestAuthBtnPrimary}
                 onPress={() => { setShowGuestPrompt(false); router.push('/?mode=register'); }}
               >
-                <Text style={styles.guestModalBtnOutlineText}>Register</Text>
+                <Ionicons name="person-add-outline" size={20} color="#fff" />
+                <Text style={styles.guestAuthBtnPrimaryText}>Create Account</Text>
               </TouchableOpacity>
+              
               <TouchableOpacity 
-                style={styles.guestModalBtnPrimary}
+                style={styles.guestAuthBtnSecondary}
                 onPress={() => { setShowGuestPrompt(false); router.push('/?mode=login'); }}
               >
-                <Text style={styles.guestModalBtnPrimaryText}>Sign In</Text>
+                <Ionicons name="log-in-outline" size={20} color={colors.primary} />
+                <Text style={styles.guestAuthBtnSecondaryText}>Sign In</Text>
               </TouchableOpacity>
             </View>
+            
+            {/* Close */}
+            <TouchableOpacity 
+              style={styles.guestAuthClose}
+              onPress={() => setShowGuestPrompt(false)}
+            >
+              <Text style={styles.guestAuthCloseText}>Maybe later</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -3587,6 +3610,92 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: colors.paper,
+  },
+  // New Guest Auth Modal Styles
+  guestAuthModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  guestAuthModalContainer: {
+    backgroundColor: colors.paper,
+    borderRadius: 24,
+    padding: 32,
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  guestAuthIconWrapper: {
+    marginBottom: 20,
+  },
+  guestAuthIconBg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guestAuthTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  guestAuthSubtitle: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 28,
+    paddingHorizontal: 8,
+  },
+  guestAuthButtons: {
+    width: '100%',
+    gap: 12,
+  },
+  guestAuthBtnPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 14,
+    gap: 10,
+  },
+  guestAuthBtnPrimaryText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  guestAuthBtnSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingVertical: 16,
+    borderRadius: 14,
+    gap: 10,
+  },
+  guestAuthBtnSecondaryText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  guestAuthClose: {
+    marginTop: 20,
+    paddingVertical: 8,
+  },
+  guestAuthCloseText: {
+    fontSize: 14,
+    color: colors.textSecondary,
   },
   // Urgent Map Section Styles
   urgentMapSection: {
