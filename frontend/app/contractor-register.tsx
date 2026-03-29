@@ -693,6 +693,13 @@ export default function ContractorRegisterScreen() {
         </View>
       </View>
 
+      <View style={styles.locationVisibilityBox}>
+        <Ionicons name="eye" size={20} color={colors.success} />
+        <Text style={styles.locationVisibilityText}>
+          Clients will see your real-time location on the map when you're online. You can turn this on/off anytime from your Dashboard.
+        </Text>
+      </View>
+
       <View style={styles.infoBox}>
         <Ionicons name="information-circle" size={20} color={colors.primary} />
         <Text style={styles.infoText}>
@@ -1291,6 +1298,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
+    lineHeight: 18,
+  },
+  locationVisibilityBox: {
+    flexDirection: 'row',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+    marginBottom: 16,
+  },
+  locationVisibilityText: {
     flex: 1,
     fontSize: 13,
     color: colors.text,

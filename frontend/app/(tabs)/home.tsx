@@ -148,6 +148,7 @@ export default function ClientHomeScreen() {
   const [onlineCount, setOnlineCount] = useState(0);
   const [showFullMap, setShowFullMap] = useState(false);
   const [showFullMapServiceMenu, setShowFullMapServiceMenu] = useState(false);
+  const [locationPermissionGranted, setLocationPermissionGranted] = useState<boolean | null>(null);
   
   // Guest prompt modal state
   const [showGuestPrompt, setShowGuestPrompt] = useState(false);
@@ -316,6 +317,7 @@ export default function ClientHomeScreen() {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
+          setLocationPermissionGranted(true);
           const loc = await Location.getCurrentPositionAsync({});
           setUserLoc({ lat: loc.coords.latitude, lng: loc.coords.longitude });
           try {
@@ -330,10 +332,12 @@ export default function ClientHomeScreen() {
             setLocationName('Your area');
           }
         } else {
+          setLocationPermissionGranted(false);
           setUserLoc({ lat: 40.7128, lng: -74.0060 });
           setLocationName('New York');
         }
       } catch {
+        setLocationPermissionGranted(false);
         setUserLoc({ lat: 40.7128, lng: -74.0060 });
         setLocationName('New York');
       }
