@@ -437,7 +437,7 @@ async def register(req: RegisterReq):
             }},
             upsert=True
         )
-        send_verification_code(req.email, req.name)
+        send_verification_code(req.email, req.name, code)
         logger.info(f"Verification email sent to {req.email}")
     except Exception as e:
         logger.error(f"Failed to send verification email: {e}")
@@ -809,7 +809,7 @@ async def resend_verification(req: ResendVerificationReq):
     
     # Send verification code email
     try:
-        send_verification_code(req.email.lower(), user.get("name", "User"))
+        send_verification_code(req.email.lower(), user.get("name", "User"), code)
         logger.info(f"Verification email sent to {req.email}")
     except Exception as e:
         logger.error(f"Failed to send verification email: {e}")

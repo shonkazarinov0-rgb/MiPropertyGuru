@@ -398,42 +398,54 @@ def send_welcome_email(to_email: str, user_name: str, is_contractor: bool = Fals
     return send_email(to_email, "Welcome to MiPropertyGuru! 🎉", html)
 
 
-def send_verification_code(to_email: str, user_name: str) -> str:
+def send_verification_code(to_email: str, user_name: str, code: str = None) -> str:
     """Send email verification code and return the code"""
-    code = generate_code()
-    
-    # Store code with expiry (15 minutes)
-    verification_codes[to_email] = {
-        'code': code,
-        'expires': datetime.now() + timedelta(minutes=15)
-    }
+    if code is None:
+        code = generate_code()
+        # Only store code locally if not provided (backward compatibility)
+        verification_codes[to_email] = {
+            'code': code,
+            'expires': datetime.now() + timedelta(minutes=15)
+        }
     
     content = f"""
         <div class="email-header">
-            <div class="logo">
-                <span class="logo-icon">✉️</span>
-            </div>
             <h1>Verify Your Email</h1>
             <p>Just one more step to get started</p>
         </div>
         <div class="email-body">
-            <h2 class="greeting">Hi {user_name}! 👋</h2>
+            <h2 class="greeting">Hi {user_name}!</h2>
             <p class="message">
                 Thanks for signing up! Please use the verification code below to confirm your email address and activate your account.
             </p>
             
             <div class="code-container">
                 <div class="code">{code}</div>
-                <p class="code-expiry">⏱️ This code expires in 15 minutes</p>
+                <p class="code-expiry">This code expires in 15 minutes</p>
             </div>
             
-            <div class="highlight-box">
-                <p>💡 <strong>Tip:</strong> Enter this code in the app to complete your registration.</p>
-            </div>
+            <p class="message"><strong>What happens next?</strong></p>
             
-            <div class="warning-box">
-                <p>🔒 If you didn't create an account with MiPropertyGuru, you can safely ignore this email.</p>
-            </div>
+            <ul class="feature-list">
+                <li>
+                    <span class="step-number">1</span>
+                    <span class="feature-text">Enter this code in the app</span>
+                </li>
+                <li>
+                    <span class="step-number">2</span>
+                    <span class="feature-text">Your email will be verified</span>
+                </li>
+                <li>
+                    <span class="step-number">3</span>
+                    <span class="feature-text">Start using MiPropertyGuru</span>
+                </li>
+            </ul>
+            
+            <div class="divider"></div>
+            
+            <p class="message" style="font-size: 14px; color: #718096;">
+                If you didn't create an account with MiPropertyGuru, you can safely ignore this email.
+            </p>
             
             <div class="signature">
                 <p>Best regards,</p>
