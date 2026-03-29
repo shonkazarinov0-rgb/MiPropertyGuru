@@ -5,7 +5,7 @@ import {
   Image, Linking, Animated, Modal, Alert, TextInput, Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
@@ -210,20 +210,16 @@ export default function ClientHomeScreen() {
   // Check if contractor is in client mode (browsing as client)
   const isContractorInClientMode = user?.role === 'contractor' && isClientMode;
   
-  // Track if we've already shown the modal this session (using ref to persist across re-renders)
-  const hasShownModalRef = useRef(false);
-  
-  // Show "What do you need?" modal ONLY on initial login, NOT on mode switch
-  useEffect(() => {
-    // Only run once per app session
-    if (hasShownModalRef.current) return;
-    
-    // Only show for verified logged-in clients
-    if (user && user.email_verified && user.role === 'client') {
-      setShowNeedPrompt(true);
-      hasShownModalRef.current = true;
-    }
-  }, [user]); // Only depend on user, not isClientMode
+  // Show "What do you need?" modal every time client visits Explore page
+  // Uses useFocusEffect to detect when page is focused
+  useFocusEffect(
+    useCallback(() => {
+      // Only show for verified logged-in clients (not contractors, not guests)
+      if (user && user.email_verified && user.role === 'client') {
+        setShowNeedPrompt(true);
+      }
+    }, [user])
+  );
   
   // Contractor types with emojis for dynamic stat
   const CONTRACTOR_STATS = [
