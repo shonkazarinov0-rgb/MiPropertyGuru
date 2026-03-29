@@ -449,7 +449,6 @@ const s = StyleSheet.create({
   signInLink: {
     color: colors.primary,
     fontWeight: '700',
-    textDecorationLine: 'underline',
   },
   signInBannerBtn: {
     backgroundColor: colors.primary,

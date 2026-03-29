@@ -2669,7 +2669,6 @@ const styles = StyleSheet.create({
   guestPromptLink: {
     color: colors.primary,
     fontWeight: '600',
-    textDecorationLine: 'underline',
   },
   loader: {
     paddingVertical: 40,
