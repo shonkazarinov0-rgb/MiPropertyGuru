@@ -1163,7 +1163,7 @@ async def get_my_posted_jobs(user=Depends(get_current_user)):
 @api_router.get("/jobs/available")
 async def get_available_jobs(user=Depends(get_current_user)):
     """Get jobs available for the contractor based on their trades - excludes their own posted jobs and dismissed jobs"""
-    user_trades = user.get("trades", [])
+    user_trades = user.get("trades", []) or []
     if user.get("contractor_type"):
         user_trades.append(user["contractor_type"])
     
@@ -1175,14 +1175,31 @@ async def get_available_jobs(user=Depends(get_current_user)):
     # Get open jobs that match contractor's trades, excluding:
     # 1. Jobs they posted themselves
     # 2. Jobs they've dismissed
+    # Match using either:
+    # - trades_required array (for newer jobs) - checks if any overlap exists
+    # - trade_required string (for older jobs) - checks if contractor's trade matches the string or is contained in comma-separated values
+    
+    # Build the query conditions for trade matching
+    trade_conditions = []
+    
+    # Condition 1: trades_required array intersection
+    trade_conditions.append({"trades_required": {"$in": user_trades}})
+    
+    # Condition 2: trade_required string matching (for each user trade)
+    for trade in user_trades:
+        trade_conditions.append({"trade_required": trade})  # Exact match
+        trade_conditions.append({"trade_required": {"$regex": f"\\b{trade}\\b", "$options": "i"}})  # Word boundary match for comma-separated
+    
     jobs = await db.posted_jobs.find(
         {
             "status": "open",
-            "trade_required": {"$in": user_trades},
+            "$or": trade_conditions,
             "posted_by": {"$ne": user["id"]},  # Exclude jobs posted by this user
-            "$or": [
-                {"dismissed_by": {"$exists": False}},
-                {"dismissed_by": {"$nin": [user["id"]]}}
+            "$and": [
+                {"$or": [
+                    {"dismissed_by": {"$exists": False}},
+                    {"dismissed_by": {"$nin": [user["id"]]}}
+                ]}
             ]
         },
         {"_id": 0}

@@ -56,7 +56,7 @@ export default function JobDetailScreen() {
   const toggleTrade = (tradeName: string) => {
     if (editTrades.includes(tradeName)) {
       setEditTrades(editTrades.filter(t => t !== tradeName));
-    } else if (editTrades.length < 3) {
+    } else if (editTrades.length < 5) {
       setEditTrades([...editTrades, tradeName]);
     }
   };
@@ -273,7 +273,7 @@ export default function JobDetailScreen() {
         <ScrollView contentContainerStyle={s.content}>
           {/* Trade Required Section */}
           <View style={s.section}>
-            <Text style={s.sectionTitle}>Trade Required {isEditing ? `(${editTrades.length}/3)` : ''}</Text>
+            <Text style={s.sectionTitle}>Trade Required {isEditing ? `(${editTrades.length}/5)` : ''}</Text>
             {isEditing ? (
               <TouchableOpacity 
                 style={s.tradeSelector}
@@ -533,14 +533,14 @@ export default function JobDetailScreen() {
           <View style={s.modalOverlay}>
             <View style={s.modalContent}>
               <View style={s.modalHeader}>
-                <Text style={s.modalTitle}>Select Trades (Max 3)</Text>
+                <Text style={s.modalTitle}>Select Trades (Max 5)</Text>
                 <TouchableOpacity onPress={() => setShowTradeModal(false)}>
                   <Text style={s.modalDoneBtn}>Done</Text>
                 </TouchableOpacity>
               </View>
               {editTrades.length > 0 && (
                 <View style={s.selectedTradesHeader}>
-                  <Text style={s.selectedCount}>{editTrades.length}/3 selected</Text>
+                  <Text style={s.selectedCount}>{editTrades.length}/5 selected</Text>
                   <TouchableOpacity onPress={() => setEditTrades([])}>
                     <Text style={s.clearAllBtn}>Clear All</Text>
                   </TouchableOpacity>
@@ -549,7 +549,7 @@ export default function JobDetailScreen() {
               <ScrollView style={s.tradeList}>
                 {TRADES.map((trade) => {
                   const isSelected = editTrades.includes(trade.name);
-                  const isDisabled = !isSelected && editTrades.length >= 3;
+                  const isDisabled = !isSelected && editTrades.length >= 5;
                   return (
                     <TouchableOpacity
                       key={trade.name}

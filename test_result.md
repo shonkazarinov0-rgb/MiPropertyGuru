@@ -240,6 +240,18 @@ backend:
         agent: "testing"
         comment: "Tested - Admin deactivate working perfectly. Successfully changes contractor subscription_status to 'pending', removing their access."
 
+  - task: "Job Matching API for Contractors"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "Comprehensive testing completed for GET /api/jobs/available endpoint. Bug fix verified working correctly: contractors with 'Carpenter' trade can see jobs requiring Carpenter (both trades_required array and trade_required string). Jobs posted by same user correctly excluded. All 5 test scenarios passed."
+
 frontend:
   - task: "Payment Screen for Contractors"
     implemented: true
@@ -381,3 +393,23 @@ agent_communication:
       ✅ Contractor can create conversations with clients for contact functionality
       
       All Job Interaction Flow APIs are fully functional and ready for frontend integration.
+  - agent: "testing"
+    message: |
+      ✅ JOB MATCHING API BUG FIX VERIFICATION COMPLETED (5/5 passed)
+      
+      Comprehensive testing of GET /api/jobs/available endpoint for Carpenter trade contractors:
+      
+      🔹 Contractor Login - ✅ Successfully authenticated Carlos Rodriguez with Carpenter trade
+      🔹 API Authentication - ✅ GET /api/jobs/available accepts auth token correctly
+      🔹 Array Matching - ✅ Jobs with trades_required: ['Carpenter', 'Handyman'] returned
+      🔹 Array Matching - ✅ Jobs with trades_required: ['Carpenter', 'Plumber', 'Electrician'] returned  
+      🔹 String Matching - ✅ Jobs with trade_required: 'Carpenter' returned
+      🔹 Exclusion Logic - ✅ Jobs posted by same user correctly excluded
+      🔹 Exclusion Logic - ✅ Jobs not requiring Carpenter correctly excluded
+      
+      Bug Fix Verified:
+      ✅ Both trades_required array and trade_required string matching work correctly
+      ✅ Contractors can now see all jobs that match their trades
+      ✅ The original bug where contractors weren't seeing matching jobs is fixed
+      
+      The job matching API is fully functional and ready for production use.

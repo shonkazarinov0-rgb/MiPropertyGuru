@@ -37,10 +37,10 @@ export default function PostJobScreen() {
   const toggleTrade = (tradeName: string) => {
     if (selectedTrades.includes(tradeName)) {
       setSelectedTrades(selectedTrades.filter(t => t !== tradeName));
-    } else if (selectedTrades.length < 3) {
+    } else if (selectedTrades.length < 5) {
       setSelectedTrades([...selectedTrades, tradeName]);
     } else {
-      Alert.alert('Limit Reached', 'You can select up to 3 trades per job.');
+      Alert.alert('Limit Reached', 'You can select up to 5 trades per job.');
     }
   };
 
@@ -130,9 +130,9 @@ export default function PostJobScreen() {
             />
           </View>
 
-          {/* Trade Required - Multi-select up to 3 */}
+          {/* Trade Required - Multi-select up to 5 */}
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Service Required * (Select up to 3)</Text>
+            <Text style={styles.inputLabel}>Service Required * (Select up to 5)</Text>
             <TouchableOpacity 
               style={styles.selectInput}
               onPress={() => setShowTradePicker(true)}
@@ -152,7 +152,7 @@ export default function PostJobScreen() {
               <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
             {selectedTrades.length > 0 && (
-              <Text style={styles.tradeCount}>{selectedTrades.length}/3 selected</Text>
+              <Text style={styles.tradeCount}>{selectedTrades.length}/5 selected</Text>
             )}
           </View>
 
@@ -263,14 +263,14 @@ export default function PostJobScreen() {
         >
           <SafeAreaView style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Services (Max 3)</Text>
+              <Text style={styles.modalTitle}>Select Services (Max 5)</Text>
               <TouchableOpacity onPress={() => setShowTradePicker(false)}>
                 <Text style={styles.modalDoneBtn}>Done</Text>
               </TouchableOpacity>
             </View>
             {selectedTrades.length > 0 && (
               <View style={styles.selectedTradesHeader}>
-                <Text style={styles.selectedTradesLabel}>Selected: {selectedTrades.length}/3</Text>
+                <Text style={styles.selectedTradesLabel}>Selected: {selectedTrades.length}/5</Text>
                 <TouchableOpacity onPress={() => setSelectedTrades([])}>
                   <Text style={styles.clearAllBtn}>Clear All</Text>
                 </TouchableOpacity>
@@ -279,7 +279,7 @@ export default function PostJobScreen() {
             <ScrollView style={styles.modalContent}>
               {TRADES.map((trade) => {
                 const isSelected = selectedTrades.includes(trade.name);
-                const isDisabled = !isSelected && selectedTrades.length >= 3;
+                const isDisabled = !isSelected && selectedTrades.length >= 5;
                 return (
                   <TouchableOpacity
                     key={trade.name}
