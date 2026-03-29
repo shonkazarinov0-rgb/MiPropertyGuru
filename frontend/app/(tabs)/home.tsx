@@ -212,13 +212,21 @@ export default function ClientHomeScreen() {
   const isContractorInClientMode = user?.role === 'contractor' && isClientMode;
   
   // Show "What do you need?" modal every time client OR guest visits Explore page
+  // Also show for contractors in CLIENT mode
   useFocusEffect(
     useCallback(() => {
-      // Show for verified logged-in clients OR guests
-      if (!user || (user && user.email_verified && user.role === 'client')) {
+      // Show for:
+      // 1. Guests (!user)
+      // 2. Verified clients (user.role === 'client')
+      // 3. Contractors in client mode (user.role === 'contractor' && isClientMode)
+      const shouldShowPopup = !user || 
+        (user && user.email_verified && user.role === 'client') ||
+        (user && user.email_verified && user.role === 'contractor' && isClientMode);
+      
+      if (shouldShowPopup) {
         setShowNeedPrompt(true);
       }
-    }, [user])
+    }, [user, isClientMode])
   );
 
   // Helper function to show auth required popup for guests
