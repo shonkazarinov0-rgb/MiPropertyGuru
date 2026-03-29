@@ -370,19 +370,14 @@ export default function ContractorRegisterScreen() {
         await AsyncStorage.removeItem('guest_mode'); // Clear guest mode if was browsing as guest
         
         if (isUpgrading) {
-          // For upgrade, directly navigate to dashboard
-          router.replace('/(tabs)/dashboard');
+          // For upgrade, directly navigate to home (user is already verified)
+          router.replace('/(tabs)/home');
         } else {
-          // Auto-login using email and password to properly set auth context
-          try {
-            await login(email.trim().toLowerCase(), password, true);
-          } catch (e) {
-            // If login fails, still redirect since token is stored
-            console.log('Auto-login after registration:', e);
-          }
-          
-          // Redirect to dashboard
-          router.replace('/(tabs)/dashboard');
+          // New contractor registration - go to email verification
+          router.replace({
+            pathname: '/verify-email',
+            params: { email: email.trim().toLowerCase(), type: 'email' }
+          });
         }
       } else {
         Alert.alert('Registration Failed', 'Something went wrong. Please try again.');
