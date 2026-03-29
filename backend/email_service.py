@@ -531,6 +531,43 @@ def verify_reset_code(email: str, code: str) -> bool:
     return False
 
 
+def send_password_changed_email(to_email: str, user_name: str) -> bool:
+    """Send notification that password was successfully changed"""
+    content = f"""
+        <div class="email-header">
+            <div class="logo">
+                <span class="logo-icon">&#x2705;</span>
+            </div>
+            <h1>Password Changed</h1>
+            <p>Your password has been updated successfully</p>
+        </div>
+        <div class="email-body">
+            <h2 class="greeting">Hi {user_name}!</h2>
+            <p class="message">
+                This is to confirm that your MiPropertyGuru account password was just changed. If you made this change, no further action is needed.
+            </p>
+            
+            <div class="highlight-box">
+                <p><strong>Changed on:</strong> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}</p>
+            </div>
+            
+            <div class="warning-box">
+                <p><strong>Didn't make this change?</strong> If you didn't reset your password, please contact our support team immediately at support@mipropertyguru.ca to secure your account.</p>
+            </div>
+            
+            <div class="signature">
+                <p>Stay secure,</p>
+                <p><strong>The MiPropertyGuru Team</strong></p>
+            </div>
+        </div>
+    """
+    
+    html = get_email_template("Password Changed Successfully", content)
+    return send_email(to_email, "Your Password Has Been Changed - MiPropertyGuru", html)
+
+
+
+
 def send_support_email(from_email: str, user_name: str, subject: str, message: str) -> bool:
     """Send support request to the support inbox"""
     content = f"""

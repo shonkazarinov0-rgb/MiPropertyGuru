@@ -29,6 +29,7 @@ from email_service import (
     verify_code,
     send_password_reset_email,
     verify_reset_code,
+    send_password_changed_email,
     send_support_email,
     send_support_confirmation,
     send_admin_new_user_notification
@@ -729,6 +730,10 @@ async def reset_password(req: ResetPasswordReq):
     if len(req.new_password) < 6:
         raise HTTPException(400, "Password must be at least 6 characters")
     
+    # Get user name for email
+    user = await db.users.find_one({"email": req.email.lower()})
+    user_name = user.get("name", "User") if user else "User"
+    
     # Update password
     await db.users.update_one(
         {"email": req.email.lower()},
@@ -737,6 +742,13 @@ async def reset_password(req: ResetPasswordReq):
     
     # Delete the reset record
     await db.password_resets.delete_one({"email": req.email.lower()})
+    
+    # Send password changed notification email
+    try:
+        send_password_changed_email(req.email.lower(), user_name)
+        logger.info(f"Password changed notification sent to {req.email}")
+    except Exception as e:
+        logger.error(f"Failed to send password changed email: {e}")
     
     return {"message": "Password reset successfully"}
 
