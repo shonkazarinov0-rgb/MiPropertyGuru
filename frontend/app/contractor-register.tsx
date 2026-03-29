@@ -370,13 +370,8 @@ export default function ContractorRegisterScreen() {
         await AsyncStorage.removeItem('guest_mode'); // Clear guest mode if was browsing as guest
         
         if (isUpgrading) {
-          // For upgrade, we need to re-login with the new token
-          // The token is already updated, just refresh the user context
-          Alert.alert(
-            'Upgrade Successful!', 
-            'You are now a contractor. Welcome to the pro side!',
-            [{ text: 'OK', onPress: () => router.replace('/(tabs)/dashboard') }]
-          );
+          // For upgrade, directly navigate to dashboard
+          router.replace('/(tabs)/dashboard');
         } else {
           // Auto-login using email and password to properly set auth context
           try {
