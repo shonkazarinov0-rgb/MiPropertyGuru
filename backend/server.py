@@ -157,6 +157,7 @@ class ReviewCreate(BaseModel):
     rating: int
     comment: str
     job_id: Optional[str] = None
+    conversation_id: Optional[str] = None
 
 class PortfolioCreate(BaseModel):
     title: str
@@ -1836,6 +1837,7 @@ async def create_review(req: ReviewCreate, user=Depends(get_current_user)):
         "rating": max(1, min(5, req.rating)), 
         "comment": req.comment,
         "job_id": req.job_id,
+        "conversation_id": req.conversation_id,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.reviews.insert_one(review.copy())
@@ -1858,11 +1860,29 @@ async def create_review(req: ReviewCreate, user=Depends(get_current_user)):
         await db.jobs.update_one({"id": req.job_id}, {"$set": {"status": "completed"}})
         await db.users.update_one({"id": req.contractor_id}, {"$inc": {"jobs_completed": 1}})
     
+    # Mark conversation as reviewed if conversation_id provided
+    if req.conversation_id:
+        await db.conversations.update_one(
+            {"id": req.conversation_id},
+            {"$set": {"hasReview": True}}
+        )
+    
     return review
 
 @api_router.get("/reviews/{cid}")
 async def get_reviews(cid: str):
     return {"reviews": await db.reviews.find({"contractor_id": cid}, {"_id": 0}).sort("created_at", -1).to_list(50)}
+
+
+@api_router.post("/conversations/{cid}/mark-reviewed")
+async def mark_conversation_reviewed(cid: str, user=Depends(get_current_user)):
+    """Mark a conversation as reviewed (after client submits a review)"""
+    await db.conversations.update_one(
+        {"id": cid},
+        {"$set": {"hasReview": True}}
+    )
+    return {"success": True}
+
 
 # ── Portfolio ──
 

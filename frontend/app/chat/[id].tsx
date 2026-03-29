@@ -43,6 +43,10 @@ export default function ChatScreen() {
   const [otherName, setOtherName] = useState('');
   const [conversation, setConversation] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const lastSentRef = useRef<string>('');
@@ -371,6 +375,45 @@ export default function ChatScreen() {
     }
   };
 
+  // Submit review for contractor
+  const handleSubmitReview = async () => {
+    if (!reviewText.trim()) {
+      Alert.alert('Error', 'Please write a review');
+      return;
+    }
+    
+    setSubmittingReview(true);
+    try {
+      // Get contractor ID from conversation
+      const contractorId = conversation?.participant_1 === user?.id 
+        ? conversation?.participant_2 
+        : conversation?.participant_1;
+      
+      await api.post('/reviews', {
+        contractor_id: contractorId,
+        conversation_id: conversationId,
+        rating: reviewRating,
+        comment: reviewText.trim()
+      });
+      
+      // Mark conversation as reviewed
+      await api.post(`/conversations/${conversationId}/mark-reviewed`);
+      
+      setShowReviewModal(false);
+      setReviewText('');
+      setReviewRating(5);
+      
+      // Refresh conversation to update hasReview
+      fetchMessages();
+      
+      Alert.alert('Thank You!', 'Your review has been submitted successfully.');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   // Handle removing a pending conversation
   const handleRemoveConversation = async () => {
     if (Platform.OS === 'web') {
@@ -611,7 +654,7 @@ export default function ChatScreen() {
           </View>
         )}
         
-        {/* Fully Confirmed Banner with options */}
+        {/* Fully Confirmed / In Progress Banner with Job Completed option */}
         {isFullyConfirmed && (
           <View style={s.fullyConfirmedBanner}>
             <View style={s.confirmedInfo}>
@@ -625,30 +668,53 @@ export default function ChatScreen() {
                 <Text style={s.fullyConfirmedSubtext}>Job In Progress</Text>
               </View>
             </View>
+            <View style={s.inProgressHint}>
+              <Text style={s.inProgressHintText}>
+                Once work is done, tap "Job Completed" to finish
+              </Text>
+            </View>
             <View style={s.bannerActions}>
               <TouchableOpacity style={s.backToPendingBtn} onPress={handleBackToPending}>
                 <Ionicons name="arrow-undo" size={14} color={colors.primary} />
                 <Text style={s.backToPendingText}>Back to Pending</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={s.archiveBtn} onPress={handleArchiveJob}>
-                <Ionicons name="archive" size={14} color={colors.blue} />
-                <Text style={s.archiveBtnText}>Complete</Text>
+              <TouchableOpacity style={s.completeJobBtn} onPress={handleArchiveJob}>
+                <Ionicons name="checkmark-done" size={14} color="#fff" />
+                <Text style={s.completeJobBtnText}>Job Completed</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
 
-        {/* Archived Banner with option to bring back */}
+        {/* Archived/Completed Banner with Review option for clients */}
         {isArchived && (
           <View style={s.archivedBanner}>
             <View style={s.confirmedInfo}>
-              <Ionicons name="archive" size={20} color={colors.blue} />
-              <Text style={s.archivedBannerText}>Completed</Text>
+              <Ionicons name="checkmark-circle" size={20} color={colors.green} />
+              <Text style={s.archivedBannerText}>Job Completed</Text>
             </View>
-            <TouchableOpacity style={s.backToProgressBtn} onPress={handleBackToInProgress}>
-              <Ionicons name="arrow-undo" size={14} color={colors.green} />
-              <Text style={s.backToProgressText}>Back to In Progress</Text>
-            </TouchableOpacity>
+            <View style={s.completedActions}>
+              {/* Show Review button only for clients */}
+              {user?.role === 'client' && !conversation?.hasReview && (
+                <TouchableOpacity 
+                  style={s.leaveReviewBtn} 
+                  onPress={() => setShowReviewModal(true)}
+                >
+                  <Ionicons name="star" size={14} color="#fff" />
+                  <Text style={s.leaveReviewBtnText}>Leave Review</Text>
+                </TouchableOpacity>
+              )}
+              {conversation?.hasReview && (
+                <View style={s.reviewedBadge}>
+                  <Ionicons name="star" size={14} color={colors.gold} />
+                  <Text style={s.reviewedText}>Reviewed</Text>
+                </View>
+              )}
+              <TouchableOpacity style={s.backToProgressBtn} onPress={handleBackToInProgress}>
+                <Ionicons name="arrow-undo" size={14} color={colors.primary} />
+                <Text style={s.backToProgressText}>Back to In Progress</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -702,6 +768,72 @@ export default function ChatScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Review Modal */}
+        <Modal
+          visible={showReviewModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowReviewModal(false)}
+        >
+          <View style={s.reviewModalOverlay}>
+            <View style={s.reviewModalContainer}>
+              <View style={s.reviewModalHeader}>
+                <Text style={s.reviewModalTitle}>Leave a Review</Text>
+                <TouchableOpacity onPress={() => setShowReviewModal(false)}>
+                  <Ionicons name="close" size={24} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={s.reviewSubtitle}>How was your experience with {otherName}?</Text>
+              
+              {/* Star Rating */}
+              <View style={s.starContainer}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity key={star} onPress={() => setReviewRating(star)}>
+                    <Ionicons 
+                      name={star <= reviewRating ? "star" : "star-outline"} 
+                      size={40} 
+                      color={star <= reviewRating ? colors.gold : colors.border} 
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+              
+              <Text style={s.ratingText}>
+                {reviewRating === 1 && 'Poor'}
+                {reviewRating === 2 && 'Fair'}
+                {reviewRating === 3 && 'Good'}
+                {reviewRating === 4 && 'Very Good'}
+                {reviewRating === 5 && 'Excellent'}
+              </Text>
+              
+              {/* Review Text */}
+              <TextInput
+                style={s.reviewInput}
+                value={reviewText}
+                onChangeText={setReviewText}
+                placeholder="Tell us about your experience..."
+                placeholderTextColor={colors.textSecondary}
+                multiline
+                maxLength={500}
+              />
+              
+              {/* Submit Button */}
+              <TouchableOpacity 
+                style={[s.submitReviewBtn, submittingReview && s.submitReviewBtnDisabled]}
+                onPress={handleSubmitReview}
+                disabled={submittingReview}
+              >
+                {submittingReview ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={s.submitReviewBtnText}>Submit Review</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -1080,5 +1212,136 @@ const s = StyleSheet.create({
     height: 150,
     borderRadius: 12,
     marginBottom: 6,
+  },
+  // In Progress hint styles
+  inProgressHint: {
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  inProgressHintText: {
+    fontSize: 12,
+    color: '#166534',
+    textAlign: 'center',
+  },
+  completeJobBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.green,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 4,
+  },
+  completeJobBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  // Completed/Archived section styles
+  completedActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  leaveReviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.gold,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 4,
+  },
+  leaveReviewBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reviewedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    gap: 4,
+  },
+  reviewedText: {
+    color: '#92400E',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  // Review Modal Styles
+  reviewModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  reviewModalContainer: {
+    backgroundColor: colors.paper,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+  },
+  reviewModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  reviewModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  reviewSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  starContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  ratingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  reviewInput: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    color: colors.text,
+    height: 120,
+    textAlignVertical: 'top',
+    marginBottom: 20,
+  },
+  submitReviewBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  submitReviewBtnDisabled: {
+    opacity: 0.6,
+  },
+  submitReviewBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
