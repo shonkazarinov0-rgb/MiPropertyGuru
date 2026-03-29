@@ -290,8 +290,13 @@ export default function ForgotPasswordScreen() {
       <TouchableOpacity
         style={styles.button}
         onPress={() => {
-          router.dismissAll();
-          router.replace('/');
+          // Navigate back to login - works on both web and mobile
+          if (Platform.OS === 'web') {
+            window.location.href = '/';
+          } else {
+            router.dismissAll();
+            router.replace('/');
+          }
         }}
       >
         <Text style={styles.buttonText}>Go to Login</Text>
