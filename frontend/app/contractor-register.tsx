@@ -363,26 +363,31 @@ export default function ContractorRegisterScreen() {
         });
       }
 
-      if (res.token && res.user) {
-        // Store the token
-        await AsyncStorage.setItem('auth_token', res.token);
-        await AsyncStorage.setItem('keep_logged_in', 'true');
-        await AsyncStorage.removeItem('guest_mode'); // Clear guest mode if was browsing as guest
-        
-        if (isUpgrading) {
+      if (isUpgrading) {
+        // Upgrade returns token and user
+        if (res.token && res.user) {
+          // Store the token
+          await AsyncStorage.setItem('auth_token', res.token);
+          await AsyncStorage.setItem('keep_logged_in', 'true');
+          await AsyncStorage.removeItem('guest_mode');
+          
           // Refresh user context to get updated role
           await refreshUser();
           // For upgrade, go to home page with mode switcher
           router.replace('/(tabs)/home');
         } else {
-          // New contractor registration - go to email verification
+          Alert.alert('Upgrade Failed', 'Something went wrong. Please try again.');
+        }
+      } else {
+        // New contractor registration - redirect to email verification
+        if (res.requires_verification || res.email) {
           router.replace({
             pathname: '/verify-email',
             params: { email: email.trim().toLowerCase(), type: 'email' }
           });
+        } else {
+          Alert.alert('Registration Failed', 'Something went wrong. Please try again.');
         }
-      } else {
-        Alert.alert('Registration Failed', 'Something went wrong. Please try again.');
       }
     } catch (e: any) {
       const errorMessage = e.message || e.detail || 'Please try again';
