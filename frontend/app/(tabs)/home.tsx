@@ -1052,6 +1052,31 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
           </View>
         </LinearGradient>
 
+        {/* Guest Auth Banner - Sign In / Register buttons */}
+        {!user && (
+          <View style={styles.guestAuthBanner}>
+            <View style={styles.guestAuthContent}>
+              <Text style={styles.guestAuthText}>Join MiPropertyGuru</Text>
+              <View style={styles.guestAuthButtons}>
+                <TouchableOpacity 
+                  style={styles.guestSignInBtn}
+                  onPress={() => router.push('/?mode=login')}
+                >
+                  <Ionicons name="log-in-outline" size={18} color={colors.primary} />
+                  <Text style={styles.guestSignInBtnText}>Sign In</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.guestRegisterBtn}
+                  onPress={() => router.push('/?mode=register')}
+                >
+                  <Ionicons name="person-add-outline" size={18} color={colors.paper} />
+                  <Text style={styles.guestRegisterBtnText}>Register</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Show switch prompt for contractors in contractor mode */}
         {isContractorMode && (
           <View style={styles.switchModePrompt}>
@@ -2669,6 +2694,61 @@ const styles = StyleSheet.create({
   guestPromptLink: {
     color: colors.primary,
     fontWeight: '600',
+  },
+  guestAuthBanner: {
+    backgroundColor: colors.paper,
+    marginHorizontal: 16,
+    marginTop: -8,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  guestAuthContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  guestAuthText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  guestAuthButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  guestSignInBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 6,
+  },
+  guestSignInBtnText: {
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  guestRegisterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 6,
+  },
+  guestRegisterBtnText: {
+    color: colors.paper,
+    fontWeight: '600',
+    fontSize: 14,
   },
   loader: {
     paddingVertical: 40,
