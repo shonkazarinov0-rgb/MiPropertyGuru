@@ -211,16 +211,28 @@ export default function ClientHomeScreen() {
   // Check if contractor is in client mode (browsing as client)
   const isContractorInClientMode = user?.role === 'contractor' && isClientMode;
   
-  // Show "What do you need?" modal every time client visits Explore page
-  // Uses useFocusEffect to detect when page is focused
+  // Show "What do you need?" modal every time client OR guest visits Explore page
   useFocusEffect(
     useCallback(() => {
-      // Only show for verified logged-in clients (not contractors, not guests)
-      if (user && user.email_verified && user.role === 'client') {
+      // Show for verified logged-in clients OR guests
+      if (!user || (user && user.email_verified && user.role === 'client')) {
         setShowNeedPrompt(true);
       }
     }, [user])
   );
+
+  // Helper function to show auth required popup for guests
+  const showAuthRequiredAlert = () => {
+    Alert.alert(
+      'Account Required',
+      'Please sign in or register to access this feature.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Register', onPress: () => router.push('/?mode=register') },
+        { text: 'Sign In', onPress: () => router.push('/?mode=login'), style: 'default' },
+      ]
+    );
+  };
   
   // Contractor types with emojis for dynamic stat
   const CONTRACTOR_STATS = [
@@ -827,8 +839,16 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
     const initials = item.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2);
     const distanceKm = item.distance_km || item.distance;
     
+    const handleCardPress = () => {
+      if (!user) {
+        showAuthRequiredAlert();
+      } else {
+        router.push(`/contractor/${item.id}`);
+      }
+    };
+    
     return (
-      <TouchableOpacity style={styles.contractorCard} onPress={() => router.push(`/contractor/${item.id}`)}>
+      <TouchableOpacity style={styles.contractorCard} onPress={handleCardPress}>
         <View style={styles.cardHeader}>
           {item.profile_photo ? (
             <Image source={{ uri: item.profile_photo }} style={styles.avatar} />
@@ -921,31 +941,6 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
             <Text style={styles.contactActionLabel}>Message</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Guest sign-in prompt - shows if user not logged in */}
-        {!user && (
-          <View style={styles.guestPromptBanner}>
-            <View style={styles.guestPromptLeft}>
-              <Ionicons name="information-circle" size={18} color={colors.primary} />
-              <Text style={styles.guestPromptText}>
-                <Text 
-                  style={styles.guestPromptLink} 
-                  onPress={(e) => { e.stopPropagation(); router.push('/?mode=login'); }}
-                >
-                  Sign in
-                </Text>
-                {' or '}
-                <Text 
-                  style={styles.guestPromptLink}
-                  onPress={(e) => { e.stopPropagation(); router.push('/?mode=register'); }}
-                >
-                  Register
-                </Text>
-                {' to contact'}
-              </Text>
-            </View>
-          </View>
-        )}
       </TouchableOpacity>
     );
   };
@@ -1495,8 +1490,12 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   style={styles.intentOptionCardNew}
                   onPress={() => {
                     setShowNeedPrompt(false);
-                    router.push('/(tabs)/home');
-                    setTimeout(() => setShowFullMap(true), 300);
+                    if (!user) {
+                      showAuthRequiredAlert();
+                    } else {
+                      router.push('/(tabs)/home');
+                      setTimeout(() => setShowFullMap(true), 300);
+                    }
                   }}
                 >
                   <LinearGradient
@@ -1522,15 +1521,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                   onPress={() => {
                     setShowNeedPrompt(false);
                     if (!user) {
-                      Alert.alert(
-                        'Sign In Required',
-                        'You need to sign in or create an account to post a job.',
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          { text: 'Register', onPress: () => router.push('/?mode=register') },
-                          { text: 'Sign In', onPress: () => router.push('/?mode=login'), style: 'default' },
-                        ]
-                      );
+                      showAuthRequiredAlert();
                     } else {
                       router.push('/post-job');
                     }

@@ -385,6 +385,54 @@ def send_welcome_email(to_email: str, user_name: str, is_contractor: bool = Fals
     return send_email(to_email, "Welcome to MiPropertyGuru!", html)
 
 
+def send_contractor_upgrade_email(to_email: str, user_name: str) -> bool:
+    """Send thank you email when a client becomes a contractor"""
+    content = f"""
+        <div class="email-header">
+            <h1>Welcome to the Pro Side!</h1>
+            <p>You're now a contractor on MiPropertyGuru</p>
+        </div>
+        <div class="email-body">
+            <h2 class="greeting">Hi {user_name}!</h2>
+            <p class="message">
+                Thank you for becoming a contractor on MiPropertyGuru! 
+                You've taken an exciting step toward growing your business and connecting with clients in your area.
+            </p>
+            
+            <p class="message">Here's what you can do now:</p>
+            
+            <ul class="feature-list">
+                <li>
+                    <span class="step-number">1</span>
+                    <span class="feature-text">Receive job requests from clients nearby</span>
+                </li>
+                <li>
+                    <span class="step-number">2</span>
+                    <span class="feature-text">Build your portfolio and showcase your work</span>
+                </li>
+                <li>
+                    <span class="step-number">3</span>
+                    <span class="feature-text">Go online to show clients you're available</span>
+                </li>
+            </ul>
+            
+            <div class="divider"></div>
+            
+            <p class="message" style="font-size: 14px; color: #718096;">
+                Head to your Dashboard to complete your profile and start receiving job requests!
+            </p>
+            
+            <div class="signature">
+                <p>Welcome to the team!</p>
+                <p><strong>The MiPropertyGuru Team</strong></p>
+            </div>
+        </div>
+    """
+    
+    html = get_email_template("Welcome to the Pro Side!", content)
+    return send_email(to_email, "Welcome to the Pro Side - MiPropertyGuru", html)
+
+
 def send_verification_code(to_email: str, user_name: str, code: str = None) -> str:
     """Send email verification code and return the code"""
     if code is None:

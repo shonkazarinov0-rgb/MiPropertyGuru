@@ -32,7 +32,8 @@ from email_service import (
     send_password_changed_email,
     send_support_email,
     send_support_confirmation,
-    send_admin_new_user_notification
+    send_admin_new_user_notification,
+    send_contractor_upgrade_email
 )
 
 ROOT_DIR = Path(__file__).parent
@@ -553,6 +554,13 @@ async def upgrade_to_contractor(req: UpgradeToContractorReq, user=Depends(get_cu
         logger.info(f"Admin notification sent for client upgrade to contractor: {user['email']}")
     except Exception as e:
         logger.error(f"Failed to send admin notification for upgrade: {e}")
+    
+    # Send welcome email to the new contractor
+    try:
+        send_contractor_upgrade_email(user["email"], req.name)
+        logger.info(f"Contractor welcome email sent to: {user['email']}")
+    except Exception as e:
+        logger.error(f"Failed to send contractor welcome email: {e}")
     
     return {"token": token, "user": updated_user}
 
