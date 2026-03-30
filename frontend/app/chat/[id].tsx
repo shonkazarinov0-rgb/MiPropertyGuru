@@ -660,41 +660,37 @@ export default function ChatScreen() {
         {/* Archived/Completed Banner - Clean Design */}
         {isArchived && (
           <View style={s.completedBannerClean}>
-            <View style={s.completedHeader}>
+            <View style={s.completedTopRow}>
               <View style={s.completedStatusRow}>
                 <Ionicons name="checkmark-circle" size={18} color={colors.blue} />
                 <Text style={s.completedStatusText}>Job Completed</Text>
               </View>
+              {/* Show Review button only for clients (when other party is contractor) who haven't reviewed */}
+              {getOtherPartyType() === 'contractor' && !conversation?.hasReview && (
+                <TouchableOpacity 
+                  style={s.reviewBtnCompact} 
+                  onPress={() => setShowReviewModal(true)}
+                >
+                  <Ionicons name="star" size={14} color="#fff" />
+                  <Text style={s.reviewBtnCompactText}>Leave Review</Text>
+                </TouchableOpacity>
+              )}
+              {/* Show reviewed badge if already reviewed */}
+              {conversation?.hasReview && (
+                <View style={s.reviewedBadgeSmall}>
+                  <Ionicons name="star" size={12} color={colors.gold} />
+                  <Text style={s.reviewedBadgeSmallText}>Reviewed</Text>
+                </View>
+              )}
+              {/* For contractors (when other party is client), show a thank you message */}
+              {getOtherPartyType() === 'client' && !conversation?.hasReview && (
+                <View style={s.greatWorkBadge}>
+                  <Ionicons name="ribbon" size={12} color={colors.blue} />
+                  <Text style={s.greatWorkBadgeText}>Great work!</Text>
+                </View>
+              )}
             </View>
-            
-            {/* Show Review button only for clients (when other party is contractor) who haven't reviewed */}
-            {getOtherPartyType() === 'contractor' && !conversation?.hasReview && (
-              <TouchableOpacity 
-                style={s.leaveReviewBtnGold} 
-                onPress={() => setShowReviewModal(true)}
-              >
-                <Ionicons name="star" size={16} color="#fff" />
-                <Text style={s.leaveReviewBtnGoldText}>Leave a Review</Text>
-              </TouchableOpacity>
-            )}
-            
-            {/* Show reviewed badge if already reviewed */}
-            {conversation?.hasReview && (
-              <View style={s.reviewedBadgeCompact}>
-                <Ionicons name="star" size={14} color={colors.gold} />
-                <Text style={s.reviewedBadgeCompactText}>Reviewed</Text>
-              </View>
-            )}
-            
-            {/* For contractors (when other party is client), show a thank you message */}
-            {getOtherPartyType() === 'client' && !conversation?.hasReview && (
-              <View style={s.contractorCompletedMsgCompact}>
-                <Ionicons name="ribbon" size={14} color={colors.blue} />
-                <Text style={s.contractorCompletedMsgCompactText}>Great work!</Text>
-              </View>
-            )}
-            
-            <TouchableOpacity style={s.backToProgressLink} onPress={handleBackToInProgress}>
+            <TouchableOpacity style={s.backToProgressLinkLeft} onPress={handleBackToInProgress}>
               <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
               <Text style={s.backToProgressLinkText}>Back to In Progress</Text>
             </TouchableOpacity>
@@ -1475,11 +1471,15 @@ const s = StyleSheet.create({
   // Clean Completed Banner styles
   completedBannerClean: {
     backgroundColor: '#EFF6FF',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     marginHorizontal: 12,
     marginTop: 8,
-    borderRadius: 12,
+    borderRadius: 10,
+  },
+  completedTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
   completedHeader: {
@@ -1495,9 +1495,61 @@ const s = StyleSheet.create({
     gap: 8,
   },
   completedStatusText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.blue,
+  },
+  reviewBtnCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.gold,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 4,
+  },
+  reviewBtnCompactText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reviewedBadgeSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    gap: 4,
+  },
+  reviewedBadgeSmallText: {
+    color: '#92400E',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  greatWorkBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DBEAFE',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    gap: 4,
+  },
+  greatWorkBadgeText: {
+    color: colors.blue,
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  backToProgressLinkLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#BFDBFE',
+    alignSelf: 'flex-start',
   },
   leaveReviewBtnLarge: {
     flexDirection: 'row',
