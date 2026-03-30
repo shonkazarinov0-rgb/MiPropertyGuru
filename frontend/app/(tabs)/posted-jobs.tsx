@@ -984,7 +984,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: colors.green,
+    backgroundColor: colors.blue,
     gap: 6,
   },
   completeBtnText: {

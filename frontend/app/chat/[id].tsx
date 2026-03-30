@@ -639,6 +639,10 @@ export default function ChatScreen() {
                 </View>
                 <Text style={s.inProgressStatusText}>In Progress</Text>
               </View>
+              <TouchableOpacity style={s.completeBtnBlue} onPress={handleArchiveJob}>
+                <Ionicons name="checkmark-done" size={12} color="#fff" />
+                <Text style={s.completeBtnBlueText}>Complete</Text>
+              </TouchableOpacity>
             </View>
             <Text style={s.inProgressHintSmall}>
               {getOtherPartyType() === 'contractor' 
@@ -646,16 +650,10 @@ export default function ChatScreen() {
                 : 'Tap Complete when work is finished'
               }
             </Text>
-            <View style={s.inProgressActionsRow}>
-              <TouchableOpacity style={s.backToPendingLinkInline} onPress={handleBackToPending}>
-                <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
-                <Text style={s.backToPendingLinkText}>Back to Pending</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.jobCompletedBtnCompact} onPress={handleArchiveJob}>
-                <Ionicons name="checkmark-done" size={12} color="#fff" />
-                <Text style={s.jobCompletedBtnCompactText}>Complete</Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity style={s.backToPendingLink} onPress={handleBackToPending}>
+              <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
+              <Text style={s.backToPendingLinkText}>Back to Pending</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -664,7 +662,7 @@ export default function ChatScreen() {
           <View style={s.completedBannerClean}>
             <View style={s.completedHeader}>
               <View style={s.completedStatusRow}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.blue} />
+                <Ionicons name="checkmark-circle" size={18} color={colors.blue} />
                 <Text style={s.completedStatusText}>Job Completed</Text>
               </View>
             </View>
@@ -672,11 +670,11 @@ export default function ChatScreen() {
             {/* Show Review button only for clients (when other party is contractor) who haven't reviewed */}
             {getOtherPartyType() === 'contractor' && !conversation?.hasReview && (
               <TouchableOpacity 
-                style={s.leaveReviewBtnCompact} 
+                style={s.leaveReviewBtnGold} 
                 onPress={() => setShowReviewModal(true)}
               >
-                <Ionicons name="star" size={14} color="#fff" />
-                <Text style={s.leaveReviewBtnCompactText}>Leave a Review</Text>
+                <Ionicons name="star" size={16} color="#fff" />
+                <Text style={s.leaveReviewBtnGoldText}>Leave a Review</Text>
               </TouchableOpacity>
             )}
             
@@ -1086,6 +1084,21 @@ const s = StyleSheet.create({
     fontSize: 11,
     color: colors.textSecondary,
   },
+  leaveReviewBtnGold: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F59E0B',
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    gap: 6,
+    marginTop: 10,
+  },
+  leaveReviewBtnGoldText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   leaveReviewBtnCompact: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1322,6 +1335,20 @@ const s = StyleSheet.create({
     marginTop: 6,
     marginLeft: 28,
   },
+  completeBtnBlue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.blue,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 4,
+  },
+  completeBtnBlueText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   jobCompletedBtnCompact: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1340,10 +1367,10 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: 10,
+    paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: '#D1FAE5',
   },
   backToPendingLinkText: {
     fontSize: 11,
