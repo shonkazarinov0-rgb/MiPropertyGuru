@@ -205,30 +205,55 @@ export default function PostedJobsScreen() {
   // Handle moving job back to In Progress
   const handleMoveToInProgress = async (job: any) => {
     const conv = getJobConversation(job);
-    if (!conv) return;
-
-    Alert.alert(
-      'Reactivate Job',
-      'Move this job back to In Progress?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reactivate',
-          onPress: async () => {
-            setActionLoading(job.id);
-            try {
-              await api.post(`/conversations/${conv.id}/reset-to-confirmed`);
-              await fetchData();
-              Alert.alert('Success', 'Job moved back to In Progress.');
-            } catch (e: any) {
-              Alert.alert('Error', e.message || 'Could not reactivate job');
-            } finally {
-              setActionLoading(null);
-            }
-          }
+    
+    if (!conv) {
+      console.log('[PostedJobs] No conversation found for job:', job.id, job.title);
+      if (Platform.OS === 'web') {
+        window.alert('No conversation found for this job');
+      } else {
+        Alert.alert('Error', 'No conversation found for this job');
+      }
+      return;
+    }
+    
+    console.log('[PostedJobs] Reactivating job with conversation:', conv.id);
+    
+    const doReactivate = async () => {
+      setActionLoading(job.id);
+      try {
+        await api.post(`/conversations/${conv.id}/reset-to-confirmed`);
+        await fetchData();
+        if (Platform.OS === 'web') {
+          window.alert('Job moved back to In Progress!');
+        } else {
+          Alert.alert('Success', 'Job moved back to In Progress.');
         }
-      ]
-    );
+      } catch (e: any) {
+        console.error('[PostedJobs] Reactivate error:', e);
+        if (Platform.OS === 'web') {
+          window.alert('Error: ' + (e.message || 'Could not reactivate job'));
+        } else {
+          Alert.alert('Error', e.message || 'Could not reactivate job');
+        }
+      } finally {
+        setActionLoading(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Move this job back to In Progress?')) {
+        doReactivate();
+      }
+    } else {
+      Alert.alert(
+        'Reactivate Job',
+        'Move this job back to In Progress?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Reactivate', onPress: doReactivate }
+        ]
+      );
+    }
   };
 
   // Handle completing a job
