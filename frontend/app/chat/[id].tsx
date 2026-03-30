@@ -639,10 +639,6 @@ export default function ChatScreen() {
                 </View>
                 <Text style={s.inProgressStatusText}>In Progress</Text>
               </View>
-              <TouchableOpacity style={s.jobCompletedBtnCompact} onPress={handleArchiveJob}>
-                <Ionicons name="checkmark-done" size={12} color="#fff" />
-                <Text style={s.jobCompletedBtnCompactText}>Complete</Text>
-              </TouchableOpacity>
             </View>
             <Text style={s.inProgressHintSmall}>
               {getOtherPartyType() === 'contractor' 
@@ -650,10 +646,16 @@ export default function ChatScreen() {
                 : 'Tap Complete when work is finished'
               }
             </Text>
-            <TouchableOpacity style={s.backToPendingLink} onPress={handleBackToPending}>
-              <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
-              <Text style={s.backToPendingLinkText}>Back to Pending</Text>
-            </TouchableOpacity>
+            <View style={s.inProgressActionsRow}>
+              <TouchableOpacity style={s.backToPendingLinkInline} onPress={handleBackToPending}>
+                <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
+                <Text style={s.backToPendingLinkText}>Back to Pending</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.jobCompletedBtnCompact} onPress={handleArchiveJob}>
+                <Ionicons name="checkmark-done" size={12} color="#fff" />
+                <Text style={s.jobCompletedBtnCompactText}>Complete</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -665,37 +667,39 @@ export default function ChatScreen() {
                 <Ionicons name="checkmark-circle" size={20} color={colors.blue} />
                 <Text style={s.completedStatusText}>Job Completed</Text>
               </View>
-              <TouchableOpacity style={s.backToPendingSmall} onPress={handleBackToInProgress}>
-                <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
-              </TouchableOpacity>
             </View>
             
-            {/* Show Review button only for clients who haven't reviewed */}
-            {user?.role === 'client' && !conversation?.hasReview && (
+            {/* Show Review button only for clients (when other party is contractor) who haven't reviewed */}
+            {getOtherPartyType() === 'contractor' && !conversation?.hasReview && (
               <TouchableOpacity 
-                style={s.leaveReviewBtnLarge} 
+                style={s.leaveReviewBtnCompact} 
                 onPress={() => setShowReviewModal(true)}
               >
-                <Ionicons name="star" size={20} color="#fff" />
-                <Text style={s.leaveReviewBtnLargeText}>Leave a Review</Text>
+                <Ionicons name="star" size={14} color="#fff" />
+                <Text style={s.leaveReviewBtnCompactText}>Leave a Review</Text>
               </TouchableOpacity>
             )}
             
             {/* Show reviewed badge if already reviewed */}
             {conversation?.hasReview && (
-              <View style={s.reviewedBadgeLarge}>
-                <Ionicons name="star" size={18} color={colors.gold} />
-                <Text style={s.reviewedBadgeLargeText}>You've reviewed this job</Text>
+              <View style={s.reviewedBadgeCompact}>
+                <Ionicons name="star" size={14} color={colors.gold} />
+                <Text style={s.reviewedBadgeCompactText}>Reviewed</Text>
               </View>
             )}
             
-            {/* For contractors, show a thank you message */}
-            {user?.role === 'contractor' && (
-              <View style={s.contractorCompletedMsg}>
-                <Ionicons name="ribbon" size={18} color={colors.blue} />
-                <Text style={s.contractorCompletedMsgText}>Great work! Job completed successfully.</Text>
+            {/* For contractors (when other party is client), show a thank you message */}
+            {getOtherPartyType() === 'client' && !conversation?.hasReview && (
+              <View style={s.contractorCompletedMsgCompact}>
+                <Ionicons name="ribbon" size={14} color={colors.blue} />
+                <Text style={s.contractorCompletedMsgCompactText}>Great work!</Text>
               </View>
             )}
+            
+            <TouchableOpacity style={s.backToProgressLink} onPress={handleBackToInProgress}>
+              <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
+              <Text style={s.backToProgressLinkText}>Back to In Progress</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -1068,6 +1072,81 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: colors.green,
+  },
+  backToProgressLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  backToProgressLinkText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  leaveReviewBtnCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.gold,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    gap: 5,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  leaveReviewBtnCompactText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reviewedBadgeCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    gap: 4,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  reviewedBadgeCompactText: {
+    color: '#92400E',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  contractorCompletedMsgCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DBEAFE',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    gap: 4,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  contractorCompletedMsgCompactText: {
+    color: colors.blue,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  inProgressActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  backToPendingLinkInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   messagesList: {
     padding: 16,

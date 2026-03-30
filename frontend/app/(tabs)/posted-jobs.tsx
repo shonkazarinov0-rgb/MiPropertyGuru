@@ -467,11 +467,7 @@ export default function PostedJobsScreen() {
     const iconName = tradeIcons[item.trade_required] || 'build';
 
     return (
-      <TouchableOpacity 
-        style={[s.jobCard, { opacity: 0.85 }]}
-        onPress={() => handleOpenChat(item)}
-        activeOpacity={0.7}
-      >
+      <View style={[s.jobCard, { opacity: 0.85 }]}>
         <View style={s.jobHeader}>
           <View style={[s.tradeIconContainer, { backgroundColor: colors.blueLight }]}>
             <Ionicons name={iconName as any} size={24} color={colors.blue} />
@@ -509,7 +505,7 @@ export default function PostedJobsScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
