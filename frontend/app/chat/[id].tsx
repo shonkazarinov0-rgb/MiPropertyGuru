@@ -551,32 +551,6 @@ export default function ChatScreen() {
           </Text>
         </View>
 
-        {/* Remove Contractor Button - Only for pending conversations in Client mode */}
-        {!isFullyConfirmed && !isArchived && isClientMode && (
-          <Pressable 
-            style={({ pressed }) => [s.removeContractorBtn, pressed && { opacity: 0.7 }]}
-            onPress={() => {
-              console.log('[Chat] Remove Contractor button pressed');
-              handleRemoveConversation();
-            }}
-          >
-            <Text style={s.removeContractorText}>Remove Contractor</Text>
-          </Pressable>
-        )}
-
-        {/* Remove Client Button - Only for pending conversations in Contractor mode */}
-        {!isFullyConfirmed && !isArchived && isContractorMode && (
-          <Pressable 
-            style={({ pressed }) => [s.removeContractorBtn, pressed && { opacity: 0.7 }]}
-            onPress={() => {
-              console.log('[Chat] Remove Client button pressed');
-              handleRemoveConversation();
-            }}
-          >
-            <Text style={s.removeContractorText}>Remove Client</Text>
-          </Pressable>
-        )}
-
         {/* Job Confirmation Banner */}
         {!isFullyConfirmed && !isArchived && (
           <View style={s.confirmBanner}>

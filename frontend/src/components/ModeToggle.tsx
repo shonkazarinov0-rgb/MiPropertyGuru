@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   optionActiveContractor: {
-    backgroundColor: colors.green,
+    backgroundColor: colors.primary,
   },
   optionText: {
     fontSize: 9,
