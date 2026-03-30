@@ -654,74 +654,71 @@ export default function ChatScreen() {
           </View>
         )}
         
-        {/* Fully Confirmed / In Progress Banner with Job Completed option */}
+        {/* Fully Confirmed / In Progress Banner - Clean Design */}
         {isFullyConfirmed && (
-          <View style={s.fullyConfirmedBanner}>
-            <View style={s.confirmedInfo}>
-              <View style={s.confirmedIconCircle}>
-                <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+          <View style={s.inProgressBannerClean}>
+            <View style={s.inProgressHeader}>
+              <View style={s.inProgressStatusRow}>
+                <View style={s.confirmedIconCircle}>
+                  <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                </View>
+                <Text style={s.inProgressStatusText}>Job In Progress</Text>
               </View>
-              <View>
-                <Text style={s.fullyConfirmedTitle}>
-                  <Text style={s.confirmCount}>2/2</Text> Confirmed
-                </Text>
-                <Text style={s.fullyConfirmedSubtext}>Job In Progress</Text>
-              </View>
-            </View>
-            <View style={s.bannerActionsRow}>
-              <TouchableOpacity style={s.completeJobBtnBlue} onPress={handleArchiveJob}>
-                <Ionicons name="checkmark-done" size={16} color="#fff" />
-                <Text style={s.completeJobBtnText}>Job Completed</Text>
+              <TouchableOpacity style={s.backToPendingSmall} onPress={handleBackToPending}>
+                <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-            <View style={s.bannerSecondaryRow}>
-              <TouchableOpacity style={s.backToPendingBtn} onPress={handleBackToPending}>
-                <Ionicons name="arrow-undo" size={14} color={colors.primary} />
-                <Text style={s.backToPendingText}>Back to Pending</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.removePartyBtnSmall} onPress={handleRemoveConversation}>
-                <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
-                <Text style={s.removePartyTextSmall}>Remove {getOtherPartyType() === 'contractor' ? 'Contractor' : 'Client'}</Text>
-              </TouchableOpacity>
-            </View>
+            
+            <TouchableOpacity style={s.jobCompletedBtnLarge} onPress={handleArchiveJob}>
+              <Ionicons name="checkmark-done" size={20} color="#fff" />
+              <Text style={s.jobCompletedBtnLargeText}>Job Completed</Text>
+            </TouchableOpacity>
+            
+            <Text style={s.completedHintText}>
+              Tap when work is done • You'll be able to leave a review
+            </Text>
           </View>
         )}
 
-        {/* Archived/Completed Banner with Review option for clients */}
+        {/* Archived/Completed Banner - Clean Design */}
         {isArchived && (
-          <View style={s.archivedBanner}>
-            <View style={s.confirmedInfo}>
-              <Ionicons name="checkmark-circle" size={20} color={colors.blue} />
-              <Text style={s.archivedBannerText}>Job Completed</Text>
-            </View>
-            <View style={s.completedActions}>
-              {/* Show Review button only for clients */}
-              {user?.role === 'client' && !conversation?.hasReview && (
-                <TouchableOpacity 
-                  style={s.leaveReviewBtn} 
-                  onPress={() => setShowReviewModal(true)}
-                >
-                  <Ionicons name="star" size={14} color="#fff" />
-                  <Text style={s.leaveReviewBtnText}>Leave Review</Text>
-                </TouchableOpacity>
-              )}
-              {conversation?.hasReview && (
-                <View style={s.reviewedBadge}>
-                  <Ionicons name="star" size={14} color={colors.gold} />
-                  <Text style={s.reviewedText}>Reviewed</Text>
-                </View>
-              )}
-            </View>
-            <View style={s.bannerSecondaryRow}>
-              <TouchableOpacity style={s.backToProgressBtn} onPress={handleBackToInProgress}>
-                <Ionicons name="arrow-undo" size={14} color={colors.primary} />
-                <Text style={s.backToProgressText}>Back to In Progress</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.removePartyBtnSmall} onPress={handleRemoveConversation}>
-                <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
-                <Text style={s.removePartyTextSmall}>Remove {getOtherPartyType() === 'contractor' ? 'Contractor' : 'Client'}</Text>
+          <View style={s.completedBannerClean}>
+            <View style={s.completedHeader}>
+              <View style={s.completedStatusRow}>
+                <Ionicons name="checkmark-circle" size={20} color={colors.blue} />
+                <Text style={s.completedStatusText}>Job Completed</Text>
+              </View>
+              <TouchableOpacity style={s.backToPendingSmall} onPress={handleBackToInProgress}>
+                <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
+            
+            {/* Show Review button only for clients who haven't reviewed */}
+            {user?.role === 'client' && !conversation?.hasReview && (
+              <TouchableOpacity 
+                style={s.leaveReviewBtnLarge} 
+                onPress={() => setShowReviewModal(true)}
+              >
+                <Ionicons name="star" size={20} color="#fff" />
+                <Text style={s.leaveReviewBtnLargeText}>Leave a Review</Text>
+              </TouchableOpacity>
+            )}
+            
+            {/* Show reviewed badge if already reviewed */}
+            {conversation?.hasReview && (
+              <View style={s.reviewedBadgeLarge}>
+                <Ionicons name="star" size={18} color={colors.gold} />
+                <Text style={s.reviewedBadgeLargeText}>You've reviewed this job</Text>
+              </View>
+            )}
+            
+            {/* For contractors, show a thank you message */}
+            {user?.role === 'contractor' && (
+              <View style={s.contractorCompletedMsg}>
+                <Ionicons name="ribbon" size={18} color={colors.blue} />
+                <Text style={s.contractorCompletedMsgText}>Great work! Job completed successfully.</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -1233,6 +1230,60 @@ const s = StyleSheet.create({
     color: '#166534',
     textAlign: 'center',
   },
+  // Clean In Progress Banner styles
+  inProgressBannerClean: {
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginHorizontal: 12,
+    marginTop: 8,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  inProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 12,
+  },
+  inProgressStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  inProgressStatusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.green,
+  },
+  backToPendingSmall: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#E5E7EB',
+  },
+  jobCompletedBtnLarge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.blue,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    gap: 8,
+    width: '100%',
+  },
+  jobCompletedBtnLargeText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  completedHintText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 10,
+    textAlign: 'center',
+  },
   bannerActionsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -1284,6 +1335,81 @@ const s = StyleSheet.create({
     fontSize: 12,
     color: '#EF4444',
     fontWeight: '500',
+  },
+  // Clean Completed Banner styles
+  completedBannerClean: {
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginHorizontal: 12,
+    marginTop: 8,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  completedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 12,
+  },
+  completedStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  completedStatusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.blue,
+  },
+  leaveReviewBtnLarge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.gold,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    gap: 8,
+    width: '100%',
+  },
+  leaveReviewBtnLargeText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  reviewedBadgeLarge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    gap: 8,
+    width: '100%',
+  },
+  reviewedBadgeLargeText: {
+    color: '#92400E',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  contractorCompletedMsg: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#DBEAFE',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    gap: 8,
+    width: '100%',
+  },
+  contractorCompletedMsgText: {
+    color: colors.blue,
+    fontSize: 14,
+    fontWeight: '600',
   },
   // Completed/Archived section styles
   completedActions: {
