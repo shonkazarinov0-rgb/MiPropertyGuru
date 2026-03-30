@@ -1502,7 +1502,7 @@ const s = StyleSheet.create({
   reviewBtnCompact: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.gold,
+    backgroundColor: '#FFB800',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
