@@ -203,12 +203,15 @@ export default function ContractorDetailScreen() {
         )}
 
         <View style={s.contactSection}>
-          <TouchableOpacity testID="call-btn" style={s.contactBtn} onPress={handleCall}>
-            <View style={[s.contactIcon, { backgroundColor: '#E8F9EE' }]}>
-              <Ionicons name="call" size={22} color={colors.success} />
-            </View>
-            <Text style={s.contactLabel}>Call</Text>
-          </TouchableOpacity>
+          {/* Only show Call button if phone_visible is not false */}
+          {contractor?.phone_visible !== false && contractor?.phone && (
+            <TouchableOpacity testID="call-btn" style={s.contactBtn} onPress={handleCall}>
+              <View style={[s.contactIcon, { backgroundColor: '#E8F9EE' }]}>
+                <Ionicons name="call" size={22} color={colors.success} />
+              </View>
+              <Text style={s.contactLabel}>Call</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity testID="email-btn" style={s.contactBtn} onPress={handleEmail}>
             <View style={[s.contactIcon, { backgroundColor: '#E8F0FF' }]}>
               <Ionicons name="mail" size={22} color={colors.info} />

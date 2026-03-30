@@ -30,6 +30,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, refreshUser, switchMode, isClientMode, isContractorMode } = useAuth();
   const [liveLocation, setLiveLocation] = useState(user?.live_location_enabled || false);
+  const [phoneVisible, setPhoneVisible] = useState(user?.phone_visible !== false); // Default to true
   const [serviceRadius, setServiceRadius] = useState(user?.service_radius || 50);
   const [saving, setSaving] = useState(false);
   const [showAddLocation, setShowAddLocation] = useState(false);
@@ -114,6 +115,17 @@ export default function ProfileScreen() {
       await refreshUser();
     } catch (e: any) {
       console.error('Failed to update service radius:', e.message);
+    }
+  };
+
+  const togglePhoneVisibility = async (val: boolean) => {
+    setPhoneVisible(val);
+    try {
+      await api.put('/contractors/phone-visibility', { phone_visible: val });
+      await refreshUser();
+    } catch (e: any) {
+      console.error('Failed to update phone visibility:', e.message);
+      setPhoneVisible(!val);
     }
   };
 
@@ -570,6 +582,25 @@ export default function ProfileScreen() {
                     onValueChange={toggleLiveLocation}
                     trackColor={{ false: colors.border, true: colors.primaryLight }}
                     thumbColor={liveLocation ? colors.primary : '#f4f4f4'} 
+                  />
+                </View>
+
+                <View style={s.divider} />
+
+                {/* Phone Visibility Toggle */}
+                <View style={s.settingRow}>
+                  <View style={s.settingInfo}>
+                    <Ionicons name="call" size={22} color={colors.primary} />
+                    <View style={{ marginLeft: 12 }}>
+                      <Text style={s.settingLabel}>Show Phone Number</Text>
+                      <Text style={s.settingDesc}>Allow clients to call you directly</Text>
+                    </View>
+                  </View>
+                  <Switch 
+                    value={phoneVisible} 
+                    onValueChange={togglePhoneVisibility}
+                    trackColor={{ false: colors.border, true: colors.primaryLight }}
+                    thumbColor={phoneVisible ? colors.primary : '#f4f4f4'} 
                   />
                 </View>
 

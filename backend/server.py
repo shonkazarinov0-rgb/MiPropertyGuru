@@ -1405,6 +1405,18 @@ async def update_service_radius(req: ServiceRadiusReq, user=Depends(get_current_
     await db.users.update_one({"id": user["id"]}, {"$set": {"service_radius": radius}})
     return {"message": "Service radius updated", "service_radius": radius}
 
+class PhoneVisibilityReq(BaseModel):
+    phone_visible: bool
+
+@api_router.put("/contractors/phone-visibility")
+async def update_phone_visibility(req: PhoneVisibilityReq, user=Depends(get_current_user)):
+    """Toggle phone number visibility for contractor"""
+    if user["role"] != "contractor":
+        raise HTTPException(403, "Contractors only")
+    
+    await db.users.update_one({"id": user["id"]}, {"$set": {"phone_visible": req.phone_visible}})
+    return {"message": "Phone visibility updated", "phone_visible": req.phone_visible}
+
 @api_router.put("/contractors/profile")
 async def update_profile(req: ProfileUpdate, user=Depends(get_current_user)):
     update = {}

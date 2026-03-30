@@ -919,15 +919,18 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
         
         {/* Action Buttons - Styled like the reference image */}
         <View style={styles.contactButtonsRow}>
-          <TouchableOpacity 
-            style={styles.contactActionBtn}
-            onPress={(e) => handleCall(item.phone, e)}
-          >
-            <View style={[styles.contactActionIcon, { backgroundColor: '#E8F9EE' }]}>
-              <Ionicons name="call" size={20} color="#22C55E" />
-            </View>
-            <Text style={styles.contactActionLabel}>Call</Text>
-          </TouchableOpacity>
+          {/* Only show Call button if phone_visible is not false */}
+          {item.phone_visible !== false && item.phone && (
+            <TouchableOpacity 
+              style={styles.contactActionBtn}
+              onPress={(e) => handleCall(item.phone, e)}
+            >
+              <View style={[styles.contactActionIcon, { backgroundColor: '#E8F9EE' }]}>
+                <Ionicons name="call" size={20} color="#22C55E" />
+              </View>
+              <Text style={styles.contactActionLabel}>Call</Text>
+            </TouchableOpacity>
+          )}
           
           <TouchableOpacity 
             style={styles.contactActionBtn}
