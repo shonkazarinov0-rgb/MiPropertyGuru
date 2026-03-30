@@ -648,8 +648,8 @@ export default function ChatScreen() {
                 </View>
               </View>
               <TouchableOpacity style={s.jobCompletedBtnCompact} onPress={handleArchiveJob}>
-                <Ionicons name="checkmark-done" size={16} color="#fff" />
-                <Text style={s.jobCompletedBtnCompactText}>Job Completed</Text>
+                <Ionicons name="checkmark-done" size={12} color="#fff" />
+                <Text style={s.jobCompletedBtnCompactText}>Complete</Text>
               </TouchableOpacity>
             </View>
             <TouchableOpacity style={s.backToPendingLink} onPress={handleBackToPending}>
@@ -1243,14 +1243,14 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.blue,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    gap: 4,
   },
   jobCompletedBtnCompactText: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '600',
   },
   backToPendingLink: {
