@@ -633,25 +633,23 @@ export default function ChatScreen() {
         {isFullyConfirmed && (
           <View style={s.inProgressBannerCompact}>
             <View style={s.inProgressTopRow}>
-              <View style={s.inProgressStatusRow}>
+              <View style={s.inProgressLeftSection}>
                 <View style={s.confirmedIconCircle}>
-                  <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                  <Ionicons name="checkmark" size={12} color="#FFFFFF" />
                 </View>
-                <View>
-                  <Text style={s.inProgressStatusText}>Job In Progress</Text>
-                  <Text style={s.inProgressHintSmall}>
-                    {getOtherPartyType() === 'contractor' 
-                      ? 'Mark complete when work is done to leave a review'
-                      : 'Mark complete when you finish the work'
-                    }
-                  </Text>
-                </View>
+                <Text style={s.inProgressStatusText}>In Progress</Text>
               </View>
               <TouchableOpacity style={s.jobCompletedBtnCompact} onPress={handleArchiveJob}>
                 <Ionicons name="checkmark-done" size={12} color="#fff" />
                 <Text style={s.jobCompletedBtnCompactText}>Complete</Text>
               </TouchableOpacity>
             </View>
+            <Text style={s.inProgressHintSmall}>
+              {getOtherPartyType() === 'contractor' 
+                ? 'Tap Complete when done to leave a review'
+                : 'Tap Complete when work is finished'
+              }
+            </Text>
             <TouchableOpacity style={s.backToPendingLink} onPress={handleBackToPending}>
               <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
               <Text style={s.backToPendingLinkText}>Back to Pending</Text>
@@ -1213,15 +1211,20 @@ const s = StyleSheet.create({
   inProgressBannerCompact: {
     backgroundColor: '#F0FDF4',
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
     marginHorizontal: 12,
     marginTop: 8,
-    borderRadius: 12,
+    borderRadius: 10,
   },
   inProgressTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  inProgressLeftSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   inProgressStatusRow: {
     flexDirection: 'row',
@@ -1230,23 +1233,24 @@ const s = StyleSheet.create({
     flex: 1,
   },
   inProgressStatusText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.green,
   },
   inProgressHintSmall: {
     fontSize: 11,
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: 6,
+    marginLeft: 28,
   },
   jobCompletedBtnCompact: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.blue,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
     borderRadius: 6,
-    gap: 4,
+    gap: 3,
   },
   jobCompletedBtnCompactText: {
     color: '#fff',
@@ -1257,13 +1261,13 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 10,
-    paddingTop: 10,
+    marginTop: 8,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
   backToPendingLinkText: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
   },
   // Clean In Progress Banner styles (legacy)
