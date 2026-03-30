@@ -167,6 +167,7 @@ class PortfolioCreate(BaseModel):
 
 class ConversationCreate(BaseModel):
     participant_id: str
+    job_id: Optional[str] = None
 
 class ContractReq(BaseModel):
     contractor_name: str
@@ -1949,6 +1950,13 @@ async def create_conversation(req: ConversationCreate, user=Depends(get_current_
     if not other:
         raise HTTPException(404, "User not found")
     
+    # Get job details if job_id is provided
+    job_title = ""
+    if req.job_id:
+        job = await db.posted_jobs.find_one({"id": req.job_id}, {"title": 1})
+        if job:
+            job_title = job.get("title", "")
+    
     conv = {
         "id": str(uuid.uuid4()),
         "participant_1": user["id"], 
@@ -1962,6 +1970,10 @@ async def create_conversation(req: ConversationCreate, user=Depends(get_current_
         "participant_2_phone": other.get("phone", ""),
         "participant_1_email": user.get("email", ""),
         "participant_2_email": other.get("email", ""),
+        "job_id": req.job_id or "",
+        "job_title": job_title,
+        "job_status": "pending",  # Always start as pending
+        "confirmed_by": [],
         "last_message": "", 
         "last_message_at": datetime.now(timezone.utc).isoformat(),
         "created_at": datetime.now(timezone.utc).isoformat()
@@ -1978,6 +1990,19 @@ async def list_conversations(user=Depends(get_current_user)):
     
     # Enrich with phone/email if missing (for backwards compatibility)
     for conv in convs:
+        # Ensure job_status exists - default to 'pending' for old conversations
+        if not conv.get("job_status"):
+            conv["job_status"] = "pending"
+            # Also update DB for future queries
+            await db.conversations.update_one(
+                {"id": conv["id"]},
+                {"$set": {"job_status": "pending"}}
+            )
+        
+        # Ensure confirmed_by exists
+        if "confirmed_by" not in conv:
+            conv["confirmed_by"] = []
+        
         # Check if phone/email are missing and fetch from users
         if not conv.get("participant_1_phone") or not conv.get("participant_2_phone"):
             p1 = await db.users.find_one({"id": conv["participant_1"]}, {"phone": 1, "email": 1})

@@ -208,7 +208,11 @@ export default function ContractorDashboard() {
     const job = incomingJobs.find(j => j.id === jobId);
     if (job && job.posted_by) {
       try {
-        const conv = await api.post('/conversations', { participant_id: job.posted_by });
+        // Pass job_id so conversation is linked to the job
+        const conv = await api.post('/conversations', { 
+          participant_id: job.posted_by,
+          job_id: job.id
+        });
         router.push(`/chat/${conv.id}`);
       } catch (e: any) {
         Alert.alert('Error', e.message || 'Failed to start conversation');
