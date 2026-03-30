@@ -12,6 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
 import ModeToggle from '../../src/components/ModeToggle';
+import { TRADES, getTradeIcon } from '../../src/constants/trades';
 
 const colors = {
   primary: '#FF6A00',
@@ -32,6 +33,9 @@ export default function ProfileScreen() {
   const [liveLocation, setLiveLocation] = useState(user?.live_location_enabled || false);
   const [phoneVisible, setPhoneVisible] = useState(user?.phone_visible !== false); // Default to true
   const [serviceRadius, setServiceRadius] = useState(user?.service_radius || 50);
+  const [editPhone, setEditPhone] = useState(user?.phone || '');
+  const [editTrades, setEditTrades] = useState<string[]>(user?.trades || []);
+  const [showTradeModal, setShowTradeModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [locationName, setLocationName] = useState('');
@@ -56,21 +60,6 @@ export default function ProfileScreen() {
   const [showEditLocation, setShowEditLocation] = useState(false);
   const [editLocationIndex, setEditLocationIndex] = useState<number>(-1);
   const [editLocationName, setEditLocationName] = useState('');
-
-  // Helper function to get trade-specific icon
-  const getTradeIcon = (tradeType: string | null | undefined): keyof typeof Ionicons.glyphMap => {
-    const trade = (tradeType || '').toLowerCase();
-    if (trade.includes('hvac') || trade.includes('heating') || trade.includes('cooling')) return 'snow-outline';
-    if (trade.includes('plumb')) return 'water-outline';
-    if (trade.includes('electr')) return 'flash-outline';
-    if (trade.includes('carpenter') || trade.includes('wood')) return 'hammer-outline';
-    if (trade.includes('paint')) return 'color-palette-outline';
-    if (trade.includes('roof')) return 'home-outline';
-    if (trade.includes('landscap') || trade.includes('garden')) return 'leaf-outline';
-    if (trade.includes('clean')) return 'sparkles-outline';
-    if (trade.includes('handyman') || trade.includes('general')) return 'construct-outline';
-    return 'build-outline';
-  };
 
   useEffect(() => {
     if (user?.role === 'contractor') {
@@ -126,6 +115,36 @@ export default function ProfileScreen() {
     } catch (e: any) {
       console.error('Failed to update phone visibility:', e.message);
       setPhoneVisible(!val);
+    }
+  };
+
+  const savePhoneNumber = async () => {
+    if (editPhone === user?.phone) return; // No change
+    try {
+      await api.put('/contractors/profile', { phone: editPhone });
+      await refreshUser();
+    } catch (e: any) {
+      console.error('Failed to update phone:', e.message);
+    }
+  };
+
+  const toggleTrade = (tradeName: string) => {
+    if (editTrades.includes(tradeName)) {
+      if (editTrades.length > 1) { // Must have at least 1 trade
+        setEditTrades(editTrades.filter(t => t !== tradeName));
+      }
+    } else if (editTrades.length < 5) {
+      setEditTrades([...editTrades, tradeName]);
+    }
+  };
+
+  const saveTrades = async () => {
+    try {
+      await api.put('/contractors/profile', { trades: editTrades });
+      await refreshUser();
+      setShowTradeModal(false);
+    } catch (e: any) {
+      console.error('Failed to update trades:', e.message);
     }
   };
 
@@ -366,9 +385,9 @@ export default function ProfileScreen() {
           </View>
           <Text style={s.profileName}>{user?.name}</Text>
           
-          {/* Show trade badges with icons only in contractor mode */}
+          {/* Show trade badges with icons only in contractor mode - with edit button */}
           {isContractor && isContractorMode && user?.trades && user.trades.length > 0 && (
-            <View style={s.tradesContainer}>
+            <TouchableOpacity style={s.tradesContainerEditable} onPress={() => { setEditTrades(user.trades); setShowTradeModal(true); }}>
               {user.trades.map((trade: string, index: number) => (
                 <View key={index} style={s.typeBadge}>
                   <Ionicons 
@@ -379,18 +398,26 @@ export default function ProfileScreen() {
                   <Text style={s.typeText}>{trade}</Text>
                 </View>
               ))}
-            </View>
+              <View style={s.editTradesBtn}>
+                <Ionicons name="pencil" size={14} color={colors.primary} />
+              </View>
+            </TouchableOpacity>
           )}
-          {/* Fallback to contractor_type if no trades array */}
+          {/* Fallback to contractor_type if no trades array - with edit button */}
           {isContractor && isContractorMode && (!user?.trades || user.trades.length === 0) && user?.contractor_type && (
-            <View style={s.typeBadge}>
-              <Ionicons 
-                name={getTradeIcon(user?.contractor_type)} 
-                size={16} 
-                color={colors.primary} 
-              />
-              <Text style={s.typeText}>{user?.contractor_type}</Text>
-            </View>
+            <TouchableOpacity style={s.tradesContainerEditable} onPress={() => { setEditTrades([user.contractor_type]); setShowTradeModal(true); }}>
+              <View style={s.typeBadge}>
+                <Ionicons 
+                  name={getTradeIcon(user?.contractor_type)} 
+                  size={16} 
+                  color={colors.primary} 
+                />
+                <Text style={s.typeText}>{user?.contractor_type}</Text>
+              </View>
+              <View style={s.editTradesBtn}>
+                <Ionicons name="pencil" size={14} color={colors.primary} />
+              </View>
+            </TouchableOpacity>
           )}
           
           <Text style={s.profileEmail}>{user?.email}</Text>
@@ -565,9 +592,9 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {/* Location Settings */}
+            {/* Location & Phone Settings */}
             <View style={s.section}>
-              <Text style={s.sectionTitle}>Location Settings</Text>
+              <Text style={s.sectionTitle}>Location & Phone Settings</Text>
               <View style={s.settingCard}>
                 <View style={s.settingRow}>
                   <View style={s.settingInfo}>
@@ -587,12 +614,32 @@ export default function ProfileScreen() {
 
                 <View style={s.divider} />
 
-                {/* Phone Visibility Toggle */}
+                {/* Phone Number Edit */}
                 <View style={s.settingRow}>
                   <View style={s.settingInfo}>
                     <Ionicons name="call" size={22} color={colors.primary} />
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <Text style={s.settingLabel}>Phone Number</Text>
+                      <TextInput
+                        style={s.phoneInput}
+                        value={editPhone}
+                        onChangeText={setEditPhone}
+                        placeholder="Enter phone number"
+                        keyboardType="phone-pad"
+                        onBlur={savePhoneNumber}
+                      />
+                    </View>
+                  </View>
+                </View>
+
+                <View style={s.divider} />
+
+                {/* Phone Visibility Toggle */}
+                <View style={s.settingRow}>
+                  <View style={s.settingInfo}>
+                    <Ionicons name="eye" size={22} color={colors.primary} />
                     <View style={{ marginLeft: 12 }}>
-                      <Text style={s.settingLabel}>Show Phone Number</Text>
+                      <Text style={s.settingLabel}>Show Phone to Clients</Text>
                       <Text style={s.settingDesc}>Allow clients to call you directly</Text>
                     </View>
                   </View>
@@ -668,16 +715,6 @@ export default function ProfileScreen() {
                 <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-
-            {/* Contractor Settings */}
-            <TouchableOpacity 
-              style={s.settingsBtn}
-              onPress={() => router.push('/contractor-settings')}
-            >
-              <Ionicons name="settings-outline" size={22} color={colors.primary} />
-              <Text style={s.settingsBtnText}>Contractor Settings</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
           </>
         )}
 
@@ -902,6 +939,53 @@ export default function ProfileScreen() {
                 </View>
               </View>
             </KeyboardAvoidingView>
+          </View>
+        </Modal>
+
+        {/* Trade Edit Modal */}
+        <Modal visible={showTradeModal} transparent animationType="slide">
+          <View style={s.modalOverlay}>
+            <View style={s.tradeModalContent}>
+              <View style={s.modalHeader}>
+                <Text style={s.modalTitle}>Edit Services</Text>
+                <TouchableOpacity onPress={() => setShowTradeModal(false)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+              <Text style={s.tradeModalSubtitle}>Select up to 5 services ({editTrades.length}/5)</Text>
+              <ScrollView style={s.tradeList}>
+                {TRADES.map((trade) => {
+                  const isSelected = editTrades.includes(trade.name);
+                  const isDisabled = !isSelected && editTrades.length >= 5;
+                  return (
+                    <TouchableOpacity
+                      key={trade.name}
+                      style={[s.tradeItem, isSelected && s.tradeItemSelected, isDisabled && s.tradeItemDisabled]}
+                      onPress={() => !isDisabled && toggleTrade(trade.name)}
+                      disabled={isDisabled}
+                    >
+                      <View style={s.tradeItemLeft}>
+                        <Text style={s.tradeEmoji}>{trade.icon}</Text>
+                        <Text style={[s.tradeName, isDisabled && s.tradeNameDisabled]}>{trade.name}</Text>
+                      </View>
+                      {isSelected ? (
+                        <Ionicons name="remove-circle" size={24} color="#EF4444" />
+                      ) : (
+                        <Ionicons name="add-circle" size={24} color={isDisabled ? colors.border : colors.primary} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <View style={s.tradeModalActions}>
+                <TouchableOpacity style={s.tradeModalCancelBtn} onPress={() => setShowTradeModal(false)}>
+                  <Text style={s.tradeModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.tradeModalSaveBtn} onPress={saveTrades}>
+                  <Text style={s.tradeModalSaveText}>Save Changes</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         </Modal>
 
@@ -1134,6 +1218,109 @@ const s = StyleSheet.create({
     gap: 8,
     marginTop: 10,
     paddingHorizontal: 10,
+  },
+  tradesContainerEditable: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+    paddingHorizontal: 10,
+  },
+  editTradesBtn: {
+    backgroundColor: colors.primaryLight,
+    padding: 6,
+    borderRadius: 15,
+    marginLeft: 4,
+  },
+  phoneInput: {
+    fontSize: 14,
+    color: colors.text,
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    marginTop: 4,
+  },
+  // Trade Modal Styles
+  tradeModalContent: {
+    backgroundColor: colors.paper,
+    borderRadius: 20,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  tradeModalSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 16,
+  },
+  tradeList: {
+    maxHeight: 400,
+  },
+  tradeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: colors.background,
+  },
+  tradeItemSelected: {
+    backgroundColor: colors.primaryLight,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  tradeItemDisabled: {
+    opacity: 0.5,
+  },
+  tradeItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  tradeEmoji: {
+    fontSize: 24,
+  },
+  tradeName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  tradeNameDisabled: {
+    color: colors.textSecondary,
+  },
+  tradeModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    gap: 12,
+  },
+  tradeModalCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+  },
+  tradeModalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  tradeModalSaveBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  tradeModalSaveText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.paper,
   },
   typeText: {
     fontSize: 14,
