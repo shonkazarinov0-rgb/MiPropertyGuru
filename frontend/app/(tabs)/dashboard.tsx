@@ -10,6 +10,7 @@ import * as Location from 'expo-location';
 import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
 import ModeToggle from '../../src/components/ModeToggle';
+import { getTradeIcon as getTradeEmoji } from '../../src/constants/trades';
 
 const colors = {
   primary: '#FF6A00',
@@ -279,10 +280,16 @@ export default function ContractorDashboard() {
         <Text style={styles.jobTitle}>{item.title}</Text>
         
         <View style={styles.tradeRow}>
-          <View style={styles.tradeChipOrange}>
-            <Ionicons name={getTradeIcon(item.trade_required)} size={14} color={colors.primary} />
-            <Text style={styles.tradeChipOrangeText}>{item.trade_required}</Text>
-          </View>
+          {/* Show all trades from trades_required array, or parse trade_required string */}
+          {(item.trades_required && item.trades_required.length > 0 
+            ? item.trades_required 
+            : (item.trade_required || '').split(',').map((t: string) => t.trim()).filter(Boolean)
+          ).map((trade: string, index: number) => (
+            <View key={index} style={styles.tradeChipOrange}>
+              <Text style={styles.tradeChipEmoji}>{getTradeEmoji(trade)}</Text>
+              <Text style={styles.tradeChipOrangeText}>{trade}</Text>
+            </View>
+          ))}
           {item.urgency === 'urgent' && (
             <View style={styles.urgentChip}>
               <Ionicons name="flame" size={12} color="#EF4444" />
@@ -655,7 +662,14 @@ export default function ContractorDashboard() {
             {jobToRemove && (
               <View style={styles.modalJobPreview}>
                 <Text style={styles.modalJobTitle}>{jobToRemove.title}</Text>
-                <Text style={styles.modalJobTrade}>{jobToRemove.trade_required}</Text>
+                <View style={styles.modalTradesRow}>
+                  {(jobToRemove.trades_required && jobToRemove.trades_required.length > 0 
+                    ? jobToRemove.trades_required 
+                    : (jobToRemove.trade_required || '').split(',').map((t: string) => t.trim()).filter(Boolean)
+                  ).map((trade: string, index: number) => (
+                    <Text key={index} style={styles.modalJobTrade}>{getTradeEmoji(trade)} {trade}</Text>
+                  ))}
+                </View>
               </View>
             )}
             <View style={styles.modalButtons}>
@@ -962,7 +976,8 @@ const styles = StyleSheet.create({
   tradeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    flexWrap: 'wrap',
+    gap: 6,
     marginBottom: 10,
   },
   tradeChipOrange: {
@@ -972,7 +987,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
-    gap: 5,
+    gap: 4,
+  },
+  tradeChipEmoji: {
+    fontSize: 12,
   },
   tradeChipOrangeText: {
     fontSize: 12,
@@ -1193,10 +1211,20 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 4,
   },
+  modalTradesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
   modalJobTrade: {
     fontSize: 12,
     color: colors.primary,
     fontWeight: '500',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   modalButtons: {
     flexDirection: 'row',
