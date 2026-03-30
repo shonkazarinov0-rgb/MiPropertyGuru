@@ -1952,10 +1952,28 @@ async def create_conversation(req: ConversationCreate, user=Depends(get_current_
     
     # Get job details if job_id is provided
     job_title = ""
+    job_poster_id = None
     if req.job_id:
-        job = await db.posted_jobs.find_one({"id": req.job_id}, {"title": 1})
+        job = await db.posted_jobs.find_one({"id": req.job_id}, {"title": 1, "posted_by": 1})
         if job:
             job_title = job.get("title", "")
+            job_poster_id = job.get("posted_by")
+    
+    # Determine conversation roles based on job context, not account roles
+    # If job_id is provided, the job poster is acting as "client" and responder as "contractor"
+    if job_poster_id:
+        if user["id"] == job_poster_id:
+            # Current user is the job poster (client role in this conversation)
+            participant_1_conv_role = "client"
+            participant_2_conv_role = "contractor"
+        else:
+            # Current user is responding to a job (contractor role in this conversation)
+            participant_1_conv_role = "contractor"
+            participant_2_conv_role = "client"
+    else:
+        # No job context, use account roles
+        participant_1_conv_role = user["role"]
+        participant_2_conv_role = other["role"]
     
     conv = {
         "id": str(uuid.uuid4()),
@@ -1964,8 +1982,8 @@ async def create_conversation(req: ConversationCreate, user=Depends(get_current_
         "participants": [user["id"], req.participant_id],
         "participant_1_name": user["name"], 
         "participant_2_name": other["name"],
-        "participant_1_role": user["role"], 
-        "participant_2_role": other["role"],
+        "participant_1_role": participant_1_conv_role, 
+        "participant_2_role": participant_2_conv_role,
         "participant_1_phone": user.get("phone", ""),
         "participant_2_phone": other.get("phone", ""),
         "participant_1_email": user.get("email", ""),
