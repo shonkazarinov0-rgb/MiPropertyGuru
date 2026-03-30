@@ -639,10 +639,6 @@ export default function ChatScreen() {
                 </View>
                 <Text style={s.inProgressStatusText}>In Progress</Text>
               </View>
-              <TouchableOpacity style={s.completeBtnBlue} onPress={handleArchiveJob}>
-                <Ionicons name="checkmark-done" size={12} color="#fff" />
-                <Text style={s.completeBtnBlueText}>Complete</Text>
-              </TouchableOpacity>
             </View>
             <Text style={s.inProgressHintSmall}>
               {getOtherPartyType() === 'contractor' 
@@ -650,10 +646,16 @@ export default function ChatScreen() {
                 : 'Tap Complete when work is finished'
               }
             </Text>
-            <TouchableOpacity style={s.backToPendingLink} onPress={handleBackToPending}>
-              <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
-              <Text style={s.backToPendingLinkText}>Back to Pending</Text>
-            </TouchableOpacity>
+            <View style={s.inProgressActionsRow}>
+              <TouchableOpacity style={s.backToPendingBtn} onPress={handleBackToPending}>
+                <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
+                <Text style={s.backToPendingBtnText}>Back to Pending</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.completeBtnBlue} onPress={handleArchiveJob}>
+                <Ionicons name="checkmark-done" size={12} color="#fff" />
+                <Text style={s.completeBtnBlueText}>Complete</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -1331,6 +1333,26 @@ const s = StyleSheet.create({
     marginTop: 6,
     marginLeft: 28,
   },
+  inProgressActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#D1FAE5',
+  },
+  backToPendingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+    paddingRight: 8,
+  },
+  backToPendingBtnText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
   completeBtnBlue: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1367,6 +1389,9 @@ const s = StyleSheet.create({
     paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: '#D1FAE5',
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+    paddingRight: 8,
   },
   backToPendingLinkText: {
     fontSize: 11,

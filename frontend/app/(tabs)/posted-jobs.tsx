@@ -175,31 +175,47 @@ export default function PostedJobsScreen() {
   // Handle moving job back to Pending (reopen for contractors)
   const handleMoveToPending = async (job: any) => {
     const conv = getJobConversation(job);
-    if (!conv) return;
+    if (!conv) {
+      console.log('[PostedJobs] No conversation found for job:', job.id);
+      return;
+    }
 
-    Alert.alert(
-      'Reopen Job',
-      'This will cancel the current arrangement and reopen the job for all contractors. Are you sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reopen',
-          style: 'destructive',
-          onPress: async () => {
-            setActionLoading(job.id);
-            try {
-              await api.post(`/conversations/${conv.id}/reset-to-pending`);
-              await fetchData();
-              Alert.alert('Job Reopened', 'Contractors can now see and respond to this job again.');
-            } catch (e: any) {
-              Alert.alert('Error', e.message || 'Could not reopen job');
-            } finally {
-              setActionLoading(null);
-            }
-          }
+    const doReopen = async () => {
+      setActionLoading(job.id);
+      try {
+        await api.post(`/conversations/${conv.id}/reset-to-pending`);
+        await fetchData();
+        if (Platform.OS === 'web') {
+          window.alert('Job reopened! Contractors can now see and respond to this job again.');
+        } else {
+          Alert.alert('Job Reopened', 'Contractors can now see and respond to this job again.');
         }
-      ]
-    );
+      } catch (e: any) {
+        const errorMsg = e.message || 'Could not reopen job';
+        if (Platform.OS === 'web') {
+          window.alert('Error: ' + errorMsg);
+        } else {
+          Alert.alert('Error', errorMsg);
+        }
+      } finally {
+        setActionLoading(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('This will cancel the current arrangement and reopen the job for all contractors. Are you sure?')) {
+        doReopen();
+      }
+    } else {
+      Alert.alert(
+        'Reopen Job',
+        'This will cancel the current arrangement and reopen the job for all contractors. Are you sure?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Reopen', style: 'destructive', onPress: doReopen }
+        ]
+      );
+    }
   };
 
   // Handle moving job back to In Progress
@@ -259,30 +275,47 @@ export default function PostedJobsScreen() {
   // Handle completing a job
   const handleComplete = async (job: any) => {
     const conv = getJobConversation(job);
-    if (!conv) return;
+    if (!conv) {
+      console.log('[PostedJobs] No conversation found for job:', job.id);
+      return;
+    }
 
-    Alert.alert(
-      'Complete Job',
-      'Mark this job as completed?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Complete',
-          onPress: async () => {
-            setActionLoading(job.id);
-            try {
-              await api.post(`/conversations/${conv.id}/archive-job`);
-              await fetchData();
-              Alert.alert('Job Completed', 'The job has been marked as completed.');
-            } catch (e: any) {
-              Alert.alert('Error', e.message || 'Could not complete job');
-            } finally {
-              setActionLoading(null);
-            }
-          }
+    const doComplete = async () => {
+      setActionLoading(job.id);
+      try {
+        await api.post(`/conversations/${conv.id}/archive-job`);
+        await fetchData();
+        if (Platform.OS === 'web') {
+          window.alert('Job marked as completed!');
+        } else {
+          Alert.alert('Job Completed', 'The job has been marked as completed.');
         }
-      ]
-    );
+      } catch (e: any) {
+        const errorMsg = e.message || 'Could not complete job';
+        if (Platform.OS === 'web') {
+          window.alert('Error: ' + errorMsg);
+        } else {
+          Alert.alert('Error', errorMsg);
+        }
+      } finally {
+        setActionLoading(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Mark this job as completed?')) {
+        doComplete();
+      }
+    } else {
+      Alert.alert(
+        'Complete Job',
+        'Mark this job as completed?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Complete', onPress: doComplete }
+        ]
+      );
+    }
   };
 
   // Handle deleting a job
