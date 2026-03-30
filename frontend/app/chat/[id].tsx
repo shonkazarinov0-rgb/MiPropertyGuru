@@ -668,11 +668,11 @@ export default function ChatScreen() {
               {/* Show Review button only for clients (when other party is contractor) who haven't reviewed */}
               {getOtherPartyType() === 'contractor' && !conversation?.hasReview && (
                 <TouchableOpacity 
-                  style={s.reviewBtnCompact} 
+                  style={s.reviewLinkGold} 
                   onPress={() => setShowReviewModal(true)}
                 >
-                  <Ionicons name="star" size={14} color="#fff" />
-                  <Text style={s.reviewBtnCompactText}>Leave Review</Text>
+                  <Ionicons name="star" size={14} color="#FFB800" />
+                  <Text style={s.reviewLinkGoldText}>Leave Review</Text>
                 </TouchableOpacity>
               )}
               {/* Show reviewed badge if already reviewed */}
@@ -1510,6 +1510,16 @@ const s = StyleSheet.create({
   },
   reviewBtnCompactText: {
     color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reviewLinkGold: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  reviewLinkGoldText: {
+    color: '#FFB800',
     fontSize: 12,
     fontWeight: '600',
   },
