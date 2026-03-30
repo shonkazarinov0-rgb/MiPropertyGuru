@@ -132,8 +132,16 @@ export default function ContractorDetailScreen() {
             <Text style={s.businessName}>{contractor.business_name}</Text>
           )}
           
-          <View style={s.typeBadge}>
-            <Text style={s.typeText}>{contractor.contractor_type}</Text>
+          {/* All Trades Badges */}
+          <View style={s.tradesBadgeRow}>
+            {(contractor.trades && contractor.trades.length > 0 
+              ? contractor.trades 
+              : [contractor.contractor_type]
+            ).filter(Boolean).map((trade: string, index: number) => (
+              <View key={index} style={s.typeBadge}>
+                <Text style={s.typeText}>{trade}</Text>
+              </View>
+            ))}
           </View>
           
           {/* License Badge */}
@@ -314,9 +322,16 @@ const s = StyleSheet.create({
   avatarText: { fontSize: 32, fontWeight: '700', color: colors.paper },
   name: { fontSize: 24, fontWeight: '700', color: colors.secondary },
   businessName: { fontSize: 14, color: colors.textSecondary, marginTop: 2 },
+  tradesBadgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: spacing.xs,
+  },
   typeBadge: {
     backgroundColor: '#FFF8EC', paddingHorizontal: 14, paddingVertical: 5,
-    borderRadius: radius.round, marginTop: spacing.xs,
+    borderRadius: radius.round,
   },
   typeText: { fontSize: 14, fontWeight: '600', color: colors.primaryDark },
   licenseBadge: {
