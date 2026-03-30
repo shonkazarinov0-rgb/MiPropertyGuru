@@ -668,19 +668,20 @@ export default function ChatScreen() {
                 <Text style={s.fullyConfirmedSubtext}>Job In Progress</Text>
               </View>
             </View>
-            <View style={s.inProgressHint}>
-              <Text style={s.inProgressHintText}>
-                Once work is done, tap "Job Completed" to finish
-              </Text>
+            <View style={s.bannerActionsRow}>
+              <TouchableOpacity style={s.completeJobBtnBlue} onPress={handleArchiveJob}>
+                <Ionicons name="checkmark-done" size={16} color="#fff" />
+                <Text style={s.completeJobBtnText}>Job Completed</Text>
+              </TouchableOpacity>
             </View>
-            <View style={s.bannerActions}>
+            <View style={s.bannerSecondaryRow}>
               <TouchableOpacity style={s.backToPendingBtn} onPress={handleBackToPending}>
                 <Ionicons name="arrow-undo" size={14} color={colors.primary} />
                 <Text style={s.backToPendingText}>Back to Pending</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={s.completeJobBtn} onPress={handleArchiveJob}>
-                <Ionicons name="checkmark-done" size={14} color="#fff" />
-                <Text style={s.completeJobBtnText}>Job Completed</Text>
+              <TouchableOpacity style={s.removePartyBtnSmall} onPress={handleRemoveConversation}>
+                <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
+                <Text style={s.removePartyTextSmall}>Remove {getOtherPartyType() === 'contractor' ? 'Contractor' : 'Client'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -690,7 +691,7 @@ export default function ChatScreen() {
         {isArchived && (
           <View style={s.archivedBanner}>
             <View style={s.confirmedInfo}>
-              <Ionicons name="checkmark-circle" size={20} color={colors.green} />
+              <Ionicons name="checkmark-circle" size={20} color={colors.blue} />
               <Text style={s.archivedBannerText}>Job Completed</Text>
             </View>
             <View style={s.completedActions}>
@@ -710,9 +711,15 @@ export default function ChatScreen() {
                   <Text style={s.reviewedText}>Reviewed</Text>
                 </View>
               )}
+            </View>
+            <View style={s.bannerSecondaryRow}>
               <TouchableOpacity style={s.backToProgressBtn} onPress={handleBackToInProgress}>
                 <Ionicons name="arrow-undo" size={14} color={colors.primary} />
                 <Text style={s.backToProgressText}>Back to In Progress</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.removePartyBtnSmall} onPress={handleRemoveConversation}>
+                <Ionicons name="close-circle-outline" size={14} color="#EF4444" />
+                <Text style={s.removePartyTextSmall}>Remove {getOtherPartyType() === 'contractor' ? 'Contractor' : 'Client'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1226,6 +1233,32 @@ const s = StyleSheet.create({
     color: '#166534',
     textAlign: 'center',
   },
+  bannerActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  bannerSecondaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  completeJobBtnBlue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.blue,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    gap: 6,
+    flex: 1,
+    maxWidth: 200,
+  },
   completeJobBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1237,8 +1270,20 @@ const s = StyleSheet.create({
   },
   completeJobBtnText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
+  },
+  removePartyBtnSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    gap: 4,
+  },
+  removePartyTextSmall: {
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '500',
   },
   // Completed/Archived section styles
   completedActions: {

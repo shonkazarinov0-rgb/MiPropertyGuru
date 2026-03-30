@@ -209,7 +209,13 @@ export default function MessagesScreen() {
     const otherName = getOtherName(item);
     const initials = otherName.split(' ').map((n: string) => n[0]).join('').slice(0, 2);
     const isArchived = item.job_status === 'archived';
+    const isConfirmed = item.job_status === 'confirmed';
     const isPending = !item.job_status || item.job_status === 'pending' || item.job_status === 'pending_confirmation';
+    
+    // Determine if the other party is a contractor or client for proper button text
+    const isParticipant1 = item.participant_1 === user?.id;
+    const otherRole = isParticipant1 ? item.participant_2_role : item.participant_1_role;
+    const removeButtonText = otherRole === 'contractor' ? 'Remove Contractor' : 'Remove Client';
     
     return (
       <View style={[s.convCard, isArchived && s.archivedCard]}>
@@ -236,33 +242,17 @@ export default function MessagesScreen() {
           <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
         
-        {/* Remove button for pending conversations in Client mode */}
-        {isPending && isClientMode && (
-          <Pressable 
-            style={({ pressed }) => [s.removeBtn, pressed && { opacity: 0.7 }]}
-            onPress={() => {
-              console.log('[Messages] Remove button pressed for:', item.id);
-              handleRemoveConversation(item);
-            }}
-          >
-            <Ionicons name="close-circle" size={16} color={colors.red} />
-            <Text style={s.removeBtnText}>Remove</Text>
-          </Pressable>
-        )}
-        
-        {/* Remove button for pending conversations in Contractor mode */}
-        {isPending && isContractorMode && (
-          <Pressable 
-            style={({ pressed }) => [s.removeBtn, pressed && { opacity: 0.7 }]}
-            onPress={() => {
-              console.log('[Messages] Remove button pressed for:', item.id);
-              handleRemoveConversation(item);
-            }}
-          >
-            <Ionicons name="close-circle" size={16} color={colors.red} />
-            <Text style={s.removeBtnText}>Remove</Text>
-          </Pressable>
-        )}
+        {/* Remove button for all conversations */}
+        <Pressable 
+          style={({ pressed }) => [s.removeBtn, pressed && { opacity: 0.7 }]}
+          onPress={() => {
+            console.log('[Messages] Remove button pressed for:', item.id);
+            handleRemoveConversation(item);
+          }}
+        >
+          <Ionicons name="close-circle" size={16} color={colors.red} />
+          <Text style={s.removeBtnText}>{removeButtonText}</Text>
+        </Pressable>
       </View>
     );
   };

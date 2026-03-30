@@ -803,6 +803,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: colors.textSecondary,
+    flexShrink: 0,
   },
   tabTextActiveOrange: {
     color: colors.primary,
