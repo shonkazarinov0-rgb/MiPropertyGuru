@@ -264,42 +264,17 @@ export default function ChatScreen() {
 
   // Archive job (mark as completed)
   const handleArchiveJob = async () => {
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm('Mark this job as completed? The conversation will be moved to your Completed Jobs archive.');
-      if (!confirmed) return;
-      
-      try {
-        const res = await api.post(`/conversations/${conversationId}/archive-job`);
-        setConversation(res.conversation);
-        window.alert('Job Completed! 🎉 This conversation has been moved to Completed Jobs.');
-        router.push('/(tabs)/messages');
-      } catch (e: any) {
-        window.alert('Error: ' + (e.message || 'Could not archive job'));
+    try {
+      const res = await api.post(`/conversations/${conversationId}/archive-job`);
+      setConversation(res.conversation);
+      // Redirect to messages tab (will show in Completed section)
+      router.push('/(tabs)/messages');
+    } catch (e: any) {
+      if (Platform.OS === 'web') {
+        window.alert('Error: ' + (e.message || 'Could not complete job'));
+      } else {
+        Alert.alert('Error', e.message || 'Could not complete job');
       }
-    } else {
-      Alert.alert(
-        'Mark Job Complete',
-        'Mark this job as completed? The conversation will be moved to your Completed Jobs archive.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Complete', 
-            onPress: async () => {
-              try {
-                const res = await api.post(`/conversations/${conversationId}/archive-job`);
-                setConversation(res.conversation);
-                Alert.alert(
-                  'Job Completed! 🎉', 
-                  'This conversation has been moved to Completed Jobs.',
-                  [{ text: 'OK', onPress: () => router.push('/(tabs)/messages') }]
-                );
-              } catch (e: any) {
-                Alert.alert('Error', e.message || 'Could not archive job');
-              }
-            }
-          }
-        ]
-      );
     }
   };
 
@@ -654,29 +629,33 @@ export default function ChatScreen() {
           </View>
         )}
         
-        {/* Fully Confirmed / In Progress Banner - Clean Design */}
+        {/* Fully Confirmed / In Progress Banner - Compact Design */}
         {isFullyConfirmed && (
-          <View style={s.inProgressBannerClean}>
-            <View style={s.inProgressHeader}>
+          <View style={s.inProgressBannerCompact}>
+            <View style={s.inProgressTopRow}>
               <View style={s.inProgressStatusRow}>
                 <View style={s.confirmedIconCircle}>
                   <Ionicons name="checkmark" size={14} color="#FFFFFF" />
                 </View>
-                <Text style={s.inProgressStatusText}>Job In Progress</Text>
+                <View>
+                  <Text style={s.inProgressStatusText}>Job In Progress</Text>
+                  <Text style={s.inProgressHintSmall}>
+                    {getOtherPartyType() === 'contractor' 
+                      ? 'Mark complete when work is done to leave a review'
+                      : 'Mark complete when you finish the work'
+                    }
+                  </Text>
+                </View>
               </View>
-              <TouchableOpacity style={s.backToPendingSmall} onPress={handleBackToPending}>
-                <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
+              <TouchableOpacity style={s.jobCompletedBtnCompact} onPress={handleArchiveJob}>
+                <Ionicons name="checkmark-done" size={16} color="#fff" />
+                <Text style={s.jobCompletedBtnCompactText}>Job Completed</Text>
               </TouchableOpacity>
             </View>
-            
-            <TouchableOpacity style={s.jobCompletedBtnLarge} onPress={handleArchiveJob}>
-              <Ionicons name="checkmark-done" size={20} color="#fff" />
-              <Text style={s.jobCompletedBtnLargeText}>Job Completed</Text>
+            <TouchableOpacity style={s.backToPendingLink} onPress={handleBackToPending}>
+              <Ionicons name="arrow-undo" size={12} color={colors.textSecondary} />
+              <Text style={s.backToPendingLinkText}>Back to Pending</Text>
             </TouchableOpacity>
-            
-            <Text style={s.completedHintText}>
-              Tap when work is done • You'll be able to leave a review
-            </Text>
           </View>
         )}
 
@@ -1230,7 +1209,64 @@ const s = StyleSheet.create({
     color: '#166534',
     textAlign: 'center',
   },
-  // Clean In Progress Banner styles
+  // Compact In Progress Banner styles
+  inProgressBannerCompact: {
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginHorizontal: 12,
+    marginTop: 8,
+    borderRadius: 12,
+  },
+  inProgressTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  inProgressStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  inProgressStatusText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.green,
+  },
+  inProgressHintSmall: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  jobCompletedBtnCompact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.blue,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    gap: 6,
+  },
+  jobCompletedBtnCompactText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  backToPendingLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  backToPendingLinkText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  // Clean In Progress Banner styles (legacy)
   inProgressBannerClean: {
     backgroundColor: '#F0FDF4',
     paddingHorizontal: 16,
@@ -1246,16 +1282,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     marginBottom: 12,
-  },
-  inProgressStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  inProgressStatusText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.green,
   },
   backToPendingSmall: {
     padding: 6,
