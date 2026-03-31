@@ -221,7 +221,7 @@ export default function ContractorRegisterScreen() {
         }
         // Phone is optional, but if provided, must be valid Canadian format
         if (phone.trim() && !isValidCanadianPhone(phone)) { 
-          Alert.alert('Invalid Phone', 'Please enter a valid Canadian phone number (10 digits).\n\nExample: (416) 555-1234'); 
+          Alert.alert('Invalid Phone', 'Please enter a valid phone number (10 digits).\n\nExample: (555) 555-5555'); 
           return false; 
         }
         if (!email.trim()) { 
@@ -486,7 +486,7 @@ export default function ContractorRegisterScreen() {
           />
           <Text style={styles.hintText}>Verification required if provided</Text>
           {showPhoneError && (
-            <Text style={styles.errorText}>Enter a valid Canadian phone number (10 digits)</Text>
+            <Text style={styles.errorText}>Enter a valid phone number (10 digits)</Text>
           )}
         </View>
 
