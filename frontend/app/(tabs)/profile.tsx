@@ -686,19 +686,24 @@ export default function ProfileScreen() {
               <Text style={s.sectionTitle}>Location & Phone Settings</Text>
               <View style={s.settingCard}>
                 {/* Phone Visibility Toggle - FIRST */}
-                <View style={s.settingRow}>
+                <View style={[s.settingRow, !user?.phone_verified && s.settingRowDisabled]}>
                   <View style={s.settingInfo}>
-                    <Ionicons name="eye" size={22} color={colors.primary} />
+                    <Ionicons name="eye" size={22} color={user?.phone_verified ? colors.primary : colors.textSecondary} />
                     <View style={{ marginLeft: 12 }}>
-                      <Text style={s.settingLabel}>Show Phone to Clients</Text>
-                      <Text style={s.settingDesc}>Allow clients to call you directly</Text>
+                      <Text style={[s.settingLabel, !user?.phone_verified && s.settingLabelDisabled]}>Show Phone to Clients</Text>
+                      <Text style={s.settingDesc}>
+                        {user?.phone_verified 
+                          ? 'Allow clients to call you directly' 
+                          : 'Add & verify a phone number first'}
+                      </Text>
                     </View>
                   </View>
                   <Switch 
-                    value={phoneVisible} 
+                    value={phoneVisible && user?.phone_verified} 
                     onValueChange={togglePhoneVisibility}
                     trackColor={{ false: colors.border, true: colors.primaryLight }}
-                    thumbColor={phoneVisible ? colors.primary : '#f4f4f4'} 
+                    thumbColor={phoneVisible && user?.phone_verified ? colors.primary : '#f4f4f4'}
+                    disabled={!user?.phone_verified}
                   />
                 </View>
 
@@ -720,10 +725,15 @@ export default function ProfileScreen() {
                       </View>
                       <View style={s.phoneInputRow}>
                         <TextInput
-                          style={[s.phoneInput, { flex: 1 }]}
+                          style={[
+                            s.phoneInput, 
+                            { flex: 1 },
+                            !user?.phone_verified && !editPhone && s.phoneInputPlaceholder
+                          ]}
                           value={editPhone}
                           onChangeText={(text) => setEditPhone(formatPhoneNumber(text))}
                           placeholder="(555) 555 5555"
+                          placeholderTextColor={colors.textSecondary}
                           keyboardType="phone-pad"
                           maxLength={14}
                         />
@@ -749,6 +759,9 @@ export default function ProfileScreen() {
                           </TouchableOpacity>
                         )}
                       </View>
+                      {!user?.phone_verified && (
+                        <Text style={s.phoneHint}>Add your phone number and verify to let clients call you</Text>
+                      )}
                     </View>
                   </View>
                 </View>
@@ -1532,6 +1545,21 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginTop: 4,
+  },
+  phoneInputPlaceholder: {
+    color: colors.textSecondary,
+  },
+  phoneHint: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: 6,
+  },
+  settingRowDisabled: {
+    opacity: 0.6,
+  },
+  settingLabelDisabled: {
+    color: colors.textSecondary,
   },
   verifyPhoneBtn: {
     backgroundColor: colors.primaryLight,
