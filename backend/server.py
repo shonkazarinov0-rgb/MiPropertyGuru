@@ -371,12 +371,15 @@ async def register(req: RegisterReq):
     Step 1: Store pending registration and send verification code.
     Account is NOT created until code is verified via /auth/complete-registration
     """
+    logger.info(f"Registration attempt: email={req.email}, role={req.role}, trades={req.trades}, contractor_type={req.contractor_type}")
+    
     # Check if user already exists
     query_conditions = [{"email": req.email.lower()}]
     if req.phone and req.phone.strip():
         query_conditions.append({"phone": req.phone})
     existing = await db.users.find_one({"$or": query_conditions})
     if existing:
+        logger.warning(f"Registration failed - user exists: {req.email}")
         raise HTTPException(400, "Email or phone already registered")
     
     # Check if there's already a pending registration for this email
@@ -386,6 +389,7 @@ async def register(req: RegisterReq):
         await db.pending_registrations.delete_one({"email": req.email.lower()})
     
     if req.role == "contractor" and not req.contractor_type and not req.trades:
+        logger.warning(f"Registration failed - missing trades: {req.email}")
         raise HTTPException(400, "Contractor type or trades required")
     
     # Generate verification code

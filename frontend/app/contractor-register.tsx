@@ -345,7 +345,7 @@ export default function ContractorRegisterScreen() {
         res = await api.post('/auth/register', {
           name: name.trim(),
           email: email.trim().toLowerCase(),
-          phone: phone.trim(),
+          phone: phone.trim() || null,
           password,
           role: 'contractor',
           trades: selectedTrades,
@@ -358,6 +358,8 @@ export default function ContractorRegisterScreen() {
           has_license: !!licenseFile,
           license_confirmed: acceptLicenseTerms,
         });
+        
+        console.log('Registration response:', res);
       }
 
       if (isUpgrading) {
@@ -377,16 +379,20 @@ export default function ContractorRegisterScreen() {
         }
       } else {
         // New contractor registration - redirect to email verification
-        if (res.requires_verification || res.email) {
+        console.log('Checking response for verification redirect:', res);
+        if (res && (res.requires_verification || res.email)) {
+          console.log('Redirecting to verify-email with:', email.trim().toLowerCase());
           router.replace({
             pathname: '/verify-email',
             params: { email: email.trim().toLowerCase(), type: 'email' }
           });
         } else {
+          console.log('Response missing expected fields:', res);
           Alert.alert('Registration Failed', 'Something went wrong. Please try again.');
         }
       }
     } catch (e: any) {
+      console.error('Registration error:', e);
       const errorMessage = e.message || e.detail || 'Please try again';
       if (errorMessage.includes('already registered') || errorMessage.includes('already in use')) {
         Alert.alert('Account Exists', 'This email or phone number is already in use. Please use different credentials or try logging in.');
