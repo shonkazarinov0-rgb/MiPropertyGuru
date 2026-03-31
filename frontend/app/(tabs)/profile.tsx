@@ -723,12 +723,6 @@ export default function ProfileScreen() {
                           style={[s.phoneInput, { flex: 1 }]}
                           value={editPhone}
                           onChangeText={(text) => setEditPhone(formatPhoneNumber(text))}
-                          onBlur={() => {
-                            // Revert to original phone if not verified
-                            if (editPhone !== originalPhone) {
-                              setEditPhone(originalPhone);
-                            }
-                          }}
                           placeholder="(555) 555 5555"
                           keyboardType="phone-pad"
                           maxLength={14}
@@ -744,6 +738,14 @@ export default function ProfileScreen() {
                             ) : (
                               <Text style={s.verifyPhoneBtnText}>Verify</Text>
                             )}
+                          </TouchableOpacity>
+                        )}
+                        {editPhone && editPhone !== user?.phone && !sendingPhoneCode && (
+                          <TouchableOpacity 
+                            style={s.cancelPhoneBtn}
+                            onPress={() => setEditPhone(originalPhone)}
+                          >
+                            <Ionicons name="close-circle" size={22} color={colors.textSecondary} />
                           </TouchableOpacity>
                         )}
                       </View>
@@ -1118,7 +1120,11 @@ export default function ProfileScreen() {
               <View style={s.phoneVerifyModalContent}>
                 <View style={s.modalHeader}>
                   <Text style={s.modalTitle}>Verify Phone Number</Text>
-                  <TouchableOpacity onPress={() => setShowPhoneVerifyModal(false)}>
+                  <TouchableOpacity onPress={() => {
+                    setShowPhoneVerifyModal(false);
+                    setEditPhone(originalPhone); // Revert to original on cancel
+                    setPhoneVerifyCode('');
+                  }}>
                     <Ionicons name="close" size={24} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
@@ -1537,6 +1543,10 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: colors.primary,
+  },
+  cancelPhoneBtn: {
+    marginLeft: 8,
+    padding: 4,
   },
   phoneVerifyModalContent: {
     backgroundColor: colors.paper,
