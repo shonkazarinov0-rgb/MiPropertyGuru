@@ -36,6 +36,11 @@ export default function ProfileScreen() {
   const [editPhone, setEditPhone] = useState(user?.phone || '');
   const [editTrades, setEditTrades] = useState<string[]>(user?.trades || []);
   const [showTradeModal, setShowTradeModal] = useState(false);
+  const [showPhoneVerifyModal, setShowPhoneVerifyModal] = useState(false);
+  const [phoneVerifyCode, setPhoneVerifyCode] = useState('');
+  const [phoneToVerify, setPhoneToVerify] = useState('');
+  const [sendingPhoneCode, setSendingPhoneCode] = useState(false);
+  const [verifyingPhone, setVerifyingPhone] = useState(false);
   const [saving, setSaving] = useState(false);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [locationName, setLocationName] = useState('');
@@ -53,7 +58,6 @@ export default function ProfileScreen() {
   // Client profile edit states
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
-  const [editPhone, setEditPhone] = useState(user?.phone || '');
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   
   // Edit work location states
@@ -120,11 +124,78 @@ export default function ProfileScreen() {
 
   const savePhoneNumber = async () => {
     if (editPhone === user?.phone) return; // No change
+    if (!editPhone.trim()) return; // Empty phone
+    
+    // If phone changed, require verification
+    setPhoneToVerify(editPhone);
+    setSendingPhoneCode(true);
     try {
-      await api.put('/contractors/profile', { phone: editPhone });
-      await refreshUser();
+      await api.post('/auth/send-phone-code', { phone: editPhone });
+      setShowPhoneVerifyModal(true);
+      setPhoneVerifyCode('');
     } catch (e: any) {
-      console.error('Failed to update phone:', e.message);
+      if (Platform.OS === 'web') {
+        window.alert('Error sending verification code: ' + (e.message || 'Unknown error'));
+      } else {
+        Alert.alert('Error', 'Failed to send verification code: ' + (e.message || 'Unknown error'));
+      }
+    } finally {
+      setSendingPhoneCode(false);
+    }
+  };
+
+  const verifyAndSavePhone = async () => {
+    if (phoneVerifyCode.length !== 6) {
+      if (Platform.OS === 'web') {
+        window.alert('Please enter the 6-digit code');
+      } else {
+        Alert.alert('Error', 'Please enter the 6-digit code');
+      }
+      return;
+    }
+    
+    setVerifyingPhone(true);
+    try {
+      await api.post('/auth/verify-phone', { 
+        phone: phoneToVerify, 
+        code: phoneVerifyCode 
+      });
+      await refreshUser();
+      setShowPhoneVerifyModal(false);
+      setEditPhone(phoneToVerify);
+      if (Platform.OS === 'web') {
+        window.alert('Phone number verified successfully!');
+      } else {
+        Alert.alert('Success', 'Phone number verified successfully!');
+      }
+    } catch (e: any) {
+      if (Platform.OS === 'web') {
+        window.alert('Verification failed: ' + (e.message || 'Invalid code'));
+      } else {
+        Alert.alert('Error', e.message || 'Invalid verification code');
+      }
+    } finally {
+      setVerifyingPhone(false);
+    }
+  };
+
+  const resendPhoneCode = async () => {
+    setSendingPhoneCode(true);
+    try {
+      await api.post('/auth/send-phone-code', { phone: phoneToVerify });
+      if (Platform.OS === 'web') {
+        window.alert('New code sent!');
+      } else {
+        Alert.alert('Code Sent', 'A new verification code has been sent to your phone.');
+      }
+    } catch (e: any) {
+      if (Platform.OS === 'web') {
+        window.alert('Failed to resend code');
+      } else {
+        Alert.alert('Error', 'Failed to resend code');
+      }
+    } finally {
+      setSendingPhoneCode(false);
     }
   };
 
@@ -619,15 +690,37 @@ export default function ProfileScreen() {
                   <View style={s.settingInfo}>
                     <Ionicons name="call" size={22} color={colors.primary} />
                     <View style={{ marginLeft: 12, flex: 1 }}>
-                      <Text style={s.settingLabel}>Phone Number</Text>
-                      <TextInput
-                        style={s.phoneInput}
-                        value={editPhone}
-                        onChangeText={setEditPhone}
-                        placeholder="Enter phone number"
-                        keyboardType="phone-pad"
-                        onBlur={savePhoneNumber}
-                      />
+                      <View style={s.phoneRowHeader}>
+                        <Text style={s.settingLabel}>Phone Number</Text>
+                        {user?.phone_verified && (
+                          <View style={s.verifiedBadge}>
+                            <Ionicons name="checkmark-circle" size={14} color={colors.green} />
+                            <Text style={s.verifiedText}>Verified</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={s.phoneInputRow}>
+                        <TextInput
+                          style={[s.phoneInput, { flex: 1 }]}
+                          value={editPhone}
+                          onChangeText={setEditPhone}
+                          placeholder="Enter phone number"
+                          keyboardType="phone-pad"
+                        />
+                        {editPhone && editPhone !== user?.phone && (
+                          <TouchableOpacity 
+                            style={s.verifyPhoneBtn}
+                            onPress={savePhoneNumber}
+                            disabled={sendingPhoneCode}
+                          >
+                            {sendingPhoneCode ? (
+                              <ActivityIndicator size="small" color={colors.primary} />
+                            ) : (
+                              <Text style={s.verifyPhoneBtnText}>Verify</Text>
+                            )}
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -989,6 +1082,70 @@ export default function ProfileScreen() {
           </View>
         </Modal>
 
+        {/* Phone Verification Modal */}
+        <Modal visible={showPhoneVerifyModal} transparent animationType="slide">
+          <View style={s.modalOverlay}>
+            <KeyboardAvoidingView 
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={s.modalKeyboard}
+            >
+              <View style={s.phoneVerifyModalContent}>
+                <View style={s.modalHeader}>
+                  <Text style={s.modalTitle}>Verify Phone Number</Text>
+                  <TouchableOpacity onPress={() => setShowPhoneVerifyModal(false)}>
+                    <Ionicons name="close" size={24} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={s.phoneVerifyBody}>
+                  <View style={s.phoneIconCircle}>
+                    <Ionicons name="chatbubble-ellipses" size={32} color={colors.primary} />
+                  </View>
+                  <Text style={s.phoneVerifyTitle}>Enter Verification Code</Text>
+                  <Text style={s.phoneVerifySubtitle}>
+                    We sent a 6-digit code to{'\n'}
+                    <Text style={s.phoneVerifyNumber}>{phoneToVerify}</Text>
+                  </Text>
+                  
+                  <TextInput
+                    style={s.codeInput}
+                    value={phoneVerifyCode}
+                    onChangeText={setPhoneVerifyCode}
+                    placeholder="000000"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    autoFocus
+                  />
+                  
+                  <TouchableOpacity 
+                    style={[s.verifyCodeBtn, verifyingPhone && s.btnDisabled]}
+                    onPress={verifyAndSavePhone}
+                    disabled={verifyingPhone || phoneVerifyCode.length !== 6}
+                  >
+                    {verifyingPhone ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={s.verifyCodeBtnText}>Verify Phone Number</Text>
+                    )}
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={s.resendCodeBtn}
+                    onPress={resendPhoneCode}
+                    disabled={sendingPhoneCode}
+                  >
+                    {sendingPhoneCode ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <Text style={s.resendCodeText}>Didn't receive code? Resend</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        </Modal>
+
         {/* Edit Profile Modal (Client - Name & Phone only) */}
         <Modal visible={showEditProfile} transparent animationType="slide">
           <View style={s.modalOverlay}>
@@ -1321,6 +1478,113 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.paper,
+  },
+  // Phone verification styles
+  phoneRowHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  verifiedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  verifiedText: {
+    fontSize: 12,
+    color: colors.green,
+    fontWeight: '500',
+  },
+  phoneInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  verifyPhoneBtn: {
+    backgroundColor: colors.primaryLight,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  verifyPhoneBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  phoneVerifyModalContent: {
+    backgroundColor: colors.paper,
+    borderRadius: 20,
+    padding: 24,
+    width: '90%',
+    alignSelf: 'center',
+  },
+  phoneVerifyBody: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  phoneIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  phoneVerifyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  phoneVerifySubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  phoneVerifyNumber: {
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  codeInput: {
+    fontSize: 32,
+    fontWeight: '700',
+    textAlign: 'center',
+    letterSpacing: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 12,
+    width: '80%',
+    marginBottom: 20,
+  },
+  verifyCodeBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  verifyCodeBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  resendCodeBtn: {
+    paddingVertical: 8,
+  },
+  resendCodeText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  btnDisabled: {
+    opacity: 0.6,
   },
   typeText: {
     fontSize: 14,

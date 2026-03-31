@@ -36,6 +36,9 @@ from email_service import (
     send_contractor_upgrade_email
 )
 
+# Import SMS service for phone verification
+from sms_service import send_verification_sms, send_welcome_sms, generate_verification_code as generate_sms_code
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
@@ -547,6 +550,178 @@ async def cancel_registration(req: CancelRegistrationReq):
         logger.info(f"Cancelled registration for unverified user: {req.email}")
         return {"message": "Registration cancelled"}
     return {"message": "No action needed"}
+
+# ============ Phone Verification Endpoints ============
+
+class SendPhoneCodeReq(BaseModel):
+    phone: str
+
+@api_router.post("/auth/send-phone-code")
+async def send_phone_verification_code(req: SendPhoneCodeReq, user=Depends(get_current_user)):
+    """Send SMS verification code to phone number"""
+    phone = req.phone.strip()
+    if not phone:
+        raise HTTPException(400, "Phone number is required")
+    
+    # Generate code and store in database
+    code = generate_sms_code()
+    expiry = datetime.now(timezone.utc) + timedelta(minutes=10)
+    
+    # Store pending phone verification
+    await db.pending_phone_verifications.update_one(
+        {"user_id": user["id"]},
+        {"$set": {
+            "user_id": user["id"],
+            "phone": phone,
+            "code": code,
+            "expiry": expiry.isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    # Send SMS
+    result = send_verification_sms(phone, code)
+    
+    if result["success"]:
+        logger.info(f"Phone verification code sent to {phone[:4]}***")
+        return {"message": "Verification code sent", "phone": phone}
+    else:
+        logger.error(f"Failed to send SMS: {result.get('error')}")
+        raise HTTPException(500, f"Failed to send SMS: {result.get('error', 'Unknown error')}")
+
+class VerifyPhoneReq(BaseModel):
+    phone: str
+    code: str
+
+@api_router.post("/auth/verify-phone")
+async def verify_phone_number(req: VerifyPhoneReq, user=Depends(get_current_user)):
+    """Verify phone number with SMS code"""
+    # Find pending verification
+    pending = await db.pending_phone_verifications.find_one({"user_id": user["id"]})
+    
+    if not pending:
+        raise HTTPException(400, "No pending phone verification found. Please request a new code.")
+    
+    # Check expiry
+    expiry = datetime.fromisoformat(pending["expiry"].replace('Z', '+00:00'))
+    if datetime.now(timezone.utc) > expiry:
+        await db.pending_phone_verifications.delete_one({"user_id": user["id"]})
+        raise HTTPException(400, "Verification code expired. Please request a new code.")
+    
+    # Check code
+    if pending["code"] != req.code:
+        raise HTTPException(400, "Invalid verification code")
+    
+    # Check phone matches
+    if pending["phone"] != req.phone:
+        raise HTTPException(400, "Phone number mismatch")
+    
+    # Update user's phone number and mark as verified
+    await db.users.update_one(
+        {"id": user["id"]},
+        {"$set": {
+            "phone": req.phone,
+            "phone_verified": True
+        }}
+    )
+    
+    # Delete pending verification
+    await db.pending_phone_verifications.delete_one({"user_id": user["id"]})
+    
+    # Send welcome SMS
+    send_welcome_sms(req.phone, user["name"])
+    
+    logger.info(f"Phone verified for user {user['id']}: {req.phone[:4]}***")
+    return {"message": "Phone number verified successfully", "phone": req.phone}
+
+# Send phone code for registration (before account exists)
+class SendRegPhoneCodeReq(BaseModel):
+    phone: str
+    email: str  # To link to pending registration
+
+@api_router.post("/auth/send-registration-phone-code")
+async def send_registration_phone_code(req: SendRegPhoneCodeReq):
+    """Send SMS verification code during registration (before account exists)"""
+    phone = req.phone.strip()
+    email = req.email.lower().strip()
+    
+    if not phone:
+        raise HTTPException(400, "Phone number is required")
+    
+    # Generate code
+    code = generate_sms_code()
+    expiry = datetime.now(timezone.utc) + timedelta(minutes=10)
+    
+    # Store pending phone verification for registration
+    await db.pending_phone_verifications.update_one(
+        {"email": email, "type": "registration"},
+        {"$set": {
+            "email": email,
+            "phone": phone,
+            "code": code,
+            "expiry": expiry.isoformat(),
+            "type": "registration",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    
+    # Send SMS
+    result = send_verification_sms(phone, code)
+    
+    if result["success"]:
+        logger.info(f"Registration phone code sent to {phone[:4]}***")
+        return {"message": "Verification code sent", "phone": phone}
+    else:
+        logger.error(f"Failed to send SMS: {result.get('error')}")
+        raise HTTPException(500, f"Failed to send SMS: {result.get('error', 'Unknown error')}")
+
+class VerifyRegPhoneReq(BaseModel):
+    phone: str
+    code: str
+    email: str
+
+@api_router.post("/auth/verify-registration-phone")
+async def verify_registration_phone(req: VerifyRegPhoneReq):
+    """Verify phone during registration"""
+    email = req.email.lower().strip()
+    
+    # Find pending verification
+    pending = await db.pending_phone_verifications.find_one({
+        "email": email,
+        "type": "registration"
+    })
+    
+    if not pending:
+        raise HTTPException(400, "No pending phone verification found. Please request a new code.")
+    
+    # Check expiry
+    expiry = datetime.fromisoformat(pending["expiry"].replace('Z', '+00:00'))
+    if datetime.now(timezone.utc) > expiry:
+        await db.pending_phone_verifications.delete_one({"email": email, "type": "registration"})
+        raise HTTPException(400, "Verification code expired. Please request a new code.")
+    
+    # Check code
+    if pending["code"] != req.code:
+        raise HTTPException(400, "Invalid verification code")
+    
+    # Mark phone as verified in pending registration
+    await db.pending_registrations.update_one(
+        {"email": email},
+        {"$set": {
+            "phone": req.phone,
+            "phone_verified": True
+        }}
+    )
+    
+    # Delete pending phone verification
+    await db.pending_phone_verifications.delete_one({"email": email, "type": "registration"})
+    
+    logger.info(f"Registration phone verified: {req.phone[:4]}***")
+    return {"message": "Phone number verified successfully", "phone": req.phone}
+
+# ============ End Phone Verification ============
 
 # Upgrade client to contractor
 class UpgradeToContractorReq(BaseModel):
