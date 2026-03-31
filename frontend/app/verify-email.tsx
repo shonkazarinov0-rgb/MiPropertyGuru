@@ -34,6 +34,14 @@ export default function VerifyEmailScreen() {
   const [currentStep, setCurrentStep] = useState<'email' | 'phone'>('email'); // Track which step we're on
   const [phoneToVerify, setPhoneToVerify] = useState(phone || '');
 
+  // Update phoneToVerify when phone param changes (async load)
+  useEffect(() => {
+    if (phone && phone.length > 0) {
+      setPhoneToVerify(phone);
+      console.log('Phone to verify set:', phone);
+    }
+  }, [phone]);
+
   const verifyType = currentStep;
   const verifyTarget = currentStep === 'email' ? email : phoneToVerify;
 
@@ -94,10 +102,13 @@ export default function VerifyEmailScreen() {
     try {
       if (currentStep === 'email') {
         // Verify email first
+        console.log('Verifying email:', verifyTarget);
         await api.post('/auth/verify-email-only', { email: verifyTarget, code });
         
+        console.log('Email verified. Phone to verify:', phoneToVerify, 'Length:', phoneToVerify.length);
         // If phone was provided, move to phone verification
-        if (phoneToVerify && phoneToVerify.length > 0) {
+        if (phoneToVerify && phoneToVerify.trim().length > 0) {
+          console.log('Sending SMS code to:', phoneToVerify);
           // Send SMS code
           await api.post('/auth/send-registration-phone-code', { 
             phone: phoneToVerify, 
@@ -108,6 +119,7 @@ export default function VerifyEmailScreen() {
           setCountdown(0);
           Alert.alert('Email Verified!', 'Now please verify your phone number. A code has been sent via SMS.');
         } else {
+          console.log('No phone provided - completing registration with email only');
           // No phone - complete registration with email only
           await completeRegistration(email!, code);
           router.replace('/(tabs)/home');

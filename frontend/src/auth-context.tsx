@@ -215,6 +215,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // NOW set token and user
     await AsyncStorage.setItem('auth_token', res.token);
     await AsyncStorage.setItem('keep_logged_in', 'true');
+    await AsyncStorage.removeItem('guest_mode'); // Clear guest mode after registration
+    setIsGuest(false); // Ensure guest flag is cleared
     
     // Set default mode
     if (res.user.role === 'contractor') {

@@ -433,10 +433,14 @@ export default function ContractorRegisterScreen() {
         // New contractor registration - redirect to email verification
         console.log('Checking response for verification redirect:', res);
         if (res && (res.requires_verification || res.email)) {
-          console.log('Redirecting to verify-email with:', email.trim().toLowerCase());
+          console.log('Redirecting to verify-email with:', email.trim().toLowerCase(), 'phone:', phone.trim());
           router.replace({
             pathname: '/verify-email',
-            params: { email: email.trim().toLowerCase(), type: 'email' }
+            params: { 
+              email: email.trim().toLowerCase(), 
+              type: 'email',
+              phone: phone.trim() || '' 
+            }
           });
         } else {
           console.log('Response missing expected fields:', res);
