@@ -34,6 +34,7 @@ export default function ProfileScreen() {
   const [phoneVisible, setPhoneVisible] = useState(user?.phone_visible !== false); // Default to true
   const [serviceRadius, setServiceRadius] = useState(user?.service_radius || 50);
   const [editPhone, setEditPhone] = useState(user?.phone || '');
+  const [originalPhone, setOriginalPhone] = useState(user?.phone || ''); // Store original for revert
   const [editTrades, setEditTrades] = useState<string[]>(user?.trades || []);
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [showPhoneVerifyModal, setShowPhoneVerifyModal] = useState(false);
@@ -53,6 +54,21 @@ export default function ProfileScreen() {
   const [licenseNumber, setLicenseNumber] = useState(user?.license_number || '');
   const [licenseType, setLicenseType] = useState(user?.license_type || '');
   const [licenseExpiry, setLicenseExpiry] = useState(user?.license_expiry || '');
+
+  // Phone number formatter: (555) 555 5555
+  const formatPhoneNumber = (value: string) => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '');
+    
+    // Format as (XXX) XXX XXXX
+    if (digits.length <= 3) {
+      return digits.length > 0 ? `(${digits}` : '';
+    } else if (digits.length <= 6) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    } else {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
+    }
+  };
   const [licenseImage, setLicenseImage] = useState<string | null>(user?.license_image || null);
   
   // Client profile edit states
@@ -68,6 +84,11 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (user?.role === 'contractor') {
       fetchPortfolio();
+    }
+    // Sync phone states when user data loads/changes
+    if (user?.phone) {
+      setEditPhone(user.phone);
+      setOriginalPhone(user.phone);
     }
   }, [user]);
 
@@ -659,25 +680,26 @@ export default function ProfileScreen() {
             <View style={s.section}>
               <Text style={s.sectionTitle}>Location & Phone Settings</Text>
               <View style={s.settingCard}>
+                {/* Phone Visibility Toggle - FIRST */}
                 <View style={s.settingRow}>
                   <View style={s.settingInfo}>
-                    <Ionicons name="location" size={22} color={colors.primary} />
+                    <Ionicons name="eye" size={22} color={colors.primary} />
                     <View style={{ marginLeft: 12 }}>
-                      <Text style={s.settingLabel}>Live Location</Text>
-                      <Text style={s.settingDesc}>Share your real-time location</Text>
+                      <Text style={s.settingLabel}>Show Phone to Clients</Text>
+                      <Text style={s.settingDesc}>Allow clients to call you directly</Text>
                     </View>
                   </View>
                   <Switch 
-                    value={liveLocation} 
-                    onValueChange={toggleLiveLocation}
+                    value={phoneVisible} 
+                    onValueChange={togglePhoneVisibility}
                     trackColor={{ false: colors.border, true: colors.primaryLight }}
-                    thumbColor={liveLocation ? colors.primary : '#f4f4f4'} 
+                    thumbColor={phoneVisible ? colors.primary : '#f4f4f4'} 
                   />
                 </View>
 
                 <View style={s.divider} />
 
-                {/* Phone Number Edit */}
+                {/* Phone Number Edit - SECOND */}
                 <View style={s.settingRow}>
                   <View style={s.settingInfo}>
                     <Ionicons name="call" size={22} color={colors.primary} />
@@ -695,9 +717,16 @@ export default function ProfileScreen() {
                         <TextInput
                           style={[s.phoneInput, { flex: 1 }]}
                           value={editPhone}
-                          onChangeText={setEditPhone}
-                          placeholder="Enter phone number"
+                          onChangeText={(text) => setEditPhone(formatPhoneNumber(text))}
+                          onBlur={() => {
+                            // Revert to original phone if not verified
+                            if (editPhone !== originalPhone) {
+                              setEditPhone(originalPhone);
+                            }
+                          }}
+                          placeholder="(555) 555 5555"
                           keyboardType="phone-pad"
+                          maxLength={14}
                         />
                         {editPhone && editPhone !== user?.phone && (
                           <TouchableOpacity 
@@ -719,26 +748,26 @@ export default function ProfileScreen() {
 
                 <View style={s.divider} />
 
-                {/* Phone Visibility Toggle */}
+                {/* Live Location Toggle - THIRD */}
                 <View style={s.settingRow}>
                   <View style={s.settingInfo}>
-                    <Ionicons name="eye" size={22} color={colors.primary} />
+                    <Ionicons name="location" size={22} color={colors.primary} />
                     <View style={{ marginLeft: 12 }}>
-                      <Text style={s.settingLabel}>Show Phone to Clients</Text>
-                      <Text style={s.settingDesc}>Allow clients to call you directly</Text>
+                      <Text style={s.settingLabel}>Live Location</Text>
+                      <Text style={s.settingDesc}>Share your real-time location</Text>
                     </View>
                   </View>
                   <Switch 
-                    value={phoneVisible} 
-                    onValueChange={togglePhoneVisibility}
+                    value={liveLocation} 
+                    onValueChange={toggleLiveLocation}
                     trackColor={{ false: colors.border, true: colors.primaryLight }}
-                    thumbColor={phoneVisible ? colors.primary : '#f4f4f4'} 
+                    thumbColor={liveLocation ? colors.primary : '#f4f4f4'} 
                   />
                 </View>
 
                 <View style={s.divider} />
                 
-                {/* Service Radius Slider */}
+                {/* Service Radius Slider - FOURTH */}
                 <View style={s.radiusSection}>
                   <View style={s.radiusHeader}>
                     <View style={s.radiusInfo}>
