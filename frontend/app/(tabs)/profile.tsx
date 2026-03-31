@@ -42,6 +42,7 @@ export default function ProfileScreen() {
   const [phoneToVerify, setPhoneToVerify] = useState('');
   const [sendingPhoneCode, setSendingPhoneCode] = useState(false);
   const [verifyingPhone, setVerifyingPhone] = useState(false);
+  const [pendingNameUpdate, setPendingNameUpdate] = useState<string | null>(null); // For client profile edits
   const [saving, setSaving] = useState(false);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [locationName, setLocationName] = useState('');
@@ -186,13 +187,24 @@ export default function ProfileScreen() {
         phone: phoneToVerify, 
         code: phoneVerifyCode 
       });
+      
+      // If there's a pending name update from client profile edit, save it now
+      if (pendingNameUpdate) {
+        await api.put('/users/profile', {
+          name: pendingNameUpdate,
+          phone: phoneToVerify,
+        });
+        setPendingNameUpdate(null);
+      }
+      
       await refreshUser();
       setShowPhoneVerifyModal(false);
       setEditPhone(phoneToVerify);
+      setOriginalPhone(phoneToVerify);
       if (Platform.OS === 'web') {
-        window.alert('Phone number verified successfully!');
+        window.alert('Phone number verified and saved successfully!');
       } else {
-        Alert.alert('Success', 'Phone number verified successfully!');
+        Alert.alert('Success', 'Phone number verified and saved successfully!');
       }
     } catch (e: any) {
       if (Platform.OS === 'web') {
@@ -251,17 +263,62 @@ export default function ProfileScreen() {
       Alert.alert('Error', 'Name is required');
       return;
     }
+    
+    // If phone number changed, require verification first
+    if (editPhone.trim() && editPhone !== user?.phone) {
+      // Validate phone format (10 digits)
+      const digits = editPhone.replace(/\D/g, '');
+      if (digits.length !== 10) {
+        if (Platform.OS === 'web') {
+          window.alert('Please enter a valid 10-digit phone number');
+        } else {
+          Alert.alert('Invalid Phone', 'Please enter a valid 10-digit phone number');
+        }
+        return;
+      }
+      
+      // Send verification code and open verification modal
+      setPhoneToVerify(editPhone);
+      setSendingPhoneCode(true);
+      try {
+        await api.post('/auth/send-phone-code', { phone: editPhone });
+        setShowEditProfile(false); // Close edit modal
+        setShowPhoneVerifyModal(true); // Open verification modal
+        setPhoneVerifyCode('');
+        // Store that we need to save name after verification
+        setPendingNameUpdate(editName.trim());
+      } catch (e: any) {
+        if (Platform.OS === 'web') {
+          window.alert('Error sending verification code: ' + (e.message || 'Unknown error'));
+        } else {
+          Alert.alert('Error', 'Failed to send verification code: ' + (e.message || 'Unknown error'));
+        }
+      } finally {
+        setSendingPhoneCode(false);
+      }
+      return;
+    }
+    
+    // No phone change, just save name
     setSaving(true);
     try {
       await api.put('/users/profile', {
         name: editName.trim(),
-        phone: editPhone.trim(),
+        phone: editPhone.trim() || user?.phone || '',
       });
       await refreshUser();
       setShowEditProfile(false);
-      Alert.alert('Success', 'Profile updated');
+      if (Platform.OS === 'web') {
+        window.alert('Profile updated successfully');
+      } else {
+        Alert.alert('Success', 'Profile updated');
+      }
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Could not update profile');
+      if (Platform.OS === 'web') {
+        window.alert('Error: ' + (e.message || 'Could not update profile'));
+      } else {
+        Alert.alert('Error', e.message || 'Could not update profile');
+      }
     } finally {
       setSaving(false);
     }
@@ -1217,7 +1274,11 @@ export default function ProfileScreen() {
               <View style={s.modalContent}>
                 <View style={s.modalHeader}>
                   <Text style={s.modalTitle}>Edit Profile</Text>
-                  <TouchableOpacity onPress={() => setShowEditProfile(false)}>
+                  <TouchableOpacity onPress={() => {
+                    setShowEditProfile(false);
+                    setEditName(user?.name || '');
+                    setEditPhone(user?.phone || '');
+                  }}>
                     <Ionicons name="close" size={24} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
@@ -1235,17 +1296,25 @@ export default function ProfileScreen() {
                 <Text style={s.inputLabel}>Phone Number</Text>
                 <TextInput
                   style={s.modalInput}
-                  placeholder="e.g., (416) 555-1234"
+                  placeholder="(555) 555 5555"
                   placeholderTextColor={colors.textSecondary}
                   value={editPhone}
-                  onChangeText={setEditPhone}
+                  onChangeText={(text) => setEditPhone(formatPhoneNumber(text))}
                   keyboardType="phone-pad"
+                  maxLength={14}
                 />
+                {editPhone && editPhone !== user?.phone && (
+                  <Text style={s.phoneChangeHint}>Phone number change requires verification</Text>
+                )}
                 
                 <View style={s.modalActions}>
                   <TouchableOpacity 
                     style={s.modalCancelBtn} 
-                    onPress={() => setShowEditProfile(false)}
+                    onPress={() => {
+                      setShowEditProfile(false);
+                      setEditName(user?.name || '');
+                      setEditPhone(user?.phone || '');
+                    }}
                   >
                     <Text style={s.modalCancelText}>Cancel</Text>
                   </TouchableOpacity>
@@ -1257,7 +1326,9 @@ export default function ProfileScreen() {
                     {saving ? (
                       <ActivityIndicator color={colors.paper} />
                     ) : (
-                      <Text style={s.modalConfirmText}>Save</Text>
+                      <Text style={s.modalConfirmText}>
+                        {editPhone && editPhone !== user?.phone ? 'Verify & Save' : 'Save'}
+                      </Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -1570,6 +1641,13 @@ const s = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
     marginTop: 6,
+  },
+  phoneChangeHint: {
+    fontSize: 12,
+    color: colors.primary,
+    fontStyle: 'italic',
+    marginTop: 8,
+    marginBottom: 8,
   },
   settingRowDisabled: {
     opacity: 0.6,
