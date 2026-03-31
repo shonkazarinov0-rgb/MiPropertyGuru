@@ -461,11 +461,7 @@ export default function ProfileScreen() {
             <TouchableOpacity style={s.tradesContainerEditable} onPress={() => { setEditTrades(user.trades); setShowTradeModal(true); }}>
               {user.trades.map((trade: string, index: number) => (
                 <View key={index} style={s.typeBadge}>
-                  <Ionicons 
-                    name={getTradeIcon(trade)} 
-                    size={16} 
-                    color={colors.primary} 
-                  />
+                  <Text style={s.tradeIcon}>{getTradeIcon(trade)}</Text>
                   <Text style={s.typeText}>{trade}</Text>
                 </View>
               ))}
@@ -478,11 +474,7 @@ export default function ProfileScreen() {
           {isContractor && isContractorMode && (!user?.trades || user.trades.length === 0) && user?.contractor_type && (
             <TouchableOpacity style={s.tradesContainerEditable} onPress={() => { setEditTrades([user.contractor_type]); setShowTradeModal(true); }}>
               <View style={s.typeBadge}>
-                <Ionicons 
-                  name={getTradeIcon(user?.contractor_type)} 
-                  size={16} 
-                  color={colors.primary} 
-                />
+                <Text style={s.tradeIcon}>{getTradeIcon(user?.contractor_type)}</Text>
                 <Text style={s.typeText}>{user?.contractor_type}</Text>
               </View>
               <View style={s.editTradesBtn}>
@@ -1590,6 +1582,10 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.primary,
+  },
+  tradeIcon: {
+    fontSize: 14,
+    marginRight: 2,
   },
   profileEmail: {
     fontSize: 14,
