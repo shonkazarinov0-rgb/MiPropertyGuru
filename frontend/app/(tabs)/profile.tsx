@@ -30,7 +30,7 @@ const colors = {
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, refreshUser, switchMode, isClientMode, isContractorMode } = useAuth();
-  const [liveLocation, setLiveLocation] = useState(user?.live_location_enabled || false);
+  const [liveLocation, setLiveLocation] = useState(user?.is_online || false);
   const [phoneVisible, setPhoneVisible] = useState(user?.phone_visible !== false); // Default to true
   const [serviceRadius, setServiceRadius] = useState(user?.service_radius || 50);
   const [editPhone, setEditPhone] = useState(user?.phone || '');
@@ -90,6 +90,10 @@ export default function ProfileScreen() {
       setEditPhone(user.phone);
       setOriginalPhone(user.phone);
     }
+    // Sync live location/online status when user data changes (from Dashboard toggle)
+    if (user?.is_online !== undefined) {
+      setLiveLocation(user.is_online);
+    }
   }, [user]);
 
   const fetchPortfolio = async () => {
@@ -112,10 +116,11 @@ export default function ProfileScreen() {
           lng = loc.coords.longitude;
         }
       }
-      await api.put('/contractors/location', {
-        live_location_enabled: val,
-        current_lat: lat, current_lng: lng,
-        work_locations: user?.work_locations || [],
+      // Use the same endpoint as Dashboard to keep is_online and live_location synced
+      await api.put('/contractors/online-status', {
+        is_online: val,
+        current_lat: lat,
+        current_lng: lng,
       });
       await refreshUser();
     } catch (e: any) { Alert.alert('Error', e.message); setLiveLocation(!val); }
