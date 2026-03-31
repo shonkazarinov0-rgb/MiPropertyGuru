@@ -88,7 +88,7 @@ CATEGORY_ICONS = {
 class RegisterReq(BaseModel):
     name: str
     email: Optional[str] = None
-    phone: str
+    phone: Optional[str] = None
     password: str
     role: str
     contractor_type: Optional[str] = None
@@ -372,7 +372,10 @@ async def register(req: RegisterReq):
     Account is NOT created until code is verified via /auth/complete-registration
     """
     # Check if user already exists
-    existing = await db.users.find_one({"$or": [{"email": req.email.lower()}, {"phone": req.phone}]})
+    query_conditions = [{"email": req.email.lower()}]
+    if req.phone and req.phone.strip():
+        query_conditions.append({"phone": req.phone})
+    existing = await db.users.find_one({"$or": query_conditions})
     if existing:
         raise HTTPException(400, "Email or phone already registered")
     
