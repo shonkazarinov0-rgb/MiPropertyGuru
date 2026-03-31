@@ -686,7 +686,23 @@ export default function ProfileScreen() {
               <Text style={s.sectionTitle}>Location & Phone Settings</Text>
               <View style={s.settingCard}>
                 {/* Phone Visibility Toggle - FIRST */}
-                <View style={[s.settingRow, !user?.phone_verified && s.settingRowDisabled]}>
+                <TouchableOpacity 
+                  style={[s.settingRow, !user?.phone_verified && s.settingRowDisabled]}
+                  activeOpacity={user?.phone_verified ? 1 : 0.7}
+                  onPress={() => {
+                    if (!user?.phone_verified) {
+                      if (Platform.OS === 'web') {
+                        window.alert('Please add and verify your phone number first to enable this feature.');
+                      } else {
+                        Alert.alert(
+                          'Phone Verification Required',
+                          'Please add and verify your phone number below before enabling this feature.',
+                          [{ text: 'OK' }]
+                        );
+                      }
+                    }
+                  }}
+                >
                   <View style={s.settingInfo}>
                     <Ionicons name="eye" size={22} color={user?.phone_verified ? colors.primary : colors.textSecondary} />
                     <View style={{ marginLeft: 12 }}>
@@ -705,7 +721,7 @@ export default function ProfileScreen() {
                     thumbColor={phoneVisible && user?.phone_verified ? colors.primary : '#f4f4f4'}
                     disabled={!user?.phone_verified}
                   />
-                </View>
+                </TouchableOpacity>
 
                 <View style={s.divider} />
 
