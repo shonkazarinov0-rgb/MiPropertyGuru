@@ -468,7 +468,7 @@ export default function ContractorRegisterScreen() {
         <View style={styles.inputGroup}>
           <View style={styles.labelRow}>
             <Text style={[styles.inputLabel, styles.labelInRow, showPhoneError && styles.inputLabelError]}>
-              Phone Number (Canadian) {showPhoneError && <Text style={styles.requiredText}>*Invalid</Text>}
+              Phone Number {showPhoneError && <Text style={styles.requiredText}>*Invalid</Text>}
             </Text>
             <Text style={styles.optionalLabel}>(Optional)</Text>
           </View>
