@@ -479,7 +479,7 @@ export default function ContractorRegisterScreen() {
               setPhone(formatCanadianPhone(text));
               setTouched({ ...touched, phone: true });
             }}
-            placeholder="(416) 555-1234"
+            placeholder="(555) 555 5555"
             placeholderTextColor={colors.textSecondary}
             keyboardType="phone-pad"
             maxLength={14}
