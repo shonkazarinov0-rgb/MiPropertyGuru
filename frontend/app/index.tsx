@@ -116,19 +116,19 @@ export default function AuthScreen() {
   };
 
   const handleRegister = async () => {
-    if (!name || !email || !phone || !password) { setError('Please fill in all fields'); return; }
+    if (!name || !email || !password) { setError('Please fill in all required fields'); return; }
     if (role === 'contractor' && !contractorType) { setError('Please select your trade'); return; }
     if (role === 'contractor' && !acceptedTerms) { setError('You must accept the Terms of Service and Privacy Policy'); return; }
     setSubmitting(true); setError('');
     try {
       await register({
-        name, email, phone, password, role,
+        name, email, phone: phone || '', password, role,
         contractor_type: role === 'contractor' ? contractorType : undefined,
         bio,
         accepted_terms: acceptedTerms,
       });
-      // After registration, redirect to email verification
-      router.push({ pathname: '/verify-email', params: { email, type: 'email' } });
+      // After registration, redirect to email verification (phone will be verified after email if provided)
+      router.push({ pathname: '/verify-email', params: { email, type: 'email', phone: phone || '' } });
     } catch (e: any) { setError(e.message || 'Registration failed'); }
     finally { setSubmitting(false); }
   };
@@ -335,10 +335,14 @@ export default function AuthScreen() {
               keyboardType="email-address" autoCapitalize="none" />
           </View>
           <View style={s.inputGroup}>
-            <Text style={s.label}>Phone Number</Text>
+            <View style={s.labelRow}>
+              <Text style={s.label}>Phone Number</Text>
+              <Text style={s.optionalLabel}>(Optional)</Text>
+            </View>
             <TextInput testID="register-phone" style={s.input} placeholder="(555) 555 5555"
               placeholderTextColor={colors.placeholder} value={phone} onChangeText={handlePhoneChange}
               keyboardType="phone-pad" maxLength={14} />
+            <Text style={s.hintText}>Verification required if provided</Text>
           </View>
           <View style={s.inputGroup}>
             <Text style={s.label}>Password</Text>
@@ -502,7 +506,10 @@ const s = StyleSheet.create({
     paddingHorizontal: spacing.m, paddingVertical: spacing.s, borderRadius: radius.s, marginBottom: spacing.m,
   },
   inputGroup: { marginBottom: spacing.m },
+  labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
   label: { fontSize: 14, fontWeight: '600', color: colors.secondary, marginBottom: spacing.xs },
+  optionalLabel: { fontSize: 12, color: colors.textSecondary, marginLeft: 6, fontWeight: '400' },
+  hintText: { fontSize: 11, color: colors.textSecondary, marginTop: 4, fontStyle: 'italic' },
   input: {
     backgroundColor: colors.background, borderRadius: radius.s, paddingHorizontal: spacing.m,
     paddingVertical: 14, fontSize: 17, color: colors.textPrimary, borderWidth: 1, borderColor: 'transparent',

@@ -432,6 +432,41 @@ class CompleteRegistrationReq(BaseModel):
     code: str
 
 
+class VerifyEmailOnlyReq(BaseModel):
+    email: str
+    code: str
+
+@api_router.post("/auth/verify-email-only")
+async def verify_email_only(req: VerifyEmailOnlyReq):
+    """
+    Verify email code only - doesn't create account yet.
+    Used when phone verification is also required.
+    """
+    # Find pending registration
+    pending = await db.pending_registrations.find_one({"email": req.email.lower()})
+    if not pending:
+        raise HTTPException(400, "No pending registration found. Please register again.")
+    
+    # Verify code
+    if pending["verification_code"] != req.code:
+        raise HTTPException(400, "Invalid verification code")
+    
+    # Check expiry
+    expires_at = datetime.fromisoformat(pending["code_expires_at"].replace('Z', '+00:00'))
+    if datetime.now(timezone.utc) > expires_at:
+        await db.pending_registrations.delete_one({"email": req.email.lower()})
+        raise HTTPException(400, "Verification code has expired. Please register again.")
+    
+    # Mark email as verified in pending registration
+    await db.pending_registrations.update_one(
+        {"email": req.email.lower()},
+        {"$set": {"email_verified": True}}
+    )
+    
+    logger.info(f"Email verified for pending registration: {req.email}")
+    return {"message": "Email verified successfully", "email": req.email}
+
+
 @api_router.post("/auth/complete-registration")
 async def complete_registration(req: CompleteRegistrationReq):
     """
@@ -498,7 +533,8 @@ async def complete_registration(req: CompleteRegistrationReq):
         "subscription_fee": 0,
         "terms_accepted": True,
         "email_verified": True,  # Already verified!
-        "phone_verified": False,
+        "phone_verified": pending.get("phone_verified", False),  # True if phone was verified
+        "phone_visible": True if pending.get("phone_verified", False) else False,  # Only show phone if verified
         "active_session_id": session_id,
         "created_at": datetime.now(timezone.utc).isoformat()
     }

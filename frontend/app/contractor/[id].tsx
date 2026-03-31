@@ -203,8 +203,8 @@ export default function ContractorDetailScreen() {
         )}
 
         <View style={s.contactSection}>
-          {/* Only show Call button if phone_visible is not false */}
-          {contractor?.phone_visible !== false && contractor?.phone && (
+          {/* Only show Call button if phone_visible is true AND phone is verified AND phone exists */}
+          {contractor?.phone_visible !== false && contractor?.phone_verified && contractor?.phone && (
             <TouchableOpacity testID="call-btn" style={s.contactBtn} onPress={handleCall}>
               <View style={[s.contactIcon, { backgroundColor: '#E8F9EE' }]}>
                 <Ionicons name="call" size={22} color={colors.success} />

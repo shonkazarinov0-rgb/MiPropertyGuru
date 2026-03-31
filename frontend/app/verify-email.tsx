@@ -25,15 +25,17 @@ const colors = {
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
-  const { email, type } = useLocalSearchParams<{ email: string; type: string }>(); // type: 'email' or 'phone'
+  const { email, type, phone } = useLocalSearchParams<{ email: string; type: string; phone?: string }>(); 
   const { user, completeRegistration } = useAuth();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [currentStep, setCurrentStep] = useState<'email' | 'phone'>('email'); // Track which step we're on
+  const [phoneToVerify, setPhoneToVerify] = useState(phone || '');
 
-  const verifyType = type || 'email';
-  const verifyTarget = email;
+  const verifyType = currentStep;
+  const verifyTarget = currentStep === 'email' ? email : phoneToVerify;
 
   // Prevent back navigation - user MUST verify to proceed
   useFocusEffect(
@@ -83,18 +85,44 @@ export default function VerifyEmailScreen() {
     }
 
     if (!verifyTarget) {
-      Alert.alert('Error', 'Email not found. Please register again.');
+      Alert.alert('Error', `${currentStep === 'email' ? 'Email' : 'Phone'} not found. Please register again.`);
       router.replace('/');
       return;
     }
 
     setLoading(true);
     try {
-      // Complete registration - this creates the account and returns token
-      await completeRegistration(verifyTarget, code);
-      
-      // Auto-redirect to home after successful verification
-      router.replace('/(tabs)/home');
+      if (currentStep === 'email') {
+        // Verify email first
+        await api.post('/auth/verify-email-only', { email: verifyTarget, code });
+        
+        // If phone was provided, move to phone verification
+        if (phoneToVerify && phoneToVerify.length > 0) {
+          // Send SMS code
+          await api.post('/auth/send-registration-phone-code', { 
+            phone: phoneToVerify, 
+            email: email 
+          });
+          setCode(''); // Clear code for next step
+          setCurrentStep('phone');
+          setCountdown(0);
+          Alert.alert('Email Verified!', 'Now please verify your phone number. A code has been sent via SMS.');
+        } else {
+          // No phone - complete registration with email only
+          await completeRegistration(email!, code);
+          router.replace('/(tabs)/home');
+        }
+      } else {
+        // Phone verification - complete registration with verified phone
+        await api.post('/auth/verify-registration-phone', { 
+          phone: phoneToVerify, 
+          code,
+          email: email 
+        });
+        // Now complete registration (email already verified, phone now verified)
+        await completeRegistration(email!, 'phone-verified'); // Special flag
+        router.replace('/(tabs)/home');
+      }
     } catch (e: any) {
       Alert.alert('Error', e.message || 'Invalid or expired code. Please try again.');
     } finally {

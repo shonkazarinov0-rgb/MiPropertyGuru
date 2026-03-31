@@ -919,8 +919,8 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
         
         {/* Action Buttons - Styled like the reference image */}
         <View style={styles.contactButtonsRow}>
-          {/* Only show Call button if phone_visible is not false */}
-          {item.phone_visible !== false && item.phone && (
+          {/* Only show Call button if phone_visible is true AND phone is verified AND phone exists */}
+          {item.phone_visible !== false && item.phone_verified && item.phone && (
             <TouchableOpacity 
               style={styles.contactActionBtn}
               onPress={(e) => handleCall(item.phone, e)}
