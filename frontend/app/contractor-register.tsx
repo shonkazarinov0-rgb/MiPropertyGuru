@@ -121,6 +121,12 @@ export default function ContractorRegisterScreen() {
   
   // Field validation tracking
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
+  
+  // Email/Phone availability tracking
+  const [emailExists, setEmailExists] = useState(false);
+  const [phoneExists, setPhoneExists] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [checkingPhone, setCheckingPhone] = useState(false);
 
   // Pre-fill user data if upgrading from client
   useEffect(() => {
@@ -130,6 +136,44 @@ export default function ContractorRegisterScreen() {
       setPhone(user.phone || '');
     }
   }, [isUpgrading, user]);
+
+  // Check if email exists when user finishes typing
+  useEffect(() => {
+    if (!email.trim() || !isValidEmail(email) || isUpgrading) return;
+    
+    const timeoutId = setTimeout(async () => {
+      setCheckingEmail(true);
+      try {
+        const res = await api.get(`/auth/check-email?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+        setEmailExists(res.exists);
+      } catch (e) {
+        console.error('Email check failed:', e);
+      } finally {
+        setCheckingEmail(false);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [email, isUpgrading]);
+
+  // Check if phone exists when user finishes typing
+  useEffect(() => {
+    if (!phone.trim() || !isValidCanadianPhone(phone)) return;
+    
+    const timeoutId = setTimeout(async () => {
+      setCheckingPhone(true);
+      try {
+        const res = await api.get(`/auth/check-phone?phone=${encodeURIComponent(phone.trim())}`);
+        setPhoneExists(res.exists);
+      } catch (e) {
+        console.error('Phone check failed:', e);
+      } finally {
+        setCheckingPhone(false);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [phone]);
 
   useEffect(() => {
     if (step === 4) {
@@ -219,10 +263,14 @@ export default function ContractorRegisterScreen() {
           Alert.alert('Error', 'Please enter your full name (at least 2 characters)'); 
           return false; 
         }
-        // Phone is optional, but if provided, must be valid Canadian format
+        // Phone is optional, but if provided, must be valid format and not already in use
         if (phone.trim() && !isValidCanadianPhone(phone)) { 
           Alert.alert('Invalid Phone', 'Please enter a valid phone number (10 digits).\n\nExample: (555) 555-5555'); 
           return false; 
+        }
+        if (phone.trim() && phoneExists) {
+          Alert.alert('Phone In Use', 'This phone number is already registered. Please use a different number or login to your existing account.');
+          return false;
         }
         if (!email.trim()) { 
           Alert.alert('Error', 'Email is required'); 
@@ -231,6 +279,10 @@ export default function ContractorRegisterScreen() {
         if (!isValidEmail(email)) { 
           Alert.alert('Invalid Email', 'Please enter a valid email address (e.g., name@example.com)'); 
           return false; 
+        }
+        if (emailExists && !isUpgrading) {
+          Alert.alert('Email In Use', 'This email is already registered. Please use a different email or login to your existing account.');
+          return false;
         }
         // For upgrading users, password is only required if NOT using same password
         if (isUpgrading) {
@@ -479,11 +531,12 @@ export default function ContractorRegisterScreen() {
             <Text style={styles.optionalLabel}>(Optional)</Text>
           </View>
           <TextInput
-            style={[styles.input, showPhoneError && styles.inputError, isUpgrading && styles.inputPreFilled]}
+            style={[styles.input, (showPhoneError || phoneExists) && styles.inputError, isUpgrading && styles.inputPreFilled]}
             value={phone}
             onChangeText={(text) => {
               setPhone(formatCanadianPhone(text));
               setTouched({ ...touched, phone: true });
+              setPhoneExists(false); // Reset when typing
             }}
             placeholder="(555) 555 5555"
             placeholderTextColor={colors.textSecondary}
@@ -494,18 +547,26 @@ export default function ContractorRegisterScreen() {
           {showPhoneError && (
             <Text style={styles.errorText}>Enter a valid phone number (10 digits)</Text>
           )}
+          {phoneExists && !showPhoneError && (
+            <Text style={styles.existsErrorText}>This phone number is already registered. Please login instead.</Text>
+          )}
+          {checkingPhone && (
+            <Text style={styles.checkingText}>Checking availability...</Text>
+          )}
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, showEmailError && styles.inputLabelError]}>
+          <Text style={[styles.inputLabel, (showEmailError || emailExists) && styles.inputLabelError]}>
             Email {showEmailError && <Text style={styles.requiredText}>*Invalid</Text>}
+            {emailExists && !showEmailError && <Text style={styles.requiredText}>*Already in use</Text>}
           </Text>
           <TextInput
-            style={[styles.input, showEmailError && styles.inputError, isUpgrading && styles.inputPreFilled]}
+            style={[styles.input, (showEmailError || emailExists) && styles.inputError, isUpgrading && styles.inputPreFilled]}
             value={email}
             onChangeText={(text) => {
               setEmail(text);
               setTouched({ ...touched, email: true });
+              setEmailExists(false); // Reset when typing
             }}
             placeholder="you@example.com"
             placeholderTextColor={colors.textSecondary}
@@ -515,6 +576,12 @@ export default function ContractorRegisterScreen() {
           />
           {showEmailError && (
             <Text style={styles.errorText}>Enter a valid email (e.g., name@example.com)</Text>
+          )}
+          {emailExists && !showEmailError && (
+            <Text style={styles.existsErrorText}>This email is already registered. Please login instead.</Text>
+          )}
+          {checkingEmail && (
+            <Text style={styles.checkingText}>Checking availability...</Text>
           )}
           {isUpgrading && (
             <Text style={styles.lockedFieldText}>Email cannot be changed</Text>
@@ -1091,6 +1158,18 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
     marginTop: 4,
+  },
+  existsErrorText: {
+    fontSize: 12,
+    color: colors.red,
+    marginTop: 6,
+    fontWeight: '600',
+  },
+  checkingText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   passwordOptions: {
     gap: 12,

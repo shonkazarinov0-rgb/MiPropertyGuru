@@ -62,6 +62,12 @@ export default function AuthScreen() {
   const [typeSearch, setTypeSearch] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [keepLoggedIn, setKeepLoggedIn] = useState(true); // Keep me logged in option
+  
+  // Email/Phone availability tracking
+  const [emailExists, setEmailExists] = useState(false);
+  const [phoneExists, setPhoneExists] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [checkingPhone, setCheckingPhone] = useState(false);
 
   // Phone number formatter: (000) 000 0000
   const formatPhoneNumber = (value: string) => {
@@ -77,10 +83,55 @@ export default function AuthScreen() {
       return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
     }
   };
+  
+  // Check if phone is valid (10 digits)
+  const isValidPhone = (p: string) => {
+    const digits = p.replace(/\D/g, '');
+    return digits.length === 10;
+  };
 
   const handlePhoneChange = (value: string) => {
     setPhone(formatPhoneNumber(value));
+    setPhoneExists(false);
   };
+  
+  // Check if email exists when user finishes typing
+  useEffect(() => {
+    if (!email.trim() || !email.includes('@') || mode !== 'register') return;
+    
+    const timeoutId = setTimeout(async () => {
+      setCheckingEmail(true);
+      try {
+        const res = await api.get(`/auth/check-email?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+        setEmailExists(res.exists);
+      } catch (e) {
+        console.error('Email check failed:', e);
+      } finally {
+        setCheckingEmail(false);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [email, mode]);
+
+  // Check if phone exists when user finishes typing
+  useEffect(() => {
+    if (!phone.trim() || !isValidPhone(phone) || mode !== 'register') return;
+    
+    const timeoutId = setTimeout(async () => {
+      setCheckingPhone(true);
+      try {
+        const res = await api.get(`/auth/check-phone?phone=${encodeURIComponent(phone.trim())}`);
+        setPhoneExists(res.exists);
+      } catch (e) {
+        console.error('Phone check failed:', e);
+      } finally {
+        setCheckingPhone(false);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timeoutId);
+  }, [phone, mode]);
 
   // Handle direct navigation to login or register
   useEffect(() => {
@@ -119,6 +170,8 @@ export default function AuthScreen() {
     if (!name || !email || !password) { setError('Please fill in all required fields'); return; }
     if (role === 'contractor' && !contractorType) { setError('Please select your trade'); return; }
     if (role === 'contractor' && !acceptedTerms) { setError('You must accept the Terms of Service and Privacy Policy'); return; }
+    if (emailExists) { setError('This email is already registered. Please login instead.'); return; }
+    if (phoneExists) { setError('This phone number is already registered. Please login instead.'); return; }
     setSubmitting(true); setError('');
     try {
       await register({
@@ -329,20 +382,34 @@ export default function AuthScreen() {
               placeholderTextColor={colors.placeholder} value={name} onChangeText={setName} />
           </View>
           <View style={s.inputGroup}>
-            <Text style={s.label}>Email</Text>
-            <TextInput testID="register-email" style={s.input} placeholder="your@email.com"
-              placeholderTextColor={colors.placeholder} value={email} onChangeText={setEmail}
+            <Text style={[s.label, emailExists && s.labelError]}>
+              Email {emailExists && <Text style={s.errorLabel}>*Already in use</Text>}
+            </Text>
+            <TextInput testID="register-email" style={[s.input, emailExists && s.inputError]} placeholder="your@email.com"
+              placeholderTextColor={colors.placeholder} value={email} onChangeText={(t) => { setEmail(t); setEmailExists(false); }}
               keyboardType="email-address" autoCapitalize="none" />
+            {emailExists && (
+              <Text style={s.existsErrorText}>This email is already registered. Please login instead.</Text>
+            )}
+            {checkingEmail && (
+              <Text style={s.checkingText}>Checking availability...</Text>
+            )}
           </View>
           <View style={s.inputGroup}>
             <View style={s.labelRow}>
-              <Text style={s.label}>Phone Number</Text>
+              <Text style={[s.label, phoneExists && s.labelError]}>Phone Number</Text>
               <Text style={s.optionalLabel}>(Optional)</Text>
             </View>
-            <TextInput testID="register-phone" style={s.input} placeholder="(555) 555 5555"
+            <TextInput testID="register-phone" style={[s.input, phoneExists && s.inputError]} placeholder="(555) 555 5555"
               placeholderTextColor={colors.placeholder} value={phone} onChangeText={handlePhoneChange}
               keyboardType="phone-pad" maxLength={14} />
             <Text style={s.hintText}>Verification required if provided</Text>
+            {phoneExists && (
+              <Text style={s.existsErrorText}>This phone number is already registered. Please login instead.</Text>
+            )}
+            {checkingPhone && (
+              <Text style={s.checkingText}>Checking availability...</Text>
+            )}
           </View>
           <View style={s.inputGroup}>
             <Text style={s.label}>Password</Text>
@@ -508,8 +575,13 @@ const s = StyleSheet.create({
   inputGroup: { marginBottom: spacing.m },
   labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
   label: { fontSize: 14, fontWeight: '600', color: colors.secondary, marginBottom: spacing.xs },
+  labelError: { color: '#EF4444' },
+  errorLabel: { color: '#EF4444', fontWeight: '400', fontSize: 12 },
   optionalLabel: { fontSize: 12, color: colors.textSecondary, marginLeft: 6, fontWeight: '400' },
   hintText: { fontSize: 11, color: colors.textSecondary, marginTop: 4, fontStyle: 'italic' },
+  existsErrorText: { fontSize: 12, color: '#EF4444', marginTop: 6, fontWeight: '600' },
+  checkingText: { fontSize: 11, color: colors.textSecondary, marginTop: 4, fontStyle: 'italic' },
+  inputError: { borderColor: '#EF4444', borderWidth: 2 },
   input: {
     backgroundColor: colors.background, borderRadius: radius.s, paddingHorizontal: spacing.m,
     paddingVertical: 14, fontSize: 17, color: colors.textPrimary, borderWidth: 1, borderColor: 'transparent',

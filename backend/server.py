@@ -436,6 +436,24 @@ async def register(req: RegisterReq):
     }
 
 
+
+# Check if email already exists
+@api_router.get("/auth/check-email")
+async def check_email(email: str):
+    """Check if email is already registered"""
+    existing = await db.users.find_one({"email": email.lower()})
+    return {"exists": existing is not None}
+
+# Check if phone already exists
+@api_router.get("/auth/check-phone")
+async def check_phone(phone: str):
+    """Check if phone is already registered"""
+    if not phone or not phone.strip():
+        return {"exists": False}
+    existing = await db.users.find_one({"phone": phone})
+    return {"exists": existing is not None}
+
+
 class CompleteRegistrationReq(BaseModel):
     email: str
     code: str
