@@ -11,10 +11,10 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Twilio configuration - MUST be set in .env file
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
+# Twilio configuration
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "AC6f21a70971273a4e7abfe1d5aa578815")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "9a76fc12b0e66a0769d4cc072afa6d59")
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER", "+12495233568")
 
 # Initialize Twilio client
 try:
