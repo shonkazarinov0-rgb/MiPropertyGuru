@@ -377,7 +377,9 @@ async def register(req: RegisterReq):
     query_conditions = [{"email": req.email.lower()}]
     if req.phone and req.phone.strip():
         query_conditions.append({"phone": req.phone})
+    logger.info(f"Query conditions: {query_conditions}")
     existing = await db.users.find_one({"$or": query_conditions})
+    logger.info(f"Existing user check result: {existing}")
     if existing:
         logger.warning(f"Registration failed - user exists: {req.email}")
         raise HTTPException(400, "Email or phone already registered")
