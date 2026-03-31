@@ -219,11 +219,8 @@ export default function ContractorRegisterScreen() {
           Alert.alert('Error', 'Please enter your full name (at least 2 characters)'); 
           return false; 
         }
-        if (!phone.trim()) { 
-          Alert.alert('Error', 'Phone number is required'); 
-          return false; 
-        }
-        if (!isValidCanadianPhone(phone)) { 
+        // Phone is optional, but if provided, must be valid Canadian format
+        if (phone.trim() && !isValidCanadianPhone(phone)) { 
           Alert.alert('Invalid Phone', 'Please enter a valid Canadian phone number (10 digits).\n\nExample: (416) 555-1234'); 
           return false; 
         }
@@ -469,9 +466,12 @@ export default function ContractorRegisterScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={[styles.inputLabel, showPhoneError && styles.inputLabelError]}>
-            Phone Number (Canadian) {showPhoneError && <Text style={styles.requiredText}>*Invalid</Text>}
-          </Text>
+          <View style={styles.labelRow}>
+            <Text style={[styles.inputLabel, styles.labelInRow, showPhoneError && styles.inputLabelError]}>
+              Phone Number (Canadian) {showPhoneError && <Text style={styles.requiredText}>*Invalid</Text>}
+            </Text>
+            <Text style={styles.optionalLabel}>(Optional)</Text>
+          </View>
           <TextInput
             style={[styles.input, showPhoneError && styles.inputError, isUpgrading && styles.inputPreFilled]}
             value={phone}
@@ -484,6 +484,7 @@ export default function ContractorRegisterScreen() {
             keyboardType="phone-pad"
             maxLength={14}
           />
+          <Text style={styles.hintText}>Verification required if provided</Text>
           {showPhoneError && (
             <Text style={styles.errorText}>Enter a valid Canadian phone number (10 digits)</Text>
           )}
@@ -1022,6 +1023,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 8,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  labelInRow: {
+    marginBottom: 0,
+  },
+  optionalLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginLeft: 6,
+    fontWeight: '400',
+  },
+  hintText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   input: {
     backgroundColor: colors.paper,
