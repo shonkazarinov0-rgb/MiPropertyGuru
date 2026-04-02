@@ -505,16 +505,21 @@ async def complete_registration(req: CompleteRegistrationReq):
     if not pending:
         raise HTTPException(400, "No pending registration found. Please register again.")
     
-    # Verify code
-    if pending["verification_code"] != req.code:
+    # Verify code - accept 'phone-verified' as special case when phone verification was completed
+    if req.code != 'phone-verified' and pending["verification_code"] != req.code:
         raise HTTPException(400, "Invalid verification code")
     
-    # Check expiry
-    expires_at = datetime.fromisoformat(pending["code_expires_at"].replace('Z', '+00:00'))
-    if datetime.now(timezone.utc) > expires_at:
-        # Delete expired pending registration
-        await db.pending_registrations.delete_one({"email": req.email.lower()})
-        raise HTTPException(400, "Verification code has expired. Please register again.")
+    # If using phone-verified, make sure phone was actually verified
+    if req.code == 'phone-verified' and not pending.get("phone_verified", False):
+        raise HTTPException(400, "Phone not verified. Please verify your phone first.")
+    
+    # Check expiry (skip if phone-verified since that has its own expiry check)
+    if req.code != 'phone-verified':
+        expires_at = datetime.fromisoformat(pending["code_expires_at"].replace('Z', '+00:00'))
+        if datetime.now(timezone.utc) > expires_at:
+            # Delete expired pending registration
+            await db.pending_registrations.delete_one({"email": req.email.lower()})
+            raise HTTPException(400, "Verification code has expired. Please register again.")
     
     # Check again if user was created in the meantime
     existing = await db.users.find_one({"email": req.email.lower()})
