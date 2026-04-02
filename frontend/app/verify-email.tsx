@@ -110,14 +110,30 @@ export default function VerifyEmailScreen() {
         if (phoneToVerify && phoneToVerify.trim().length > 0) {
           console.log('Sending SMS code to:', phoneToVerify);
           // Send SMS code
-          await api.post('/auth/send-registration-phone-code', { 
-            phone: phoneToVerify, 
-            email: email 
-          });
-          setCode(''); // Clear code for next step
-          setCurrentStep('phone');
-          setCountdown(0);
-          Alert.alert('Email Verified!', 'Now please verify your phone number. A code has been sent via SMS.');
+          try {
+            await api.post('/auth/send-registration-phone-code', { 
+              phone: phoneToVerify, 
+              email: email 
+            });
+            // Update state after successful SMS send
+            setCode(''); // Clear code for next step
+            setCurrentStep('phone');
+            setCountdown(0);
+            // Show alert safely
+            setTimeout(() => {
+              if (Platform.OS === 'web') {
+                window.alert('Email Verified! Now please verify your phone number. A code has been sent via SMS.');
+              } else {
+                Alert.alert('Email Verified!', 'Now please verify your phone number. A code has been sent via SMS.');
+              }
+            }, 100);
+          } catch (smsError: any) {
+            console.error('SMS send failed:', smsError);
+            // Even if SMS fails, we can still complete registration since email is verified
+            Alert.alert('SMS Error', 'Could not send SMS. Completing registration without phone verification.');
+            await completeRegistration(email!, code);
+            router.replace('/(tabs)/home');
+          }
         } else {
           console.log('No phone provided - completing registration with email only');
           // No phone - complete registration with email only
@@ -126,16 +142,22 @@ export default function VerifyEmailScreen() {
         }
       } else {
         // Phone verification - complete registration with verified phone
-        await api.post('/auth/verify-registration-phone', { 
-          phone: phoneToVerify, 
-          code,
-          email: email 
-        });
-        // Now complete registration (email already verified, phone now verified)
-        await completeRegistration(email!, 'phone-verified'); // Special flag
-        router.replace('/(tabs)/home');
+        try {
+          await api.post('/auth/verify-registration-phone', { 
+            phone: phoneToVerify, 
+            code,
+            email: email 
+          });
+          // Now complete registration (email already verified, phone now verified)
+          await completeRegistration(email!, 'phone-verified'); // Special flag
+          router.replace('/(tabs)/home');
+        } catch (phoneError: any) {
+          console.error('Phone verification failed:', phoneError);
+          Alert.alert('Error', phoneError.message || 'Phone verification failed. Please try again.');
+        }
       }
     } catch (e: any) {
+      console.error('Verification error:', e);
       Alert.alert('Error', e.message || 'Invalid or expired code. Please try again.');
     } finally {
       setLoading(false);
