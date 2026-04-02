@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
-  BackHandler,
+  BackHandler, InteractionManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -43,7 +43,7 @@ export default function VerifyEmailScreen() {
   }, [phone]);
 
   const verifyType = currentStep;
-  const verifyTarget = currentStep === 'email' ? email : phoneToVerify;
+  const verifyTarget = currentStep === 'email' ? email : (phoneToVerify || '');
 
   // Prevent back navigation - user MUST verify to proceed
   useFocusEffect(
@@ -105,7 +105,7 @@ export default function VerifyEmailScreen() {
         console.log('Verifying email:', verifyTarget);
         await api.post('/auth/verify-email-only', { email: verifyTarget, code });
         
-        console.log('Email verified. Phone to verify:', phoneToVerify, 'Length:', phoneToVerify.length);
+        console.log('Email verified. Phone to verify:', phoneToVerify, 'Length:', phoneToVerify?.length);
         // If phone was provided, move to phone verification
         if (phoneToVerify && phoneToVerify.trim().length > 0) {
           console.log('Sending SMS code to:', phoneToVerify);
@@ -115,30 +115,47 @@ export default function VerifyEmailScreen() {
               phone: phoneToVerify, 
               email: email 
             });
-            // Update state after successful SMS send
+            // First set loading to false to stabilize UI
+            setLoading(false);
+            // Update state after successful SMS send - batch these updates
             setCode(''); // Clear code for next step
-            setCurrentStep('phone');
             setCountdown(0);
-            // Show alert safely
-            setTimeout(() => {
-              if (Platform.OS === 'web') {
-                window.alert('Email Verified! Now please verify your phone number. A code has been sent via SMS.');
-              } else {
+            // Use InteractionManager to wait for UI to settle before changing step
+            InteractionManager.runAfterInteractions(() => {
+              setCurrentStep('phone');
+              // Show alert after everything is settled
+              setTimeout(() => {
                 Alert.alert('Email Verified!', 'Now please verify your phone number. A code has been sent via SMS.');
-              }
-            }, 100);
+              }, 300);
+            });
+            return; // Exit early since we already set loading to false
           } catch (smsError: any) {
             console.error('SMS send failed:', smsError);
             // Even if SMS fails, we can still complete registration since email is verified
             Alert.alert('SMS Error', 'Could not send SMS. Completing registration without phone verification.');
-            await completeRegistration(email!, code);
-            router.replace('/(tabs)/home');
+            try {
+              await completeRegistration(email!, code);
+              InteractionManager.runAfterInteractions(() => {
+                router.replace('/(tabs)/home');
+              });
+            } catch (regError: any) {
+              console.error('Registration failed after SMS error:', regError);
+              Alert.alert('Error', regError.message || 'Registration failed. Please try again.');
+            }
           }
         } else {
           console.log('No phone provided - completing registration with email only');
           // No phone - complete registration with email only
-          await completeRegistration(email!, code);
-          router.replace('/(tabs)/home');
+          try {
+            await completeRegistration(email!, code);
+            // Use InteractionManager for safe navigation
+            InteractionManager.runAfterInteractions(() => {
+              router.replace('/(tabs)/home');
+            });
+          } catch (regError: any) {
+            console.error('Registration failed:', regError);
+            Alert.alert('Error', regError.message || 'Registration failed. Please try again.');
+          }
         }
       } else {
         // Phone verification - complete registration with verified phone
@@ -150,7 +167,10 @@ export default function VerifyEmailScreen() {
           });
           // Now complete registration (email already verified, phone now verified)
           await completeRegistration(email!, 'phone-verified'); // Special flag
-          router.replace('/(tabs)/home');
+          // Use InteractionManager for safe navigation
+          InteractionManager.runAfterInteractions(() => {
+            router.replace('/(tabs)/home');
+          });
         } catch (phoneError: any) {
           console.error('Phone verification failed:', phoneError);
           Alert.alert('Error', phoneError.message || 'Phone verification failed. Please try again.');

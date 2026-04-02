@@ -224,9 +224,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUser(res.user);
     
-    // Register for push notifications
+    // Register for push notifications (don't crash if this fails)
     if (Platform.OS !== 'web') {
-      registerForPushNotifications();
+      try {
+        registerForPushNotifications();
+      } catch (e) {
+        console.log('Push notification registration failed:', e);
+      }
     }
     
     return res;
