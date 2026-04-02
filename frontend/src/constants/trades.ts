@@ -27,6 +27,9 @@ export const TRADES = [
   { name: 'Pool Service', icon: '🏊', color: '#00ACC1' },
   { name: 'Locksmith', icon: '🔐', color: '#FFC107' },
   { name: 'Appliance Repair', icon: '🔌', color: '#673AB7' },
+  { name: 'Moving', icon: '📦', color: '#FF7043' },
+  { name: 'Cleaning', icon: '🧹', color: '#26A69A' },
+  { name: 'Blinds & Curtains', icon: '🪟', color: '#7E57C2' },
 ];
 
 // Get icon for a trade name

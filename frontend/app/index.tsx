@@ -233,7 +233,7 @@ export default function AuthScreen() {
       <SafeAreaView style={s.container}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.flex}>
           <ScrollView contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled">
-            <TouchableOpacity testID="back-to-welcome" style={s.backBtn} onPress={() => router.back()}>
+            <TouchableOpacity testID="back-to-welcome" style={s.backBtn} onPress={() => setMode('welcome')}>
               <Ionicons name="arrow-back" size={24} color={colors.secondary} />
             </TouchableOpacity>
 
@@ -282,7 +282,7 @@ export default function AuthScreen() {
             </TouchableOpacity>
 
             <View style={s.demoHint}>
-              <Text style={s.demoText}>Demo: client@demo.com / demo123</Text>
+{/* Demo text removed */}
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -341,7 +341,7 @@ export default function AuthScreen() {
     <SafeAreaView style={s.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.flex}>
         <ScrollView contentContainerStyle={s.formScroll} keyboardShouldPersistTaps="handled">
-          <TouchableOpacity testID="back-to-welcome-reg" style={s.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity testID="back-to-welcome-reg" style={s.backBtn} onPress={() => setMode('welcome')}>
             <Ionicons name="arrow-back" size={24} color={colors.secondary} />
           </TouchableOpacity>
 

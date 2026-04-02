@@ -819,7 +819,7 @@ export default function ClientHomeScreen() {
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>*{margin:0;padding:0}#map{width:100vw;height:100vh}</style></head>
+<style>*{margin:0;padding:0}#map{width:100vw;height:100vh}.leaflet-control-attribution{display:none!important}</style></head>
 <body><div id="map"></div><script>
 var map=L.map('map',{zoomControl:false}).setView([${userLoc.lat},${userLoc.lng}],${zoomLevel});
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:''}).addTo(map);
@@ -1048,7 +1048,6 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 <Text style={styles.locationLabel}>Your Location</Text>
                 <Text style={styles.locationValue}>{locationName}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </View>
             
             <View style={styles.statsCards}>
