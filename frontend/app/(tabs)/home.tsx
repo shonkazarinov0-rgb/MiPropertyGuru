@@ -205,6 +205,10 @@ export default function ClientHomeScreen() {
   const menuOpacity = useRef(new Animated.Value(0)).current;
   const menuScale = useRef(new Animated.Value(0.8)).current;
   
+  // WebView refs for dynamic radius updates
+  const mapPreviewRef = useRef<WebView>(null);
+  const fullMapRef = useRef<WebView>(null);
+  
   // Notifications state
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   
@@ -374,6 +378,21 @@ export default function ClientHomeScreen() {
   useEffect(() => {
     checkNotificationStatus();
   }, []);
+
+  // Dynamic radius update - inject JavaScript to update circle without remounting WebView
+  useEffect(() => {
+    if (!userLoc) return;
+    const radiusMeters = radiusKm >= 200 ? 200000 : radiusKm * 1000;
+    const script = `if(window.updateRadius){window.updateRadius(${radiusMeters});}true;`;
+    
+    // Update both map preview and full map WebViews
+    if (mapPreviewRef.current) {
+      mapPreviewRef.current.injectJavaScript(script);
+    }
+    if (fullMapRef.current) {
+      fullMapRef.current.injectJavaScript(script);
+    }
+  }, [radiusKm, userLoc]);
 
   const checkNotificationStatus = async () => {
     try {
@@ -824,7 +843,7 @@ export default function ClientHomeScreen() {
 var map=L.map('map',{zoomControl:false}).setView([${userLoc.lat},${userLoc.lng}],${zoomLevel});
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:''}).addTo(map);
 // Draw search radius circle - transparent blue to show search area
-L.circle([${userLoc.lat},${userLoc.lng}],{radius:${radiusMeters},fillColor:'#007AFF',fillOpacity:0.15,color:'#007AFF',weight:2,opacity:0.6}).addTo(map);
+var radiusCircle=L.circle([${userLoc.lat},${userLoc.lng}],{radius:${radiusMeters},fillColor:'#007AFF',fillOpacity:0.15,color:'#007AFF',weight:2,opacity:0.6}).addTo(map);
 // User marker - solid blue circle
 L.circleMarker([${userLoc.lat},${userLoc.lng}],{radius:12,fillColor:'#007AFF',color:'#fff',weight:4,fillOpacity:1}).addTo(map).bindPopup('<b>You are here</b>');
 var ms=${mJSON};
@@ -833,6 +852,8 @@ ms.forEach(function(m){
 var icon=L.divIcon({className:'',html:'<div style="background:#22C55E;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)"></div>',iconSize:[14,14],iconAnchor:[7,7]});
 L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'tap',id:m.id}))});
 });
+// Function to update radius dynamically from React Native
+window.updateRadius=function(newRadiusMeters){radiusCircle.setRadius(newRadiusMeters);};
 </script></body></html>`;
   };
 
@@ -1138,6 +1159,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
                 
                 <TouchableOpacity style={styles.mapPreview} onPress={() => setShowFullMap(true)}>
                   <WebView 
+                    ref={mapPreviewRef}
                     source={{ html: getMapHTML() }} 
                     style={styles.mapWebView}
                     onMessage={handleMapMessage}
@@ -1779,6 +1801,7 @@ L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.Reac
           <View style={styles.fullMapWebViewContainer}>
             {userLoc ? (
               <WebView 
+                ref={fullMapRef}
                 source={{ html: getMapHTML() }} 
                 style={styles.fullMapWebView}
                 onMessage={handleMapMessage}
