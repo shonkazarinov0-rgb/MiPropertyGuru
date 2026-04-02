@@ -15,7 +15,8 @@
         "NSLocationWhenInUseUsageDescription": "Find contractors near your location",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Share your location with clients to get more jobs",
         "NSCameraUsageDescription": "Take photos of your completed work",
-        "NSPhotoLibraryUsageDescription": "Upload photos to your portfolio"
+        "NSPhotoLibraryUsageDescription": "Upload photos to your portfolio",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -33,7 +34,9 @@
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE"
+        "VIBRATE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -72,9 +75,11 @@
     },
     "extra": {
       "eas": {
-        "projectId": "mipropertyguru"
+        "projectId": "4a55a2dd-de98-4ae5-9afb-a1293b4ebc76"
       },
-      "backendUrl": "https://mipropertyguru-production.up.railway.app"
-    }
+      "backendUrl": "https://mipropertyguru-production.up.railway.app",
+      "router": {}
+    },
+    "owner": "shonkazarinov0"
   }
 }
