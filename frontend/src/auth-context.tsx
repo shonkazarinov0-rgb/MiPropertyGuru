@@ -12,7 +12,7 @@ export interface User {
   email: string;
   phone: string;
   role: string;
-  currentMode?: 'client' | 'contractor'; // For contractors who can switch modes
+  currentMode?: 'client' | 'contractor';
   contractor_type?: string;
   trades?: string[];
   bio?: string;
@@ -53,206 +53,234 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
 
-  useEffect(() => { checkAuth(); }, []);
+  useEffect(() => {
+    checkAuth();
+  }, []);
 
-  // Set up push notification listeners when user is logged in
   useEffect(() => {
     if (!user || Platform.OS === 'web') return;
-    
+
     const cleanup = addNotificationListeners(
-      // When notification received while app is open
       (notification) => {
         console.log('Notification received:', notification);
       },
-      // When user taps on notification
       (response) => {
-        const data = response.notification.request.content.data;
-        if (data?.type === 'message' && data?.conversation_id) {
-          router.push(`/chat/${data.conversation_id}`);
+        try {
+          const data = response.notification.request.content.data;
+          if (data?.type === 'message' && data?.conversation_id) {
+            router.push(`/chat/${data.conversation_id}`);
+          }
+        } catch (e: any) {
+          console.error('Notification navigation crash:', e);
+          console.error('Notification navigation message:', e?.message);
         }
       }
     );
-    
+
     return cleanup;
   }, [user]);
 
   const checkAuth = async () => {
     try {
-      // Check for guest mode first
       const guestMode = await AsyncStorage.getItem('guest_mode');
       if (guestMode === 'true') {
         setIsGuest(true);
         setLoading(false);
         return;
       }
-      
+
       const token = await AsyncStorage.getItem('auth_token');
       const keepLoggedIn = await AsyncStorage.getItem('keep_logged_in');
-      
-      // If user didn't select "keep logged in" and it's a new app session, clear token
+
       if (token && keepLoggedIn !== 'true') {
-        // Check if this is a fresh app launch vs just resuming
         const lastSessionTime = await AsyncStorage.getItem('last_session_time');
         const now = Date.now();
-        // If more than 24 hours since last session, clear the token
-        if (lastSessionTime && (now - parseInt(lastSessionTime)) > 24 * 60 * 60 * 1000) {
+
+        if (lastSessionTime && now - parseInt(lastSessionTime, 10) > 24 * 60 * 60 * 1000) {
           await AsyncStorage.removeItem('auth_token');
           setLoading(false);
           return;
         }
       }
-      
-      if (token) {
-        try {
-          const userData = await api.get('/auth/me');
-          // Check if session is still valid (not kicked by another login)
-          if (userData.session_invalid) {
-            setSessionExpired(true);
-            await AsyncStorage.removeItem('auth_token');
-            setLoading(false);
-            return;
-          }
-          // Set default mode based on role
-          if (userData.role === 'contractor') {
-            // Restore saved mode preference
-            const savedMode = await AsyncStorage.getItem('user_mode');
-            if (savedMode === 'client' || savedMode === 'contractor') {
-              userData.currentMode = savedMode;
-            } else if (!userData.currentMode) {
-              userData.currentMode = 'contractor';
-            }
-          }
-          setUser(userData);
-          // Update session time
-          await AsyncStorage.setItem('last_session_time', Date.now().toString());
-          // Register for push notifications after auth check
-          if (Platform.OS !== 'web') {
-            registerForPushNotifications();
-          }
-        } catch (e: any) {
-          // Check if it's a session invalid error
-          if (e.message?.includes('session') || e.status === 401) {
-            setSessionExpired(true);
-          }
-          await AsyncStorage.removeItem('auth_token');
-        }
+
+      if (!token) {
+        setLoading(false);
+        return;
       }
-    } catch {
+
+      try {
+        const userData = await api.get('/auth/me');
+
+        if (userData.session_invalid) {
+          setSessionExpired(true);
+          await AsyncStorage.removeItem('auth_token');
+          setLoading(false);
+          return;
+        }
+
+        if (userData.role === 'contractor') {
+          const savedMode = await AsyncStorage.getItem('user_mode');
+          if (savedMode === 'client' || savedMode === 'contractor') {
+            userData.currentMode = savedMode;
+          } else if (!userData.currentMode) {
+            userData.currentMode = 'contractor';
+          }
+        }
+
+        setUser(userData);
+        await AsyncStorage.setItem('last_session_time', Date.now().toString());
+
+        if (Platform.OS !== 'web') {
+          try {
+            registerForPushNotifications();
+          } catch (e: any) {
+            console.error('Push registration crash during checkAuth:', e);
+            console.error('Push registration message:', e?.message);
+          }
+        }
+      } catch (e: any) {
+        console.error('checkAuth crash:', e);
+        console.error('checkAuth message:', e?.message);
+
+        if (e?.message?.includes('session') || e?.status === 401) {
+          setSessionExpired(true);
+        }
+
+        await AsyncStorage.removeItem('auth_token');
+        setUser(null);
+      }
+    } catch (e: any) {
+      console.error('Outer checkAuth crash:', e);
+      console.error('Outer checkAuth message:', e?.message);
       await AsyncStorage.removeItem('auth_token');
+      setUser(null);
     } finally {
       setLoading(false);
     }
   };
 
   const login = async (email: string, password: string, keepLoggedIn: boolean = true) => {
-    // Clear guest mode when logging in
     setIsGuest(false);
     await AsyncStorage.removeItem('guest_mode');
-    
-    // Try to get device location for security tracking
+
     let locationData: { lat?: number; lng?: number } = {};
+
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
       if (status === 'granted') {
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
-        locationData = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+        locationData = {
+          lat: loc.coords.latitude,
+          lng: loc.coords.longitude,
+        };
       }
-    } catch (e) {
-      // Location not available - that's okay
+    } catch (e: any) {
+      console.log('Location unavailable during login:', e?.message);
     }
-    
-    const res = await api.post('/auth/login', { 
-      email, 
-      password, 
+
+    const res = await api.post('/auth/login', {
+      email,
+      password,
       keep_logged_in: keepLoggedIn,
       ...locationData,
-      device_info: Platform.OS
+      device_info: Platform.OS,
     });
-    
-    // Check for suspicious activity warning
+
     if (res.suspicious_activity) {
-      // Don't block login but alert user
       console.warn('Suspicious activity detected:', res.suspicious_reasons);
     }
-    
+
     await AsyncStorage.setItem('auth_token', res.token);
-    // Save keep_logged_in preference
     await AsyncStorage.setItem('keep_logged_in', keepLoggedIn ? 'true' : 'false');
     await AsyncStorage.setItem('last_session_time', Date.now().toString());
-    // Store session ID for validation
+
     if (res.session_id) {
       await AsyncStorage.setItem('session_id', res.session_id);
     }
-    // Set default mode
+
     if (res.user.role === 'contractor' && !res.user.currentMode) {
       res.user.currentMode = 'contractor';
     }
+
     setUser(res.user);
     setSessionExpired(false);
-    // Register for push notifications after login
+
     if (Platform.OS !== 'web') {
-      registerForPushNotifications();
+      try {
+        registerForPushNotifications();
+      } catch (e: any) {
+        console.error('Push registration crash after login:', e);
+        console.error('Push registration message:', e?.message);
+      }
     }
   };
 
   const register = async (data: any) => {
-    // Clear guest mode when registering
     setIsGuest(false);
     await AsyncStorage.removeItem('guest_mode');
-    
-    // Step 1: Submit registration (sends verification code, doesn't create account yet)
-    const res = await api.post('/auth/register', data);
-    
-    // Don't set user or token yet - they need to verify first
-    // Return the response so frontend can redirect to verification
-    return res;
+    return await api.post('/auth/register', data);
   };
-  
+
   const completeRegistration = async (email: string, code: string) => {
-    // Step 2: Complete registration after code verification
     const res = await api.post('/auth/complete-registration', { email, code });
-    
-    // NOW set token and user
+
     await AsyncStorage.setItem('auth_token', res.token);
     await AsyncStorage.setItem('keep_logged_in', 'true');
-    await AsyncStorage.removeItem('guest_mode'); // Clear guest mode after registration
-    setIsGuest(false); // Ensure guest flag is cleared
-    
-    // Set default mode
-    if (res.user.role === 'contractor') {
+    await AsyncStorage.removeItem('guest_mode');
+    setIsGuest(false);
+
+    if (res.user.role === 'contractor' && !res.user.currentMode) {
       res.user.currentMode = 'contractor';
     }
+
     setUser(res.user);
-    
-    // Register for push notifications (don't crash if this fails)
+
     if (Platform.OS !== 'web') {
       try {
         registerForPushNotifications();
-      } catch (e) {
+      } catch (e: any) {
         console.log('Push notification registration failed:', e);
       }
     }
-    
+
     return res;
   };
 
   const logout = async () => {
-    // Remove push token before logging out
-    if (Platform.OS !== 'web') {
-      await removePushToken();
+    try {
+      if (Platform.OS !== 'web') {
+        try {
+          await removePushToken();
+        } catch (e: any) {
+          console.error('removePushToken crash:', e);
+          console.error('removePushToken message:', e?.message);
+        }
+      }
+
+      await AsyncStorage.multiRemove([
+        'auth_token',
+        'keep_logged_in',
+        'last_session_time',
+        'session_id',
+        'user_mode',
+      ]);
+
+      setUser(null);
+      setSessionExpired(false);
+    } catch (e: any) {
+      console.error('logout crash:', e);
+      console.error('logout message:', e?.message);
+      setUser(null);
     }
-    await AsyncStorage.removeItem('auth_token');
-    setUser(null);
   };
 
   const refreshUser = async () => {
     try {
       const userData = await api.get('/auth/me');
-      // Preserve current mode when refreshing
+
       if (user?.currentMode) {
         userData.currentMode = user.currentMode;
       } else if (userData.role === 'contractor') {
-        // Restore saved mode preference
         const savedMode = await AsyncStorage.getItem('user_mode');
         if (savedMode === 'client' || savedMode === 'contractor') {
           userData.currentMode = savedMode;
@@ -260,28 +288,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userData.currentMode = 'contractor';
         }
       }
+
       setUser(userData);
-    } catch {}
+    } catch (e: any) {
+      console.error('refreshUser crash:', e);
+      console.error('refreshUser message:', e?.message);
+    }
   };
 
   const switchMode = async (mode: 'client' | 'contractor') => {
-    if (!user) return;
-    
-    // Only contractors can switch modes
-    if (user.role !== 'contractor') return;
-    
-    try {
-      // Update on server (optional - could just be local)
-      await api.post('/switch-mode', { mode });
-    } catch (e) {
-      console.log('Mode switch API not available, switching locally');
+    console.log('switchMode called with:', mode);
+
+    if (!user) {
+      console.log('switchMode aborted: no user');
+      return;
     }
-    
-    // Update local state
-    setUser({ ...user, currentMode: mode });
-    
-    // Store mode preference
-    await AsyncStorage.setItem('user_mode', mode);
+
+    if (user.role !== 'contractor') {
+      console.log('switchMode aborted: user is not contractor');
+      return;
+    }
+
+    if (user.currentMode === mode) {
+      console.log('switchMode aborted: already in mode', mode);
+      return;
+    }
+
+    try {
+      console.log('switchMode about to call API');
+      await api.post('/switch-mode', { mode });
+      console.log('switchMode API success');
+    } catch (e: any) {
+      console.error('switchMode API crash:', e);
+      console.error('switchMode API message:', e?.message);
+      console.log('Mode switch API not available, switching locally anyway');
+    }
+
+    try {
+      await AsyncStorage.setItem('user_mode', mode);
+      console.log('switchMode saved mode to storage:', mode);
+    } catch (e: any) {
+      console.error('switchMode storage crash:', e);
+      console.error('switchMode storage message:', e?.message);
+    }
+
+    setUser((prevUser) => {
+      if (!prevUser) return prevUser;
+      const updatedUser = { ...prevUser, currentMode: mode };
+      console.log('switchMode updating local user state:', updatedUser.currentMode);
+      return updatedUser;
+    });
   };
 
   const setGuestMode = async () => {
@@ -289,26 +345,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsGuest(true);
   };
 
-  // Computed properties for easy mode checking
-  const isClientMode = user?.role === 'client' || (user?.role === 'contractor' && user?.currentMode === 'client');
-  const isContractorMode = user?.role === 'contractor' && user?.currentMode !== 'client';
+  const isClientMode =
+    user?.role === 'client' || (user?.role === 'contractor' && user?.currentMode === 'client');
+
+  const isContractorMode =
+    user?.role === 'contractor' && user?.currentMode !== 'client';
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      loading, 
-      login, 
-      register,
-      completeRegistration,
-      logout, 
-      refreshUser, 
-      switchMode,
-      setGuestMode,
-      isClientMode,
-      isContractorMode,
-      sessionExpired,
-      isGuest
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        completeRegistration,
+        logout,
+        refreshUser,
+        switchMode,
+        setGuestMode,
+        isClientMode,
+        isContractorMode,
+        sessionExpired,
+        isGuest,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
