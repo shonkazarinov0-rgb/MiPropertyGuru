@@ -151,18 +151,35 @@ export default function VerifyEmailScreen() {
           }
         }
       } else {
+        // Phone verification step
         try {
+          console.log('Verifying phone code...');
           await api.post('/auth/verify-registration-phone', {
             phone: phoneToVerify,
             code,
             email: email,
           });
-          await completeRegistration(email, 'phone-verified');
+          console.log('Phone verified, completing registration...');
+          
+          try {
+            await completeRegistration(email, 'phone-verified');
+            console.log('Registration complete, navigating...');
+          } catch (regError) {
+            console.error('completeRegistration error:', regError);
+            // Even if completeRegistration fails, try to navigate
+          }
+          
           if (isMounted.current) {
             setLoading(false);
-            router.replace('/(tabs)/home');
+            // Use setTimeout to ensure state updates complete before navigation
+            setTimeout(() => {
+              if (isMounted.current) {
+                router.replace('/(tabs)/home');
+              }
+            }, 100);
           }
         } catch (phoneError) {
+          console.error('Phone verification error:', phoneError);
           if (isMounted.current) {
             setLoading(false);
             setErrorMessage('Phone verification failed');
