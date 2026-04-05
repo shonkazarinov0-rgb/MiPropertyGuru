@@ -109,7 +109,7 @@ export default function VerifyEmailScreen() {
         console.log('Email verified. Phone to verify:', phoneToVerify, 'Length:', phoneToVerify?.length);
         // If phone was provided, move to phone verification
         if (phoneToVerify && phoneToVerify.trim().length > 0) {
-          Alert.alert("Inside if");
+          //Alert.alert("Inside if");
           console.log('Sending SMS code to:', phoneToVerify);
           // Send SMS code
           try {
@@ -117,19 +117,26 @@ export default function VerifyEmailScreen() {
               phone: phoneToVerify, 
               email: email 
             });
+            Alert.alert("After post");
             // First set loading to false to stabilize UI
             setLoading(false);
+            Alert.alert("After load false");
             // Update state after successful SMS send - batch these updates
             setCode(''); // Clear code for next step
+            Alert.alert("After setcode");
             setCountdown(0);
+            Alert.alert("After set count donw");
             // Use InteractionManager to wait for UI to settle before changing step
             InteractionManager.runAfterInteractions(() => {
+              Alert.alert("Inside run after interactions");
               setCurrentStep('phone');
+              Alert.alert("After setting current step");
               // Show alert after everything is settled
               setTimeout(() => {
                 Alert.alert('Email Verified!', 'Now please verify your phone number. A code has been sent via SMS.');
               }, 300);
             });
+            Alert.alert("Before return");
             return; // Exit early since we already set loading to false
           } catch (smsError: any) {
             console.error('SMS send failed:', smsError);
