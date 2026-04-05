@@ -211,7 +211,7 @@ export default function ContractorDashboard() {
         });
         router.push(`/chat/${conv.id}`);
       } catch (e: any) {
-        Alert.alert('Error', e.message || 'Failed to start conversation');
+        console.error('Failed to start conversation:', e.message);
       }
     }
   };
@@ -225,7 +225,7 @@ export default function ContractorDashboard() {
       setShowRemoveModal(false);
       setJobToRemove(null);
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to remove job');
+        console.error('Failed to remove job:', e.message);
     }
   };
 
@@ -243,9 +243,9 @@ export default function ContractorDashboard() {
       fetchData();
       setShowCompleteModal(false);
       setJobToComplete(null);
-      Alert.alert('Job Completed!', 'This job has been marked as completed.');
+        console.log('Job completed');
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to complete job');
+        console.error('Failed to complete job:', e.message);
     }
   };
 
