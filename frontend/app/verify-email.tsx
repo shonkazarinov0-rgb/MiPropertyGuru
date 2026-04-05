@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform,
-  BackHandler, Keyboard,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  BackHandler,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -25,19 +32,19 @@ const colors = {
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
-  const { email, type, phone } = useLocalSearchParams<{ email: string; type: string; phone?: string }>(); 
+  const { email, phone } = useLocalSearchParams<{ email: string; phone?: string }>();
+  
   const { completeRegistration } = useAuth();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [currentStep, setCurrentStep] = useState<'email' | 'phone'>('email');
+  const [currentStep, setCurrentStep] = useState('email');
   const [phoneToVerify, setPhoneToVerify] = useState(phone || '');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const isMounted = useRef(true);
 
-  // Track mount state
   useEffect(() => {
     isMounted.current = true;
     return () => {
@@ -45,7 +52,6 @@ export default function VerifyEmailScreen() {
     };
   }, []);
 
-  // Update phoneToVerify when phone param changes
   useEffect(() => {
     if (phone && phone.length > 0) {
       setPhoneToVerify(phone);
@@ -54,13 +60,9 @@ export default function VerifyEmailScreen() {
 
   const verifyTarget = currentStep === 'email' ? email : (phoneToVerify || '');
 
-  // Prevent back navigation - simple version without Alert
   useFocusEffect(
     useCallback(() => {
-      const onBackPress = () => {
-        // Just prevent back - don't show alert
-        return true;
-      };
+      const onBackPress = () => true;
       BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
     }, [])
@@ -74,10 +76,7 @@ export default function VerifyEmailScreen() {
   }, [countdown]);
 
   const handleVerify = async () => {
-    // Dismiss keyboard first
     Keyboard.dismiss();
-    
-    // Clear messages
     setErrorMessage('');
     setSuccessMessage('');
 
@@ -87,7 +86,7 @@ export default function VerifyEmailScreen() {
     }
 
     if (!verifyTarget) {
-      setErrorMessage(`${currentStep === 'email' ? 'Email' : 'Phone'} not found. Please register again.`);
+      setErrorMessage('Email/Phone not found. Please register again.');
       setTimeout(() => {
         if (isMounted.current) router.replace('/');
       }, 1500);
@@ -95,103 +94,94 @@ export default function VerifyEmailScreen() {
     }
 
     setLoading(true);
-    
+
     try {
       if (currentStep === 'email') {
-        // Verify email first
         await api.post('/auth/verify-email-only', { email: verifyTarget, code });
-        
-        // If phone was provided, move to phone verification
+
         if (phoneToVerify && phoneToVerify.trim().length > 0) {
           try {
-            await api.post('/auth/send-registration-phone-code', { 
-              phone: phoneToVerify, 
-              email: email 
+            await api.post('/auth/send-registration-phone-code', {
+              phone: phoneToVerify,
+              email: email,
             });
-            
+
             if (!isMounted.current) return;
-            
-            // Update state for phone step
+
             setLoading(false);
             setCode('');
             setCountdown(0);
             setSuccessMessage('Email verified! Now verify your phone.');
-            
-            // Delay step change slightly
+
             setTimeout(() => {
               if (isMounted.current) {
                 setCurrentStep('phone');
                 setSuccessMessage('');
               }
             }, 500);
-            
+
             return;
-          } catch (smsError: any) {
-            // SMS failed but email verified - complete without phone
-            console.error('SMS send failed:', smsError);
+          } catch (smsError) {
             try {
-              await completeRegistration(email!, code);
+              await completeRegistration(email, code);
               if (isMounted.current) {
                 setLoading(false);
                 router.replace('/(tabs)/home');
               }
-            } catch (regError: any) {
+            } catch (regError) {
               if (isMounted.current) {
                 setLoading(false);
-                setErrorMessage(regError.message || 'Registration failed');
+                setErrorMessage('Registration failed');
               }
             }
             return;
           }
         } else {
-          // No phone - complete registration with email only
           try {
-            await completeRegistration(email!, code);
+            await completeRegistration(email, code);
             if (isMounted.current) {
               setLoading(false);
               router.replace('/(tabs)/home');
             }
-          } catch (regError: any) {
+          } catch (regError) {
             if (isMounted.current) {
               setLoading(false);
-              setErrorMessage(regError.message || 'Registration failed');
+              setErrorMessage('Registration failed');
             }
           }
         }
       } else {
-        // Phone verification
         try {
-          await api.post('/auth/verify-registration-phone', { 
-            phone: phoneToVerify, 
+          await api.post('/auth/verify-registration-phone', {
+            phone: phoneToVerify,
             code,
-            email: email 
+            email: email,
           });
-          await completeRegistration(email!, 'phone-verified');
+          await completeRegistration(email, 'phone-verified');
           if (isMounted.current) {
             setLoading(false);
             router.replace('/(tabs)/home');
           }
-        } catch (phoneError: any) {
+        } catch (phoneError) {
           if (isMounted.current) {
             setLoading(false);
-            setErrorMessage(phoneError.message || 'Phone verification failed');
+            setErrorMessage('Phone verification failed');
           }
         }
       }
-    } catch (e: any) {
+    } catch (e) {
       if (isMounted.current) {
         setLoading(false);
-        setErrorMessage(e.message || 'Invalid or expired code');
+        setErrorMessage('Invalid or expired code');
       }
     }
   };
 
   const handleResend = async () => {
     if (countdown > 0) return;
-    
     setResending(true);
     setErrorMessage('');
-    
+
     try {
       if (currentStep === 'email') {
         await api.post('/auth/resend-verification', { email: verifyTarget, type: 'email' });
@@ -201,8 +191,8 @@ export default function VerifyEmailScreen() {
       setCountdown(60);
       setSuccessMessage('Code sent!');
       setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (e: any) {
-      setErrorMessage(e.message || 'Failed to resend code');
+    } catch (e) {
+      setErrorMessage('Failed to resend code');
     } finally {
       setResending(false);
     }
@@ -215,23 +205,27 @@ export default function VerifyEmailScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <View style={styles.header}>
-          <View style={{ width: 40 }} />
-          <Text style={styles.headerTitle}>Verify {currentStep === 'phone' ? 'Phone' : 'Email'}</Text>
-          <View style={{ width: 40 }} />
+          <View style={styles.spacer} />
+          <Text style={styles.headerTitle}>
+            Verify {currentStep === 'phone' ? 'Phone' : 'Email'}
+          </Text>
+          <View style={styles.spacer} />
         </View>
 
         <View style={styles.content}>
           <View style={styles.iconContainer}>
             <View style={styles.iconBg}>
-              <Ionicons 
-                name={currentStep === 'phone' ? 'phone-portrait-outline' : 'mail-outline'} 
-                size={48} 
-                color={colors.primary} 
+              <Ionicons
+                name={currentStep === 'phone' ? 'phone-portrait-outline' : 'mail-outline'}
+                size={48}
+                color={colors.primary}
               />
             </View>
           </View>
 
-          <Text style={styles.title}>Verify Your {currentStep === 'phone' ? 'Phone' : 'Email'}</Text>
+          <Text style={styles.title}>
+            Verify Your {currentStep === 'phone' ? 'Phone' : 'Email'}
+          </Text>
           <Text style={styles.subtitle}>
             We sent a 6-digit verification code to{' '}
             <Text style={styles.highlight}>{verifyTarget}</Text>
@@ -276,14 +270,13 @@ export default function VerifyEmailScreen() {
 
           <View style={styles.resendContainer}>
             <Text style={styles.resendText}>Didn't receive the code? </Text>
-            <TouchableOpacity 
-              onPress={handleResend} 
-              disabled={countdown > 0 || resending}
-            >
-              <Text style={[
-                styles.resendLink,
-                (countdown > 0 || resending) && styles.resendDisabled
-              ]}>
+            <TouchableOpacity onPress={handleResend} disabled={countdown > 0 || resending}>
+              <Text
+                style={[
+                  styles.resendLink,
+                  (countdown > 0 || resending) && styles.resendDisabled,
+                ]}
+              >
                 {countdown > 0 ? `Resend in ${countdown}s` : 'Resend Code'}
               </Text>
             </TouchableOpacity>
@@ -292,8 +285,8 @@ export default function VerifyEmailScreen() {
           <View style={styles.infoBox}>
             <Ionicons name="information-circle" size={20} color={colors.primary} />
             <Text style={styles.infoText}>
-              {currentStep === 'email' 
-                ? 'Check your spam folder if you don\'t see the email. Code expires in 10 minutes.'
+              {currentStep === 'email'
+                ? "Check your spam folder if you don't see the email. Code expires in 10 minutes."
                 : 'Enter the SMS code sent to your phone. Code expires in 10 minutes.'}
             </Text>
           </View>
@@ -320,6 +313,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  spacer: {
+    width: 40,
   },
   headerTitle: {
     fontSize: 16,
