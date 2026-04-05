@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
-  BackHandler, InteractionManager,
+  ActivityIndicator, KeyboardAvoidingView, Platform,
+  BackHandler, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -26,57 +26,44 @@ const colors = {
 export default function VerifyEmailScreen() {
   const router = useRouter();
   const { email, type, phone } = useLocalSearchParams<{ email: string; type: string; phone?: string }>(); 
-  const { user, completeRegistration } = useAuth();
+  const { completeRegistration } = useAuth();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [currentStep, setCurrentStep] = useState<'email' | 'phone'>('email'); // Track which step we're on
+  const [currentStep, setCurrentStep] = useState<'email' | 'phone'>('email');
   const [phoneToVerify, setPhoneToVerify] = useState(phone || '');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const isMounted = useRef(true);
 
-  // Update phoneToVerify when phone param changes (async load)
+  // Track mount state
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  // Update phoneToVerify when phone param changes
   useEffect(() => {
     if (phone && phone.length > 0) {
       setPhoneToVerify(phone);
-      console.log('Phone to verify set:', phone);
     }
   }, [phone]);
 
-  const verifyType = currentStep;
   const verifyTarget = currentStep === 'email' ? email : (phoneToVerify || '');
 
-  // Prevent back navigation - user MUST verify to proceed
+  // Prevent back navigation - simple version without Alert
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        Alert.alert(
-          'Email Verification Required',
-          'You must verify your email to complete registration. Your account will not be created if you leave now.',
-          [
-            { text: 'Stay and Verify', style: 'cancel' },
-            { 
-              text: 'Cancel Registration', 
-              style: 'destructive',
-              onPress: async () => {
-                // Delete unverified account and logout
-                try {
-                  if (verifyTarget) {
-                    await api.post('/auth/cancel-registration', { email: verifyTarget });
-                  }
-                } catch (e) {
-                  console.log('Error canceling registration:', e);
-                }
-                router.replace('/');
-              }
-            },
-          ]
-        );
-        return true; // Prevent default back behavior
+        // Just prevent back - don't show alert
+        return true;
       };
-
       BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
-    }, [verifyTarget])
+    }, [])
   );
 
   useEffect(() => {
@@ -87,89 +74,115 @@ export default function VerifyEmailScreen() {
   }, [countdown]);
 
   const handleVerify = async () => {
+    // Dismiss keyboard first
+    Keyboard.dismiss();
+    
+    // Clear messages
+    setErrorMessage('');
+    setSuccessMessage('');
+
     if (code.length !== 6) {
-      Alert.alert('Error', 'Please enter the 6-digit verification code');
+      setErrorMessage('Please enter the 6-digit verification code');
       return;
     }
 
     if (!verifyTarget) {
-      Alert.alert('Error', `${currentStep === 'email' ? 'Email' : 'Phone'} not found. Please register again.`);
-      router.replace('/');
+      setErrorMessage(`${currentStep === 'email' ? 'Email' : 'Phone'} not found. Please register again.`);
+      setTimeout(() => {
+        if (isMounted.current) router.replace('/');
+      }, 1500);
       return;
     }
 
     setLoading(true);
+    
     try {
       if (currentStep === 'email') {
         // Verify email first
-        console.log('Verifying email:', verifyTarget);
         await api.post('/auth/verify-email-only', { email: verifyTarget, code });
         
-        console.log('Email verified. Phone to verify:', phoneToVerify, 'Length:', phoneToVerify?.length);
         // If phone was provided, move to phone verification
         if (phoneToVerify && phoneToVerify.trim().length > 0) {
-          console.log('Sending SMS code to:', phoneToVerify);
-          // Send SMS code
           try {
             await api.post('/auth/send-registration-phone-code', { 
               phone: phoneToVerify, 
               email: email 
             });
-            // First set loading to false to stabilize UI
+            
+            if (!isMounted.current) return;
+            
+            // Update state for phone step
             setLoading(false);
-            // Update state after successful SMS send - batch these updates
-            setCode(''); // Clear code for next step
+            setCode('');
             setCountdown(0);
-            // Just change step - NO ALERT to avoid iOS crash
-            setCurrentStep('phone');
-            return; // Exit early since we already set loading to false
+            setSuccessMessage('Email verified! Now verify your phone.');
+            
+            // Delay step change slightly
+            setTimeout(() => {
+              if (isMounted.current) {
+                setCurrentStep('phone');
+                setSuccessMessage('');
+              }
+            }, 500);
+            
+            return;
           } catch (smsError: any) {
+            // SMS failed but email verified - complete without phone
             console.error('SMS send failed:', smsError);
-            // Even if SMS fails, complete registration since email is verified
-            // NO ALERT - just navigate
             try {
               await completeRegistration(email!, code);
-              router.replace('/(tabs)/home');
+              if (isMounted.current) {
+                setLoading(false);
+                router.replace('/(tabs)/home');
+              }
             } catch (regError: any) {
-              console.error('Registration failed after SMS error:', regError);
-              // Only show alert for errors, not success
-              Alert.alert('Error', regError.message || 'Registration failed. Please try again.');
+              if (isMounted.current) {
+                setLoading(false);
+                setErrorMessage(regError.message || 'Registration failed');
+              }
             }
+            return;
           }
         } else {
-          console.log('No phone provided - completing registration with email only');
           // No phone - complete registration with email only
           try {
             await completeRegistration(email!, code);
-            // Just navigate - NO ALERT
-            router.replace('/(tabs)/home');
+            if (isMounted.current) {
+              setLoading(false);
+              router.replace('/(tabs)/home');
+            }
           } catch (regError: any) {
-            console.error('Registration failed:', regError);
-            Alert.alert('Error', regError.message || 'Registration failed. Please try again.');
+            if (isMounted.current) {
+              setLoading(false);
+              setErrorMessage(regError.message || 'Registration failed');
+            }
           }
         }
       } else {
-        // Phone verification - complete registration with verified phone
+        // Phone verification
         try {
           await api.post('/auth/verify-registration-phone', { 
             phone: phoneToVerify, 
             code,
             email: email 
           });
-          // Now complete registration (email already verified, phone now verified)
-          await completeRegistration(email!, 'phone-verified'); // Special flag
-          // Just navigate - NO ALERT
-          router.replace('/(tabs)/home');
+          await completeRegistration(email!, 'phone-verified');
+          if (isMounted.current) {
+            setLoading(false);
+            router.replace('/(tabs)/home');
+          }
         } catch (phoneError: any) {
-          console.error('Phone verification failed:', phoneError);
-          Alert.alert('Error', phoneError.message || 'Phone verification failed. Please try again.');
+          if (isMounted.current) {
+            setLoading(false);
+            setErrorMessage(phoneError.message || 'Phone verification failed');
+          }
         }
       }
     } catch (e: any) {
-      console.error('Verification error:', e);
-      Alert.alert('Error', e.message || 'Invalid or expired code. Please try again.');
-    } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+        setErrorMessage(e.message || 'Invalid or expired code');
+      }
     }
   };
 
@@ -177,15 +190,19 @@ export default function VerifyEmailScreen() {
     if (countdown > 0) return;
     
     setResending(true);
+    setErrorMessage('');
+    
     try {
-      await api.post('/auth/resend-verification', {
-        email: verifyTarget,
-        type: verifyType,
-      });
-      setCountdown(60); // 60 second cooldown
-      Alert.alert('Code Sent', `A new verification code has been sent to your ${verifyType}.`);
+      if (currentStep === 'email') {
+        await api.post('/auth/resend-verification', { email: verifyTarget, type: 'email' });
+      } else {
+        await api.post('/auth/send-registration-phone-code', { phone: phoneToVerify, email: email });
+      }
+      setCountdown(60);
+      setSuccessMessage('Code sent!');
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to resend code. Please try again.');
+      setErrorMessage(e.message || 'Failed to resend code');
     } finally {
       setResending(false);
     }
@@ -199,7 +216,7 @@ export default function VerifyEmailScreen() {
       >
         <View style={styles.header}>
           <View style={{ width: 40 }} />
-          <Text style={styles.headerTitle}>Verify {verifyType === 'phone' ? 'Phone' : 'Email'}</Text>
+          <Text style={styles.headerTitle}>Verify {currentStep === 'phone' ? 'Phone' : 'Email'}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -207,18 +224,30 @@ export default function VerifyEmailScreen() {
           <View style={styles.iconContainer}>
             <View style={styles.iconBg}>
               <Ionicons 
-                name={verifyType === 'phone' ? 'phone-portrait-outline' : 'mail-outline'} 
+                name={currentStep === 'phone' ? 'phone-portrait-outline' : 'mail-outline'} 
                 size={48} 
                 color={colors.primary} 
               />
             </View>
           </View>
 
-          <Text style={styles.title}>Verify Your {verifyType === 'phone' ? 'Phone' : 'Email'}</Text>
+          <Text style={styles.title}>Verify Your {currentStep === 'phone' ? 'Phone' : 'Email'}</Text>
           <Text style={styles.subtitle}>
             We sent a 6-digit verification code to{' '}
             <Text style={styles.highlight}>{verifyTarget}</Text>
           </Text>
+
+          {errorMessage ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
+
+          {successMessage ? (
+            <View style={styles.successBox}>
+              <Text style={styles.successText}>{successMessage}</Text>
+            </View>
+          ) : null}
 
           <View style={styles.codeContainer}>
             <TextInput
@@ -229,12 +258,12 @@ export default function VerifyEmailScreen() {
               placeholderTextColor={colors.border}
               keyboardType="number-pad"
               maxLength={6}
-              autoFocus
+              autoFocus={false}
             />
           </View>
 
           <TouchableOpacity
-            style={[styles.verifyBtn, loading && styles.btnDisabled]}
+            style={[styles.verifyBtn, (loading || code.length !== 6) && styles.btnDisabled]}
             onPress={handleVerify}
             disabled={loading || code.length !== 6}
           >
@@ -263,7 +292,9 @@ export default function VerifyEmailScreen() {
           <View style={styles.infoBox}>
             <Ionicons name="information-circle" size={20} color={colors.primary} />
             <Text style={styles.infoText}>
-              Make sure to check your spam folder if you don't see the email. The code expires in 10 minutes.
+              {currentStep === 'email' 
+                ? 'Check your spam folder if you don\'t see the email. Code expires in 10 minutes.'
+                : 'Enter the SMS code sent to your phone. Code expires in 10 minutes.'}
             </Text>
           </View>
         </View>
@@ -295,11 +326,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
-  skipText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '500',
-  },
   content: {
     flex: 1,
     padding: 24,
@@ -329,11 +355,36 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 32,
+    marginBottom: 16,
   },
   highlight: {
     fontWeight: '600',
     color: colors.text,
+  },
+  errorBox: {
+    width: '100%',
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    color: colors.red,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  successBox: {
+    width: '100%',
+    backgroundColor: colors.greenLight,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  successText: {
+    color: colors.green,
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   codeContainer: {
     width: '100%',
