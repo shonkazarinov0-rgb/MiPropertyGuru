@@ -103,12 +103,13 @@ export default function VerifyEmailScreen() {
       if (currentStep === 'email') {
         // Verify email first
         console.log('Verifying email:', verifyTarget);
-        Alert.alert("Some Fucking shit");
-        //await api.post('/auth/verify-email-only', { email: verifyTarget, code });
+        //Alert.alert("Some Fucking shit");
+        //await api.post('/auth/verify-email-only', { email: verifyTarget, verification_code: code });
         
         console.log('Email verified. Phone to verify:', phoneToVerify, 'Length:', phoneToVerify?.length);
         // If phone was provided, move to phone verification
         if (phoneToVerify && phoneToVerify.trim().length > 0) {
+          Alert.alert("Inside if");
           console.log('Sending SMS code to:', phoneToVerify);
           // Send SMS code
           try {
@@ -145,6 +146,7 @@ export default function VerifyEmailScreen() {
             }
           }
         } else {
+          Alert.alert("String failed thing");
           console.log('No phone provided - completing registration with email only');
           // No phone - complete registration with email only
           try {
