@@ -105,28 +105,39 @@ export default function ProfileScreen() {
   };
 
   const toggleLiveLocation = async (val: boolean) => {
-    setLiveLocation(val);
-    setSaving(true);
-    try {
-      let lat, lng;
-      if (val) {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({});
-          lat = loc.coords.latitude;
-          lng = loc.coords.longitude;
-        }
+  console.log('toggleLiveLocation pressed, val =', val);
+  setLiveLocation(val);
+  setSaving(true);
+  try {
+    console.log('about to request location permission');
+    let lat, lng;
+    if (val) {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      console.log('location permission status =', status);
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({});
+        console.log('got current location');
+        lat = loc.coords.latitude;
+        lng = loc.coords.longitude;
       }
-      // Use the same endpoint as Dashboard to keep is_online and live_location synced
-      await api.put('/contractors/online-status', {
-        is_online: val,
-        current_lat: lat,
-        current_lng: lng,
-      });
-      await refreshUser();
-    } catch (e: any) { console.error('Live location error:', e.message); setLiveLocation(!val); }
-    finally { setSaving(false); }
-  };
+    }
+    console.log('about to call /contractors/online-status');
+    await api.put('/contractors/online-status', {
+      is_online: val,
+      current_lat: lat,
+      current_lng: lng,
+    });
+    console.log('online-status success');
+    await refreshUser();
+    console.log('refreshUser success');
+  } catch (e: any) {
+    console.error('toggleLiveLocation crash:', e);
+    console.error('toggleLiveLocation message:', e?.message);
+    setLiveLocation(!val);
+  } finally {
+    setSaving(false);
+  }
+};
 
   const updateServiceRadius = async (value: number) => {
     setServiceRadius(value);
@@ -139,15 +150,20 @@ export default function ProfileScreen() {
   };
 
   const togglePhoneVisibility = async (val: boolean) => {
-    setPhoneVisible(val);
-    try {
-      await api.put('/contractors/phone-visibility', { phone_visible: val });
-      await refreshUser();
-    } catch (e: any) {
-      console.error('Failed to update phone visibility:', e.message);
-      setPhoneVisible(!val);
-    }
-  };
+  console.log('togglePhoneVisibility pressed, val =', val);
+  setPhoneVisible(val);
+  try {
+    console.log('about to call /contractors/phone-visibility');
+    await api.put('/contractors/phone-visibility', { phone_visible: val });
+    console.log('phone-visibility success');
+    await refreshUser();
+    console.log('refreshUser success after phone visibility');
+  } catch (e: any) {
+    console.error('togglePhoneVisibility crash:', e);
+    console.error('togglePhoneVisibility message:', e?.message);
+    setPhoneVisible(!val);
+  }
+};
 
   const savePhoneNumber = async () => {
     if (editPhone === user?.phone) return; // No change
@@ -512,12 +528,22 @@ export default function ProfileScreen() {
   };
 
   const handleModeSwitch = async () => {
-    if (user?.role !== 'contractor') return;
-    
+  console.log('handleModeSwitch pressed');
+  if (user?.role !== 'contractor') {
+    console.log('not contractor, returning');
+    return;
+  }
+
+  try {
     const newMode = isContractorMode ? 'client' : 'contractor';
+    console.log('switching mode to:', newMode);
     await switchMode(newMode);
-    // Stay on current page - no navigation
-  };
+    console.log('switchMode success');
+  } catch (e: any) {
+    console.error('handleModeSwitch crash:', e);
+    console.error('handleModeSwitch message:', e?.message);
+  }
+};
 
   const isContractor = user?.role === 'contractor';
 
