@@ -124,7 +124,7 @@ export default function ProfileScreen() {
         current_lng: lng,
       });
       await refreshUser();
-    } catch (e: any) { Alert.alert('Error', e.message); setLiveLocation(!val); }
+    } catch (e: any) { console.error('Live location error:', e.message); setLiveLocation(!val); }
     finally { setSaving(false); }
   };
 
