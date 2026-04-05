@@ -20,12 +20,19 @@ export default function ModeToggle() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // For pure clients (not contractors), show "Become a Contractor" button
   if (user?.role === 'client') {
     return (
-      <TouchableOpacity 
-        style={styles.becomeContractorBtn} 
-        onPress={() => router.push('/contractor-register')}
+      <TouchableOpacity
+        style={styles.becomeContractorBtn}
+        onPress={() => {
+          try {
+            console.log('Become a Pro button pressed');
+            router.push('/contractor-register');
+          } catch (e: any) {
+            console.error('Become a Pro navigation crash:', e);
+            console.error('Become a Pro navigation message:', e?.message);
+          }
+        }}
       >
         <Ionicons name="construct" size={12} color={colors.green} />
         <Text style={styles.becomeContractorText}>Become a Pro</Text>
@@ -33,56 +40,89 @@ export default function ModeToggle() {
     );
   }
 
-  // Only show mode toggle for contractors
   if (user?.role !== 'contractor') return null;
 
   const handleClientMode = async () => {
-    if (isClientMode) return; // Already in client mode
-    await switchMode('client');
-    // If on Dashboard, redirect to My Jobs (client equivalent)
-    if (pathname === '/dashboard' || pathname === '/(tabs)/dashboard') {
-      router.replace('/(tabs)/posted-jobs');
+    console.log('handleClientMode pressed');
+
+    if (isClientMode) {
+      console.log('Already in client mode');
+      return;
+    }
+
+    try {
+      console.log('About to switchMode(client)');
+      await switchMode('client');
+      console.log('switchMode(client) success');
+
+      if (pathname === '/dashboard' || pathname === '/(tabs)/dashboard') {
+        console.log('About to router.replace(/(tabs)/posted-jobs)');
+        router.replace('/(tabs)/posted-jobs');
+        console.log('router.replace posted-jobs success');
+      }
+    } catch (e: any) {
+      console.error('handleClientMode crash:', e);
+      console.error('handleClientMode message:', e?.message);
     }
   };
 
   const handleContractorMode = async () => {
-    if (isContractorMode) return; // Already in contractor mode
-    await switchMode('contractor');
-    // If on My Jobs, redirect to Dashboard (contractor equivalent)
-    if (pathname === '/posted-jobs' || pathname === '/(tabs)/posted-jobs') {
-      router.replace('/(tabs)/dashboard');
+    console.log('handleContractorMode pressed');
+
+    if (isContractorMode) {
+      console.log('Already in contractor mode');
+      return;
+    }
+
+    try {
+      console.log('About to switchMode(contractor)');
+      await switchMode('contractor');
+      console.log('switchMode(contractor) success');
+
+      if (pathname === '/posted-jobs' || pathname === '/(tabs)/posted-jobs') {
+        console.log('About to router.replace(/(tabs)/dashboard)');
+        router.replace('/(tabs)/dashboard');
+        console.log('router.replace dashboard success');
+      }
+    } catch (e: any) {
+      console.error('handleContractorMode crash:', e);
+      console.error('handleContractorMode message:', e?.message);
     }
   };
 
   return (
-    <View style={[
-      styles.container, 
-      // Use white background on Explore (orange gradient), light gray on other pages
-      (pathname === '/home' || pathname === '/(tabs)/home') ? styles.containerWhite : styles.containerGray
-    ]}>
-      <TouchableOpacity 
+    <View
+      style={[
+        styles.container,
+        pathname === '/home' || pathname === '/(tabs)/home'
+          ? styles.containerWhite
+          : styles.containerGray,
+      ]}
+    >
+      <TouchableOpacity
         style={[styles.option, isClientMode && styles.optionActiveClient]}
         onPress={handleClientMode}
         activeOpacity={0.7}
       >
-        <Ionicons 
-          name="home" 
-          size={10} 
-          color={isClientMode ? colors.paper : colors.textSecondary} 
+        <Ionicons
+          name="home"
+          size={10}
+          color={isClientMode ? colors.paper : colors.textSecondary}
         />
         <Text style={[styles.optionText, isClientMode && styles.optionTextActive]}>
           Client
         </Text>
       </TouchableOpacity>
-      <TouchableOpacity 
+
+      <TouchableOpacity
         style={[styles.option, isContractorMode && styles.optionActiveContractor]}
         onPress={handleContractorMode}
         activeOpacity={0.7}
       >
-        <Ionicons 
-          name="construct" 
-          size={10} 
-          color={isContractorMode ? colors.paper : colors.textSecondary} 
+        <Ionicons
+          name="construct"
+          size={10}
+          color={isContractorMode ? colors.paper : colors.textSecondary}
         />
         <Text style={[styles.optionText, isContractorMode && styles.optionTextActive]}>
           Contractor
