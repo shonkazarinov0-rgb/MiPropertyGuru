@@ -120,26 +120,19 @@ export default function VerifyEmailScreen() {
             // Update state after successful SMS send - batch these updates
             setCode(''); // Clear code for next step
             setCountdown(0);
-            // Use InteractionManager to wait for UI to settle before changing step
-            InteractionManager.runAfterInteractions(() => {
-              setCurrentStep('phone');
-              // Show alert after everything is settled
-              setTimeout(() => {
-                Alert.alert('Email Verified!', 'Now please verify your phone number. A code has been sent via SMS.');
-              }, 300);
-            });
+            // Just change step - NO ALERT to avoid iOS crash
+            setCurrentStep('phone');
             return; // Exit early since we already set loading to false
           } catch (smsError: any) {
             console.error('SMS send failed:', smsError);
-            // Even if SMS fails, we can still complete registration since email is verified
-            Alert.alert('SMS Error', 'Could not send SMS. Completing registration without phone verification.');
+            // Even if SMS fails, complete registration since email is verified
+            // NO ALERT - just navigate
             try {
               await completeRegistration(email!, code);
-              InteractionManager.runAfterInteractions(() => {
-                router.replace('/(tabs)/home');
-              });
+              router.replace('/(tabs)/home');
             } catch (regError: any) {
               console.error('Registration failed after SMS error:', regError);
+              // Only show alert for errors, not success
               Alert.alert('Error', regError.message || 'Registration failed. Please try again.');
             }
           }
@@ -148,10 +141,8 @@ export default function VerifyEmailScreen() {
           // No phone - complete registration with email only
           try {
             await completeRegistration(email!, code);
-            // Use InteractionManager for safe navigation
-            InteractionManager.runAfterInteractions(() => {
-              router.replace('/(tabs)/home');
-            });
+            // Just navigate - NO ALERT
+            router.replace('/(tabs)/home');
           } catch (regError: any) {
             console.error('Registration failed:', regError);
             Alert.alert('Error', regError.message || 'Registration failed. Please try again.');
@@ -167,10 +158,8 @@ export default function VerifyEmailScreen() {
           });
           // Now complete registration (email already verified, phone now verified)
           await completeRegistration(email!, 'phone-verified'); // Special flag
-          // Use InteractionManager for safe navigation
-          InteractionManager.runAfterInteractions(() => {
-            router.replace('/(tabs)/home');
-          });
+          // Just navigate - NO ALERT
+          router.replace('/(tabs)/home');
         } catch (phoneError: any) {
           console.error('Phone verification failed:', phoneError);
           Alert.alert('Error', phoneError.message || 'Phone verification failed. Please try again.');
