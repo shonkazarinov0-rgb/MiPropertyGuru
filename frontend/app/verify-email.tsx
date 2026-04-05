@@ -104,7 +104,7 @@ export default function VerifyEmailScreen() {
         // Verify email first
         console.log('Verifying email:', verifyTarget);
         //Alert.alert("Some Fucking shit");
-        //await api.post('/auth/verify-email-only', { email: verifyTarget, verification_code: code });
+        await api.post('/auth/verify-email-only', { email: verifyTarget, code: code });
         
         console.log('Email verified. Phone to verify:', phoneToVerify, 'Length:', phoneToVerify?.length);
         // If phone was provided, move to phone verification
@@ -120,17 +120,17 @@ export default function VerifyEmailScreen() {
             Alert.alert("After post");
             // First set loading to false to stabilize UI
             setLoading(false);
-            Alert.alert("After load false");
+            //Alert.alert("After load false");
             // Update state after successful SMS send - batch these updates
             setCode(''); // Clear code for next step
-            Alert.alert("After setcode");
+            //Alert.alert("After setcode");
             setCountdown(0);
-            Alert.alert("After set count donw");
+            //Alert.alert("After set count donw");
             // Use InteractionManager to wait for UI to settle before changing step
             InteractionManager.runAfterInteractions(() => {
-              Alert.alert("Inside run after interactions");
+              //Alert.alert("Inside run after interactions");
               setCurrentStep('phone');
-              Alert.alert("After setting current step");
+              //Alert.alert("After setting current step");
               // Show alert after everything is settled
               setTimeout(() => {
                 Alert.alert('Email Verified!', 'Now please verify your phone number. A code has been sent via SMS.');
