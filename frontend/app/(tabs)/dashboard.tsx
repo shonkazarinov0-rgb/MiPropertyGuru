@@ -135,14 +135,10 @@ export default function ContractorDashboard() {
       setIsOnline(!isOnline);
       if (refreshUser) refreshUser();
       
-      Alert.alert(
-        !isOnline ? 'You are now LIVE!' : 'You are now offline',
-        !isOnline 
-          ? 'Clients can now see you on the map and send you job requests.'
-          : 'You won\'t receive new job alerts while offline.'
-      );
+      // Removed Alert.alert to prevent iOS crash
+      console.log(!isOnline ? 'Now LIVE' : 'Now offline');
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to update status');
+      console.error('Status toggle error:', e.message);
     } finally {
       setTogglingStatus(false);
     }
