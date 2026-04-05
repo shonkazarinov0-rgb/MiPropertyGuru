@@ -445,4 +445,3 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
-Exit code: 0
