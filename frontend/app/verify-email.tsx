@@ -103,7 +103,8 @@ export default function VerifyEmailScreen() {
       if (currentStep === 'email') {
         // Verify email first
         console.log('Verifying email:', verifyTarget);
-        await api.post('/auth/verify-email-only', { email: verifyTarget, code });
+        Alert.alert("Some Fucking shit");
+        //await api.post('/auth/verify-email-only', { email: verifyTarget, code });
         
         console.log('Email verified. Phone to verify:', phoneToVerify, 'Length:', phoneToVerify?.length);
         // If phone was provided, move to phone verification
