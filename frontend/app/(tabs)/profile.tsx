@@ -164,7 +164,7 @@ export default function ProfileScreen() {
       if (Platform.OS === 'web') {
         window.alert('Error sending verification code: ' + (e.message || 'Unknown error'));
       } else {
-        Alert.alert('Error', 'Failed to send verification code: ' + (e.message || 'Unknown error'));
+        console.error('Error:', 'Failed to send verification code: ' + (e.message || 'Unknown error'));
       }
     } finally {
       setSendingPhoneCode(false);
@@ -176,7 +176,7 @@ export default function ProfileScreen() {
       if (Platform.OS === 'web') {
         window.alert('Please enter the 6-digit code');
       } else {
-        Alert.alert('Error', 'Please enter the 6-digit code');
+        console.error('Error:', 'Please enter the 6-digit code');
       }
       return;
     }
@@ -204,13 +204,13 @@ export default function ProfileScreen() {
       if (Platform.OS === 'web') {
         window.alert('Phone number verified and saved successfully!');
       } else {
-        Alert.alert('Success', 'Phone number verified and saved successfully!');
+        console.log('Success:', 'Phone number verified and saved successfully!');
       }
     } catch (e: any) {
       if (Platform.OS === 'web') {
         window.alert('Verification failed: ' + (e.message || 'Invalid code'));
       } else {
-        Alert.alert('Error', e.message || 'Invalid verification code');
+        console.error('Error:', e.message || 'Invalid verification code');
       }
     } finally {
       setVerifyingPhone(false);
@@ -224,13 +224,13 @@ export default function ProfileScreen() {
       if (Platform.OS === 'web') {
         window.alert('New code sent!');
       } else {
-        Alert.alert('Code Sent', 'A new verification code has been sent to your phone.');
+        console.log('Code Sent', 'A new verification code has been sent to your phone.');
       }
     } catch (e: any) {
       if (Platform.OS === 'web') {
         window.alert('Failed to resend code');
       } else {
-        Alert.alert('Error', 'Failed to resend code');
+        console.error('Error:', 'Failed to resend code');
       }
     } finally {
       setSendingPhoneCode(false);
@@ -260,7 +260,7 @@ export default function ProfileScreen() {
   // Save client profile (name and phone)
   const saveClientProfile = async () => {
     if (!editName.trim()) {
-      Alert.alert('Error', 'Name is required');
+      console.error('Error:', 'Name is required');
       return;
     }
     
@@ -272,7 +272,7 @@ export default function ProfileScreen() {
         if (Platform.OS === 'web') {
           window.alert('Please enter a valid 10-digit phone number');
         } else {
-          Alert.alert('Invalid Phone', 'Please enter a valid 10-digit phone number');
+          console.log('Invalid Phone', 'Please enter a valid 10-digit phone number');
         }
         return;
       }
@@ -291,7 +291,7 @@ export default function ProfileScreen() {
         if (Platform.OS === 'web') {
           window.alert('Error sending verification code: ' + (e.message || 'Unknown error'));
         } else {
-          Alert.alert('Error', 'Failed to send verification code: ' + (e.message || 'Unknown error'));
+          console.error('Error:', 'Failed to send verification code: ' + (e.message || 'Unknown error'));
         }
       } finally {
         setSendingPhoneCode(false);
@@ -311,13 +311,13 @@ export default function ProfileScreen() {
       if (Platform.OS === 'web') {
         window.alert('Profile updated successfully');
       } else {
-        Alert.alert('Success', 'Profile updated');
+        console.log('Success:', 'Profile updated');
       }
     } catch (e: any) {
       if (Platform.OS === 'web') {
         window.alert('Error: ' + (e.message || 'Could not update profile'));
       } else {
-        Alert.alert('Error', e.message || 'Could not update profile');
+        console.error('Error:', e.message || 'Could not update profile');
       }
     } finally {
       setSaving(false);
@@ -341,7 +341,7 @@ export default function ProfileScreen() {
       });
       await refreshUser();
       setLocationName(''); setShowAddLocation(false);
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { console.error('Error:', e.message); }
     finally { setSaving(false); }
   };
 
@@ -363,13 +363,13 @@ export default function ProfileScreen() {
       setEditLocationName('');
       setEditLocationIndex(-1);
       setShowEditLocation(false);
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { console.error('Error:', e.message); }
     finally { setSaving(false); }
   };
 
   // Delete work location
   const deleteWorkLocation = async (index: number) => {
-    Alert.alert(
+    console.log(
       'Delete Location',
       'Are you sure you want to remove this work location?',
       [
@@ -386,7 +386,7 @@ export default function ProfileScreen() {
                 work_locations: updatedLocs,
               });
               await refreshUser();
-            } catch (e: any) { Alert.alert('Error', e.message); }
+            } catch (e: any) { console.error('Error:', e.message); }
             finally { setSaving(false); }
           }
         }
@@ -396,11 +396,11 @@ export default function ProfileScreen() {
 
   const addPortfolioItem = async () => {
     if (!portfolioTitle.trim()) {
-      Alert.alert('Error', 'Please enter a project title');
+      console.error('Error:', 'Please enter a project title');
       return;
     }
     if (portfolioImages.length === 0) {
-      Alert.alert('Error', 'Please add at least one photo');
+      console.error('Error:', 'Please add at least one photo');
       return;
     }
     setSaving(true);
@@ -415,13 +415,13 @@ export default function ProfileScreen() {
       setPortfolioDesc(''); 
       setPortfolioImages([]);
       setShowAddPortfolio(false);
-    } catch (e: any) { Alert.alert('Error', e.message); }
+    } catch (e: any) { console.error('Error:', e.message); }
     finally { setSaving(false); }
   };
 
   const pickPortfolioImage = async () => {
     if (portfolioImages.length >= 4) {
-      Alert.alert('Limit reached', 'You can add up to 4 photos per portfolio item');
+      console.log('Limit reached', 'You can add up to 4 photos per portfolio item');
       return;
     }
     
@@ -448,7 +448,7 @@ export default function ProfileScreen() {
   };
 
   const deletePortfolioItem = async (itemId: string) => {
-    Alert.alert(
+    console.log(
       'Delete Portfolio Item',
       'Are you sure you want to delete this item?',
       [
@@ -461,7 +461,7 @@ export default function ProfileScreen() {
               await api.delete(`/portfolio/${itemId}`);
               await fetchPortfolio();
             } catch (e: any) {
-              Alert.alert('Error', e.message || 'Failed to delete');
+              console.error('Error:', e.message || 'Failed to delete');
             }
           }
         }
@@ -489,7 +489,7 @@ export default function ProfileScreen() {
 
   const saveLicense = async () => {
     if (!licenseNumber.trim()) {
-      Alert.alert('Error', 'Please enter a license number');
+      console.error('Error:', 'Please enter a license number');
       return;
     }
     
@@ -503,9 +503,9 @@ export default function ProfileScreen() {
       });
       await refreshUser();
       setShowLicenseModal(false);
-      Alert.alert('Success', 'License information saved');
+      console.log('Success:', 'License information saved');
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to save license');
+      console.error('Error:', e.message || 'Failed to save license');
     } finally {
       setSaving(false);
     }
@@ -751,7 +751,7 @@ export default function ProfileScreen() {
                       if (Platform.OS === 'web') {
                         window.alert('Please add and verify your phone number first to enable this feature.');
                       } else {
-                        Alert.alert(
+                        console.log(
                           'Phone Verification Required',
                           'Please add and verify your phone number below before enabling this feature.',
                           [{ text: 'OK' }]
