@@ -13,17 +13,14 @@ Notifications.setNotificationHandler({
 });
 
 export async function registerForPushNotifications(): Promise<string | null> {
-  // Push notifications only work on physical devices
   if (!Device.isDevice) {
     console.log('Push notifications require a physical device');
     return null;
   }
 
-  // Check existing permissions
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
-  // Request permissions if not already granted
   if (existingStatus !== 'granted') {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
@@ -34,15 +31,13 @@ export async function registerForPushNotifications(): Promise<string | null> {
     return null;
   }
 
-  // Get the Expo push token
   try {
     const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: process.env.EXPO_PUBLIC_PROJECT_ID || undefined, // Optional: for EAS builds
+      projectId: process.env.EXPO_PUBLIC_PROJECT_ID || undefined,
     });
     const pushToken = tokenData.data;
     console.log('Push token:', pushToken);
 
-    // Save token to backend
     try {
       await api.post('/push-token', { push_token: pushToken });
       console.log('Push token saved to server');
@@ -66,7 +61,6 @@ export async function removePushToken(): Promise<void> {
   }
 }
 
-// Set up Android notification channel
 if (Platform.OS === 'android') {
   Notifications.setNotificationChannelAsync('default', {
     name: 'Default',
@@ -76,20 +70,19 @@ if (Platform.OS === 'android') {
   });
 }
 
-// Types for notification listeners
 export type NotificationListener = (notification: Notifications.Notification) => void;
 export type NotificationResponseListener = (response: Notifications.NotificationResponse) => void;
 
 // Add notification listeners
 export function addNotificationListeners(
-  onNotification: NotificationListener,
-  onResponse: NotificationResponseListener
+    onNotification: NotificationListener,
+    onResponse: NotificationResponseListener
 ) {
   const notificationListener = Notifications.addNotificationReceivedListener(onNotification);
   const responseListener = Notifications.addNotificationResponseReceivedListener(onResponse);
 
   return () => {
-    Notifications.removeNotificationSubscription(notificationListener);
-    Notifications.removeNotificationSubscription(responseListener);
+    notificationListener.remove();
+    responseListener.remove();  
   };
 }
