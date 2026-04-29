@@ -30,7 +30,13 @@ const colors = {
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, refreshUser, switchMode, isClientMode, isContractorMode } = useAuth();
-  const [liveLocation, setLiveLocation] = useState(user?.is_online || false);
+  const [liveLocation, setLiveLocation] = useState(false)
+
+  useEffect(() => {
+    if (user?.isonline !== undefined) {
+      setLiveLocation(user.isonline)
+    }
+  }, [user?.isonline])
   const [phoneVisible, setPhoneVisible] = useState(user?.phone_visible !== false); // Default to true
   const [serviceRadius, setServiceRadius] = useState(user?.service_radius || 50);
   const [editPhone, setEditPhone] = useState(user?.phone || '');
@@ -60,7 +66,7 @@ export default function ProfileScreen() {
   const formatPhoneNumber = (value: string) => {
     // Remove all non-digits
     const digits = value.replace(/\D/g, '');
-    
+
     // Format as (XXX) XXX XXXX
     if (digits.length <= 3) {
       return digits.length > 0 ? `(${digits}` : '';
@@ -71,12 +77,12 @@ export default function ProfileScreen() {
     }
   };
   const [licenseImage, setLicenseImage] = useState<string | null>(user?.license_image || null);
-  
+
   // Client profile edit states
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
-  
+
   // Edit work location states
   const [showEditLocation, setShowEditLocation] = useState(false);
   const [editLocationIndex, setEditLocationIndex] = useState<number>(-1);
@@ -86,16 +92,12 @@ export default function ProfileScreen() {
     if (user?.role === 'contractor') {
       fetchPortfolio();
     }
-    // Sync phone states when user data loads/changes
     if (user?.phone) {
       setEditPhone(user.phone);
       setOriginalPhone(user.phone);
     }
-    // Sync live location/online status when user data changes (from Dashboard toggle)
-    if (user?.is_online !== undefined) {
-      setLiveLocation(user.is_online);
-    }
   }, [user]);
+
 
   const fetchPortfolio = async () => {
     try {
@@ -105,39 +107,34 @@ export default function ProfileScreen() {
   };
 
   const toggleLiveLocation = async (val: boolean) => {
-  console.log('toggleLiveLocation pressed, val =', val);
-  setLiveLocation(val);
-  setSaving(true);
-  try {
-    console.log('about to request location permission');
-    let lat, lng;
-    if (val) {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      console.log('location permission status =', status);
-      if (status === 'granted') {
+    if (saving) return;
+    setSaving(true);
+    try {
+      let lat, lng;
+      if (val) {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setSaving(false);
+          return;
+        }
         const loc = await Location.getCurrentPositionAsync({});
-        console.log('got current location');
         lat = loc.coords.latitude;
         lng = loc.coords.longitude;
       }
+      await api.put('/contractors/online-status', {
+        is_online: val,
+        current_lat: lat,
+        current_lng: lng,
+      });
+      setLiveLocation(val);
+      await refreshUser();
+    } catch (e: any) {
+      console.error('toggleLiveLocation error:', e?.message);
+    } finally {
+      setSaving(false);
     }
-    console.log('about to call /contractors/online-status');
-    await api.put('/contractors/online-status', {
-      is_online: val,
-      current_lat: lat,
-      current_lng: lng,
-    });
-    console.log('online-status success');
-    await refreshUser();
-    console.log('refreshUser success');
-  } catch (e: any) {
-    console.error('toggleLiveLocation crash:', e);
-    console.error('toggleLiveLocation message:', e?.message);
-    setLiveLocation(!val);
-  } finally {
-    setSaving(false);
-  }
-};
+  };
+
 
   const updateServiceRadius = async (value: number) => {
     setServiceRadius(value);
@@ -150,25 +147,25 @@ export default function ProfileScreen() {
   };
 
   const togglePhoneVisibility = async (val: boolean) => {
-  console.log('togglePhoneVisibility pressed, val =', val);
-  setPhoneVisible(val);
-  try {
-    console.log('about to call /contractors/phone-visibility');
-    await api.put('/contractors/phone-visibility', { phone_visible: val });
-    console.log('phone-visibility success');
-    await refreshUser();
-    console.log('refreshUser success after phone visibility');
-  } catch (e: any) {
-    console.error('togglePhoneVisibility crash:', e);
-    console.error('togglePhoneVisibility message:', e?.message);
-    setPhoneVisible(!val);
-  }
-};
+    console.log('togglePhoneVisibility pressed, val =', val);
+    setPhoneVisible(val);
+    try {
+      console.log('about to call /contractors/phone-visibility');
+      await api.put('/contractors/phone-visibility', { phone_visible: val });
+      console.log('phone-visibility success');
+      await refreshUser();
+      console.log('refreshUser success after phone visibility');
+    } catch (e: any) {
+      console.error('togglePhoneVisibility crash:', e);
+      console.error('togglePhoneVisibility message:', e?.message);
+      setPhoneVisible(!val);
+    }
+  };
 
   const savePhoneNumber = async () => {
     if (editPhone === user?.phone) return; // No change
     if (!editPhone.trim()) return; // Empty phone
-    
+
     // If phone changed, require verification
     setPhoneToVerify(editPhone);
     setSendingPhoneCode(true);
@@ -196,14 +193,14 @@ export default function ProfileScreen() {
       }
       return;
     }
-    
+
     setVerifyingPhone(true);
     try {
-      await api.post('/auth/verify-phone', { 
-        phone: phoneToVerify, 
-        code: phoneVerifyCode 
+      await api.post('/auth/verify-phone', {
+        phone: phoneToVerify,
+        code: phoneVerifyCode
       });
-      
+
       // If there's a pending name update from client profile edit, save it now
       if (pendingNameUpdate) {
         await api.put('/users/profile', {
@@ -212,7 +209,7 @@ export default function ProfileScreen() {
         });
         setPendingNameUpdate(null);
       }
-      
+
       await refreshUser();
       setShowPhoneVerifyModal(false);
       setEditPhone(phoneToVerify);
@@ -279,7 +276,7 @@ export default function ProfileScreen() {
       console.error('Error:', 'Name is required');
       return;
     }
-    
+
     // If phone number changed, require verification first
     if (editPhone.trim() && editPhone !== user?.phone) {
       // Validate phone format (10 digits)
@@ -292,7 +289,7 @@ export default function ProfileScreen() {
         }
         return;
       }
-      
+
       // Send verification code and open verification modal
       setPhoneToVerify(editPhone);
       setSendingPhoneCode(true);
@@ -314,7 +311,7 @@ export default function ProfileScreen() {
       }
       return;
     }
-    
+
     // No phone change, just save name
     setSaving(true);
     try {
@@ -367,9 +364,9 @@ export default function ProfileScreen() {
     setSaving(true);
     try {
       const updatedLocs = [...(user?.work_locations || [])];
-      updatedLocs[editLocationIndex] = { 
-        ...updatedLocs[editLocationIndex], 
-        name: editLocationName.trim() 
+      updatedLocs[editLocationIndex] = {
+        ...updatedLocs[editLocationIndex],
+        name: editLocationName.trim()
       };
       await api.put('/contractors/location', {
         live_location_enabled: liveLocation,
@@ -386,27 +383,27 @@ export default function ProfileScreen() {
   // Delete work location
   const deleteWorkLocation = async (index: number) => {
     console.log(
-      'Delete Location',
-      'Are you sure you want to remove this work location?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setSaving(true);
-            try {
-              const updatedLocs = (user?.work_locations || []).filter((_: any, i: number) => i !== index);
-              await api.put('/contractors/location', {
-                live_location_enabled: liveLocation,
-                work_locations: updatedLocs,
-              });
-              await refreshUser();
-            } catch (e: any) { console.error('Error:', e.message); }
-            finally { setSaving(false); }
+        'Delete Location',
+        'Are you sure you want to remove this work location?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              setSaving(true);
+              try {
+                const updatedLocs = (user?.work_locations || []).filter((_: any, i: number) => i !== index);
+                await api.put('/contractors/location', {
+                  live_location_enabled: liveLocation,
+                  work_locations: updatedLocs,
+                });
+                await refreshUser();
+              } catch (e: any) { console.error('Error:', e.message); }
+              finally { setSaving(false); }
+            }
           }
-        }
-      ]
+        ]
     );
   };
 
@@ -421,14 +418,14 @@ export default function ProfileScreen() {
     }
     setSaving(true);
     try {
-      await api.post('/portfolio', { 
-        title: portfolioTitle, 
+      await api.post('/portfolio', {
+        title: portfolioTitle,
         description: portfolioDesc,
-        images: portfolioImages 
+        images: portfolioImages
       });
       await fetchPortfolio();
-      setPortfolioTitle(''); 
-      setPortfolioDesc(''); 
+      setPortfolioTitle('');
+      setPortfolioDesc('');
       setPortfolioImages([]);
       setShowAddPortfolio(false);
     } catch (e: any) { console.error('Error:', e.message); }
@@ -440,7 +437,7 @@ export default function ProfileScreen() {
       console.log('Limit reached', 'You can add up to 4 photos per portfolio item');
       return;
     }
-    
+
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -465,23 +462,23 @@ export default function ProfileScreen() {
 
   const deletePortfolioItem = async (itemId: string) => {
     console.log(
-      'Delete Portfolio Item',
-      'Are you sure you want to delete this item?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.delete(`/portfolio/${itemId}`);
-              await fetchPortfolio();
-            } catch (e: any) {
-              console.error('Error:', e.message || 'Failed to delete');
+        'Delete Portfolio Item',
+        'Are you sure you want to delete this item?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await api.delete(`/portfolio/${itemId}`);
+                await fetchPortfolio();
+              } catch (e: any) {
+                console.error('Error:', e.message || 'Failed to delete');
+              }
             }
           }
-        }
-      ]
+        ]
     );
   };
 
@@ -508,7 +505,7 @@ export default function ProfileScreen() {
       console.error('Error:', 'Please enter a license number');
       return;
     }
-    
+
     setSaving(true);
     try {
       await api.put('/auth/profile', {
@@ -528,897 +525,897 @@ export default function ProfileScreen() {
   };
 
   const handleModeSwitch = async () => {
-  console.log('handleModeSwitch pressed');
-  if (user?.role !== 'contractor') {
-    console.log('not contractor, returning');
-    return;
-  }
+    console.log('handleModeSwitch pressed');
+    if (user?.role !== 'contractor') {
+      console.log('not contractor, returning');
+      return;
+    }
 
-  try {
-    const newMode = isContractorMode ? 'client' : 'contractor';
-    console.log('switching mode to:', newMode);
-    await switchMode(newMode);
-    console.log('switchMode success');
-  } catch (e: any) {
-    console.error('handleModeSwitch crash:', e);
-    console.error('handleModeSwitch message:', e?.message);
-  }
-};
+    try {
+      const newMode = isContractorMode ? 'client' : 'contractor';
+      console.log('switching mode to:', newMode);
+      await switchMode(newMode);
+      console.log('switchMode success');
+    } catch (e: any) {
+      console.error('handleModeSwitch crash:', e);
+      console.error('handleModeSwitch message:', e?.message);
+    }
+  };
 
   const isContractor = user?.role === 'contractor';
 
   return (
-    <SafeAreaView style={s.container} edges={['top']}>
-      {/* Header - Outside ScrollView for consistency */}
-      <View style={s.header}>
-        <Text style={s.title}>Profile</Text>
-        <ModeToggle />
-      </View>
-      
-      <ScrollView contentContainerStyle={s.scrollContent}>
-        {/* Profile Card */}
-        <View style={s.profileCard}>
-          <View style={s.avatarLg}>
-            <Text style={s.avatarLgText}>
-              {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
-            </Text>
-          </View>
-          <Text style={s.profileName}>{user?.name}</Text>
-          
-          {/* Show trade badges with icons only in contractor mode - with edit button */}
-          {isContractor && isContractorMode && user?.trades && user.trades.length > 0 && (
-            <TouchableOpacity style={s.tradesContainerEditable} onPress={() => { setEditTrades(user.trades); setShowTradeModal(true); }}>
-              {user.trades.map((trade: string, index: number) => (
-                <View key={index} style={s.typeBadge}>
-                  <Text style={s.tradeIcon}>{getTradeIcon(trade)}</Text>
-                  <Text style={s.typeText}>{trade}</Text>
-                </View>
-              ))}
-              <View style={s.editTradesBtn}>
-                <Ionicons name="pencil" size={14} color={colors.primary} />
-              </View>
-            </TouchableOpacity>
-          )}
-          {/* Fallback to contractor_type if no trades array - with edit button */}
-          {isContractor && isContractorMode && (!user?.trades || user.trades.length === 0) && user?.contractor_type && (
-            <TouchableOpacity style={s.tradesContainerEditable} onPress={() => { setEditTrades([user.contractor_type]); setShowTradeModal(true); }}>
-              <View style={s.typeBadge}>
-                <Text style={s.tradeIcon}>{getTradeIcon(user?.contractor_type)}</Text>
-                <Text style={s.typeText}>{user?.contractor_type}</Text>
-              </View>
-              <View style={s.editTradesBtn}>
-                <Ionicons name="pencil" size={14} color={colors.primary} />
-              </View>
-            </TouchableOpacity>
-          )}
-          
-          <Text style={s.profileEmail}>{user?.email}</Text>
-          <Text style={s.profilePhone}>{user?.phone}</Text>
-          
-          {/* Show stats only in contractor mode - improved layout */}
-          {isContractor && isContractorMode && (
-            <View style={s.statsRow}>
-              <View style={s.stat}>
-                <View style={s.statIconRow}>
-                  <Text style={s.statValue}>{user?.rating || 0}</Text>
-                  <Ionicons name="star" size={18} color="#F59E0B" />
-                </View>
-                <Text style={s.statLabel}>Rating</Text>
-              </View>
-              <View style={s.statDivider} />
-              <View style={s.stat}>
-                <View style={s.statIconRow}>
-                  <Text style={s.statValue}>{user?.review_count || 0}</Text>
-                  <Ionicons name="chatbubble" size={16} color="#6366F1" />
-                </View>
-                <Text style={s.statLabel}>Reviews</Text>
-              </View>
-              <View style={s.statDivider} />
-              <View style={s.stat}>
-                <View style={s.statIconRow}>
-                  <Text style={s.statValue}>{user?.experience_years || 0}</Text>
-                  <Ionicons name="briefcase" size={16} color="#10B981" />
-                </View>
-                <Text style={s.statLabel}>Yrs Exp</Text>
-              </View>
-            </View>
-          )}
-          
-          {/* Languages Spoken - show for contractors */}
-          {isContractor && isContractorMode && user?.languages && user.languages.length > 0 && (
-            <View style={s.languagesRow}>
-              <Ionicons name="earth" size={18} color="#4A90D9" />
-              <Text style={s.languagesText}>{user.languages.join(', ')}</Text>
-            </View>
-          )}
-          
-          {/* License Badge - show for contractors with license */}
-          {isContractor && isContractorMode && user?.has_license && (
-            <View style={s.licenseBadgeProfile}>
-              <Text style={s.licenseBadgeProfileText}>🪪 License on file</Text>
-            </View>
-          )}
+      <SafeAreaView style={s.container} edges={['top']}>
+        {/* Header - Outside ScrollView for consistency */}
+        <View style={s.header}>
+          <Text style={s.title}>Profile</Text>
+          <ModeToggle />
         </View>
 
-        {/* Contractor-only sections - only show in contractor mode */}
-        {isContractor && isContractorMode && (
-          <>
-            {/* Bio Section */}
-            {user?.bio && (
-              <View style={s.section}>
-                <Text style={s.sectionTitle}>About Me</Text>
-                <View style={s.bioCard}>
-                  <Text style={s.bioText}>{user.bio}</Text>
-                </View>
-              </View>
+        <ScrollView contentContainerStyle={s.scrollContent}>
+          {/* Profile Card */}
+          <View style={s.profileCard}>
+            <View style={s.avatarLg}>
+              <Text style={s.avatarLgText}>
+                {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+              </Text>
+            </View>
+            <Text style={s.profileName}>{user?.name}</Text>
+
+            {/* Show trade badges with icons only in contractor mode - with edit button */}
+            {isContractor && isContractorMode && user?.trades && user.trades.length > 0 && (
+                <TouchableOpacity style={s.tradesContainerEditable} onPress={() => { setEditTrades(user.trades); setShowTradeModal(true); }}>
+                  {user.trades.map((trade: string, index: number) => (
+                      <View key={index} style={s.typeBadge}>
+                        <Text style={s.tradeIcon}>{getTradeIcon(trade)}</Text>
+                        <Text style={s.typeText}>{trade}</Text>
+                      </View>
+                  ))}
+                  <View style={s.editTradesBtn}>
+                    <Ionicons name="pencil" size={14} color={colors.primary} />
+                  </View>
+                </TouchableOpacity>
+            )}
+            {/* Fallback to contractor_type if no trades array - with edit button */}
+            {isContractor && isContractorMode && (!user?.trades || user.trades.length === 0) && user?.contractor_type && (
+                <TouchableOpacity style={s.tradesContainerEditable} onPress={() => { setEditTrades([user.contractor_type]); setShowTradeModal(true); }}>
+                  <View style={s.typeBadge}>
+                    <Text style={s.tradeIcon}>{getTradeIcon(user?.contractor_type)}</Text>
+                    <Text style={s.typeText}>{user?.contractor_type}</Text>
+                  </View>
+                  <View style={s.editTradesBtn}>
+                    <Ionicons name="pencil" size={14} color={colors.primary} />
+                  </View>
+                </TouchableOpacity>
             )}
 
-            {/* License Section */}
-            <View style={s.section}>
-              <View style={s.sectionHeader}>
-                <Text style={s.sectionTitle}>License</Text>
-                <TouchableOpacity onPress={() => setShowLicenseModal(true)}>
-                  <Ionicons name={user?.license_number ? "create-outline" : "add-circle"} size={24} color={colors.primary} />
-                </TouchableOpacity>
-              </View>
-              {user?.license_number ? (
-                <View style={s.licenseCard}>
-                  <View style={s.licenseHeader}>
-                    <Ionicons name="ribbon" size={24} color={colors.green} />
-                    <View style={s.licenseBadge}>
-                      <Text style={s.licenseBadgeText}>Verified</Text>
+            <Text style={s.profileEmail}>{user?.email}</Text>
+            <Text style={s.profilePhone}>{user?.phone}</Text>
+
+            {/* Show stats only in contractor mode - improved layout */}
+            {isContractor && isContractorMode && (
+                <View style={s.statsRow}>
+                  <View style={s.stat}>
+                    <View style={s.statIconRow}>
+                      <Text style={s.statValue}>{user?.rating || 0}</Text>
+                      <Ionicons name="star" size={18} color="#F59E0B" />
                     </View>
+                    <Text style={s.statLabel}>Rating</Text>
                   </View>
-                  <View style={s.licenseDetails}>
-                    <View style={s.licenseRow}>
-                      <Text style={s.licenseLabel}>License #</Text>
-                      <Text style={s.licenseValue}>{user.license_number}</Text>
+                  <View style={s.statDivider} />
+                  <View style={s.stat}>
+                    <View style={s.statIconRow}>
+                      <Text style={s.statValue}>{user?.review_count || 0}</Text>
+                      <Ionicons name="chatbubble" size={16} color="#6366F1" />
                     </View>
-                    {user.license_type && (
-                      <View style={s.licenseRow}>
-                        <Text style={s.licenseLabel}>Type</Text>
-                        <Text style={s.licenseValue}>{user.license_type}</Text>
-                      </View>
-                    )}
-                    {user.license_expiry && (
-                      <View style={s.licenseRow}>
-                        <Text style={s.licenseLabel}>Expires</Text>
-                        <Text style={s.licenseValue}>{user.license_expiry}</Text>
-                      </View>
-                    )}
+                    <Text style={s.statLabel}>Reviews</Text>
                   </View>
-                  {user.license_image && (
-                    <Image source={{ uri: user.license_image }} style={s.licenseImage} />
+                  <View style={s.statDivider} />
+                  <View style={s.stat}>
+                    <View style={s.statIconRow}>
+                      <Text style={s.statValue}>{user?.experience_years || 0}</Text>
+                      <Ionicons name="briefcase" size={16} color="#10B981" />
+                    </View>
+                    <Text style={s.statLabel}>Yrs Exp</Text>
+                  </View>
+                </View>
+            )}
+
+            {/* Languages Spoken - show for contractors */}
+            {isContractor && isContractorMode && user?.languages && user.languages.length > 0 && (
+                <View style={s.languagesRow}>
+                  <Ionicons name="earth" size={18} color="#4A90D9" />
+                  <Text style={s.languagesText}>{user.languages.join(', ')}</Text>
+                </View>
+            )}
+
+            {/* License Badge - show for contractors with license */}
+            {isContractor && isContractorMode && user?.has_license && (
+                <View style={s.licenseBadgeProfile}>
+                  <Text style={s.licenseBadgeProfileText}>🪪 License on file</Text>
+                </View>
+            )}
+          </View>
+
+          {/* Contractor-only sections - only show in contractor mode */}
+          {isContractor && isContractorMode && (
+              <>
+                {/* Bio Section */}
+                {user?.bio && (
+                    <View style={s.section}>
+                      <Text style={s.sectionTitle}>About Me</Text>
+                      <View style={s.bioCard}>
+                        <Text style={s.bioText}>{user.bio}</Text>
+                      </View>
+                    </View>
+                )}
+
+                {/* License Section */}
+                <View style={s.section}>
+                  <View style={s.sectionHeader}>
+                    <Text style={s.sectionTitle}>License</Text>
+                    <TouchableOpacity onPress={() => setShowLicenseModal(true)}>
+                      <Ionicons name={user?.license_number ? "create-outline" : "add-circle"} size={24} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                  {user?.license_number ? (
+                      <View style={s.licenseCard}>
+                        <View style={s.licenseHeader}>
+                          <Ionicons name="ribbon" size={24} color={colors.green} />
+                          <View style={s.licenseBadge}>
+                            <Text style={s.licenseBadgeText}>Verified</Text>
+                          </View>
+                        </View>
+                        <View style={s.licenseDetails}>
+                          <View style={s.licenseRow}>
+                            <Text style={s.licenseLabel}>License #</Text>
+                            <Text style={s.licenseValue}>{user.license_number}</Text>
+                          </View>
+                          {user.license_type && (
+                              <View style={s.licenseRow}>
+                                <Text style={s.licenseLabel}>Type</Text>
+                                <Text style={s.licenseValue}>{user.license_type}</Text>
+                              </View>
+                          )}
+                          {user.license_expiry && (
+                              <View style={s.licenseRow}>
+                                <Text style={s.licenseLabel}>Expires</Text>
+                                <Text style={s.licenseValue}>{user.license_expiry}</Text>
+                              </View>
+                          )}
+                        </View>
+                        {user.license_image && (
+                            <Image source={{ uri: user.license_image }} style={s.licenseImage} />
+                        )}
+                      </View>
+                  ) : (
+                      <TouchableOpacity style={s.addLicenseBtn} onPress={() => setShowLicenseModal(true)}>
+                        <Ionicons name="document-text-outline" size={32} color={colors.primary} />
+                        <Text style={s.addLicenseText}>Add your license</Text>
+                        <Text style={s.addLicenseSubtext}>Build trust with clients</Text>
+                      </TouchableOpacity>
                   )}
                 </View>
-              ) : (
-                <TouchableOpacity style={s.addLicenseBtn} onPress={() => setShowLicenseModal(true)}>
-                  <Ionicons name="document-text-outline" size={32} color={colors.primary} />
-                  <Text style={s.addLicenseText}>Add your license</Text>
-                  <Text style={s.addLicenseSubtext}>Build trust with clients</Text>
-                </TouchableOpacity>
-              )}
-            </View>
 
-            {/* Portfolio Section - Combined photos with title/description */}
-            <View style={s.section}>
-              <View style={s.sectionHeader}>
-                <Text style={s.sectionTitle}>Portfolio</Text>
-                <TouchableOpacity onPress={() => setShowAddPortfolio(true)}>
-                  <Ionicons name="add-circle" size={28} color={colors.primary} />
-                </TouchableOpacity>
-              </View>
-              {portfolio.map(item => (
-                <View key={item.id} style={s.portfolioItem}>
-                  {item.images && item.images.length > 0 && (
-                    <ScrollView 
-                      horizontal 
-                      showsHorizontalScrollIndicator={false}
-                      style={s.portfolioImagesScroll}
+                {/* Portfolio Section - Combined photos with title/description */}
+                <View style={s.section}>
+                  <View style={s.sectionHeader}>
+                    <Text style={s.sectionTitle}>Portfolio</Text>
+                    <TouchableOpacity onPress={() => setShowAddPortfolio(true)}>
+                      <Ionicons name="add-circle" size={28} color={colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                  {portfolio.map(item => (
+                      <View key={item.id} style={s.portfolioItem}>
+                        {item.images && item.images.length > 0 && (
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                style={s.portfolioImagesScroll}
+                            >
+                              {item.images.map((img: string, idx: number) => (
+                                  <Image
+                                      key={idx}
+                                      source={{ uri: img }}
+                                      style={s.portfolioImage}
+                                  />
+                              ))}
+                            </ScrollView>
+                        )}
+                        <View style={s.portfolioInfo}>
+                          <Text style={s.portfolioTitle}>{item.title}</Text>
+                          {item.description && (
+                              <Text style={s.portfolioDesc}>{item.description}</Text>
+                          )}
+                        </View>
+                        <TouchableOpacity
+                            style={s.deletePortfolioBtn}
+                            onPress={() => deletePortfolioItem(item.id)}
+                        >
+                          <Ionicons name="trash-outline" size={18} color={colors.red} />
+                        </TouchableOpacity>
+                      </View>
+                  ))}
+                  {portfolio.length === 0 && (
+                      <View style={s.emptyPortfolio}>
+                        <Ionicons name="images-outline" size={48} color={colors.textSecondary} />
+                        <Text style={s.emptyText}>No portfolio items yet</Text>
+                        <Text style={s.emptySubtext}>Add photos of your work to showcase your skills</Text>
+                      </View>
+                  )}
+                </View>
+
+                {/* Subscription */}
+                <View style={s.section}>
+                  <Text style={s.sectionTitle}>Subscription</Text>
+                  <View style={s.subscriptionCard}>
+                    <View style={s.subRow}>
+                      <Text style={s.subLabel}>Status</Text>
+                      <View style={[s.subBadge, user?.subscription_status === 'active' ? s.subActive : s.subPending]}>
+                        <Text style={s.subBadgeText}>
+                          {user?.subscription_status === 'active' ? 'Active' : 'Free Trial'}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={s.subNote}>Enjoying free access during beta!</Text>
+                  </View>
+                </View>
+
+                {/* Location & Phone Settings */}
+                <View style={s.section}>
+                  <Text style={s.sectionTitle}>Location & Phone Settings</Text>
+                  <View style={s.settingCard}>
+                    {/* Phone Visibility Toggle - FIRST */}
+                    <TouchableOpacity
+                        style={[s.settingRow, !user?.phone_verified && s.settingRowDisabled]}
+                        activeOpacity={user?.phone_verified ? 1 : 0.7}
+                        onPress={() => {
+                          if (!user?.phone_verified) {
+                            if (Platform.OS === 'web') {
+                              window.alert('Please add and verify your phone number first to enable this feature.');
+                            } else {
+                              console.log(
+                                  'Phone Verification Required',
+                                  'Please add and verify your phone number below before enabling this feature.',
+                                  [{ text: 'OK' }]
+                              );
+                            }
+                          }
+                        }}
                     >
-                      {item.images.map((img: string, idx: number) => (
-                        <Image 
-                          key={idx} 
-                          source={{ uri: img }} 
-                          style={s.portfolioImage} 
+                      <View style={s.settingInfo}>
+                        <Ionicons name="eye" size={22} color={user?.phone_verified ? colors.primary : colors.textSecondary} />
+                        <View style={{ marginLeft: 12 }}>
+                          <Text style={[s.settingLabel, !user?.phone_verified && s.settingLabelDisabled]}>Show Phone to Clients</Text>
+                          <Text style={s.settingDesc}>
+                            {user?.phone_verified
+                                ? 'Allow clients to call you directly'
+                                : 'Add & verify a phone number first'}
+                          </Text>
+                        </View>
+                      </View>
+                      <Switch
+                          value={phoneVisible && user?.phone_verified}
+                          onValueChange={togglePhoneVisibility}
+                          trackColor={{ false: colors.border, true: colors.primaryLight }}
+                          thumbColor={phoneVisible && user?.phone_verified ? colors.primary : '#f4f4f4'}
+                          disabled={!user?.phone_verified}
+                      />
+                    </TouchableOpacity>
+
+                    <View style={s.divider} />
+
+                    {/* Phone Number Edit - SECOND */}
+                    <View style={s.settingRow}>
+                      <View style={s.settingInfo}>
+                        <Ionicons name="call" size={22} color={colors.primary} />
+                        <View style={{ marginLeft: 12, flex: 1 }}>
+                          <View style={s.phoneRowHeader}>
+                            <Text style={s.settingLabel}>Phone Number</Text>
+                            {user?.phone_verified && (
+                                <View style={s.verifiedBadge}>
+                                  <Ionicons name="checkmark-circle" size={14} color={colors.green} />
+                                  <Text style={s.verifiedText}>Verified</Text>
+                                </View>
+                            )}
+                          </View>
+                          <View style={s.phoneInputRow}>
+                            <TextInput
+                                style={[
+                                  s.phoneInput,
+                                  { flex: 1 },
+                                  !user?.phone_verified && !editPhone && s.phoneInputPlaceholder
+                                ]}
+                                value={editPhone}
+                                onChangeText={(text) => setEditPhone(formatPhoneNumber(text))}
+                                placeholder="(555) 555 5555"
+                                placeholderTextColor={colors.textSecondary}
+                                keyboardType="phone-pad"
+                                maxLength={14}
+                            />
+                            {editPhone && editPhone !== user?.phone && (
+                                <TouchableOpacity
+                                    style={s.verifyPhoneBtn}
+                                    onPress={savePhoneNumber}
+                                    disabled={sendingPhoneCode}
+                                >
+                                  {sendingPhoneCode ? (
+                                      <ActivityIndicator size="small" color={colors.primary} />
+                                  ) : (
+                                      <Text style={s.verifyPhoneBtnText}>Verify</Text>
+                                  )}
+                                </TouchableOpacity>
+                            )}
+                            {editPhone && editPhone !== user?.phone && !sendingPhoneCode && (
+                                <TouchableOpacity
+                                    style={s.cancelPhoneBtn}
+                                    onPress={() => setEditPhone(originalPhone)}
+                                >
+                                  <Ionicons name="close-circle" size={22} color={colors.textSecondary} />
+                                </TouchableOpacity>
+                            )}
+                          </View>
+                          {!user?.phone_verified && (
+                              <Text style={s.phoneHint}>Add your phone number and verify to let clients call you</Text>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={s.divider} />
+
+                    {/* Live Location Toggle - THIRD */}
+                    <View style={s.settingRow}>
+                      <View style={s.settingInfo}>
+                        <Ionicons name="location" size={22} color={colors.primary} />
+                        <View style={{ marginLeft: 12 }}>
+                          <Text style={s.settingLabel}>Live Location</Text>
+                          <Text style={s.settingDesc}>Share your real-time location</Text>
+                        </View>
+                      </View>
+                      <Switch
+                          value={liveLocation}
+                          onValueChange={toggleLiveLocation}
+                          trackColor={{ false: colors.border, true: colors.primaryLight }}
+                          thumbColor={liveLocation ? colors.primary : '#f4f4f4'}
+                      />
+                    </View>
+
+                    <View style={s.divider} />
+
+                    {/* Service Radius Slider - FOURTH */}
+                    <View style={s.radiusSection}>
+                      <View style={s.radiusHeader}>
+                        <View style={s.radiusInfo}>
+                          <Ionicons name="compass-outline" size={22} color={colors.primary} />
+                          <Text style={s.radiusLabel}>Service Radius</Text>
+                        </View>
+                        <Text style={s.radiusValue}>
+                          {serviceRadius >= 200 ? '200+ km' : `${serviceRadius} km`}
+                        </Text>
+                      </View>
+                      <View style={s.sliderContainer}>
+                        <Text style={s.sliderMinMax}>0</Text>
+                        <Slider
+                            style={s.slider}
+                            minimumValue={0}
+                            maximumValue={200}
+                            step={5}
+                            value={serviceRadius}
+                            onSlidingComplete={updateServiceRadius}
+                            onValueChange={setServiceRadius}
+                            minimumTrackTintColor={colors.primary}
+                            maximumTrackTintColor={colors.border}
+                            thumbTintColor={colors.primary}
                         />
-                      ))}
-                    </ScrollView>
-                  )}
-                  <View style={s.portfolioInfo}>
-                    <Text style={s.portfolioTitle}>{item.title}</Text>
-                    {item.description && (
-                      <Text style={s.portfolioDesc}>{item.description}</Text>
-                    )}
-                  </View>
-                  <TouchableOpacity 
-                    style={s.deletePortfolioBtn}
-                    onPress={() => deletePortfolioItem(item.id)}
-                  >
-                    <Ionicons name="trash-outline" size={18} color={colors.red} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-              {portfolio.length === 0 && (
-                <View style={s.emptyPortfolio}>
-                  <Ionicons name="images-outline" size={48} color={colors.textSecondary} />
-                  <Text style={s.emptyText}>No portfolio items yet</Text>
-                  <Text style={s.emptySubtext}>Add photos of your work to showcase your skills</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Subscription */}
-            <View style={s.section}>
-              <Text style={s.sectionTitle}>Subscription</Text>
-              <View style={s.subscriptionCard}>
-                <View style={s.subRow}>
-                  <Text style={s.subLabel}>Status</Text>
-                  <View style={[s.subBadge, user?.subscription_status === 'active' ? s.subActive : s.subPending]}>
-                    <Text style={s.subBadgeText}>
-                      {user?.subscription_status === 'active' ? 'Active' : 'Free Trial'}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={s.subNote}>Enjoying free access during beta!</Text>
-              </View>
-            </View>
-
-            {/* Location & Phone Settings */}
-            <View style={s.section}>
-              <Text style={s.sectionTitle}>Location & Phone Settings</Text>
-              <View style={s.settingCard}>
-                {/* Phone Visibility Toggle - FIRST */}
-                <TouchableOpacity 
-                  style={[s.settingRow, !user?.phone_verified && s.settingRowDisabled]}
-                  activeOpacity={user?.phone_verified ? 1 : 0.7}
-                  onPress={() => {
-                    if (!user?.phone_verified) {
-                      if (Platform.OS === 'web') {
-                        window.alert('Please add and verify your phone number first to enable this feature.');
-                      } else {
-                        console.log(
-                          'Phone Verification Required',
-                          'Please add and verify your phone number below before enabling this feature.',
-                          [{ text: 'OK' }]
-                        );
-                      }
-                    }
-                  }}
-                >
-                  <View style={s.settingInfo}>
-                    <Ionicons name="eye" size={22} color={user?.phone_verified ? colors.primary : colors.textSecondary} />
-                    <View style={{ marginLeft: 12 }}>
-                      <Text style={[s.settingLabel, !user?.phone_verified && s.settingLabelDisabled]}>Show Phone to Clients</Text>
-                      <Text style={s.settingDesc}>
-                        {user?.phone_verified 
-                          ? 'Allow clients to call you directly' 
-                          : 'Add & verify a phone number first'}
+                        <Text style={s.sliderMinMax}>200+</Text>
+                      </View>
+                      <Text style={s.radiusHint}>
+                        How far are you willing to travel for jobs?
                       </Text>
                     </View>
                   </View>
-                  <Switch 
-                    value={phoneVisible && user?.phone_verified} 
-                    onValueChange={togglePhoneVisibility}
-                    trackColor={{ false: colors.border, true: colors.primaryLight }}
-                    thumbColor={phoneVisible && user?.phone_verified ? colors.primary : '#f4f4f4'}
-                    disabled={!user?.phone_verified}
-                  />
-                </TouchableOpacity>
-
-                <View style={s.divider} />
-
-                {/* Phone Number Edit - SECOND */}
-                <View style={s.settingRow}>
-                  <View style={s.settingInfo}>
-                    <Ionicons name="call" size={22} color={colors.primary} />
-                    <View style={{ marginLeft: 12, flex: 1 }}>
-                      <View style={s.phoneRowHeader}>
-                        <Text style={s.settingLabel}>Phone Number</Text>
-                        {user?.phone_verified && (
-                          <View style={s.verifiedBadge}>
-                            <Ionicons name="checkmark-circle" size={14} color={colors.green} />
-                            <Text style={s.verifiedText}>Verified</Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={s.phoneInputRow}>
-                        <TextInput
-                          style={[
-                            s.phoneInput, 
-                            { flex: 1 },
-                            !user?.phone_verified && !editPhone && s.phoneInputPlaceholder
-                          ]}
-                          value={editPhone}
-                          onChangeText={(text) => setEditPhone(formatPhoneNumber(text))}
-                          placeholder="(555) 555 5555"
-                          placeholderTextColor={colors.textSecondary}
-                          keyboardType="phone-pad"
-                          maxLength={14}
-                        />
-                        {editPhone && editPhone !== user?.phone && (
-                          <TouchableOpacity 
-                            style={s.verifyPhoneBtn}
-                            onPress={savePhoneNumber}
-                            disabled={sendingPhoneCode}
-                          >
-                            {sendingPhoneCode ? (
-                              <ActivityIndicator size="small" color={colors.primary} />
-                            ) : (
-                              <Text style={s.verifyPhoneBtnText}>Verify</Text>
-                            )}
-                          </TouchableOpacity>
-                        )}
-                        {editPhone && editPhone !== user?.phone && !sendingPhoneCode && (
-                          <TouchableOpacity 
-                            style={s.cancelPhoneBtn}
-                            onPress={() => setEditPhone(originalPhone)}
-                          >
-                            <Ionicons name="close-circle" size={22} color={colors.textSecondary} />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                      {!user?.phone_verified && (
-                        <Text style={s.phoneHint}>Add your phone number and verify to let clients call you</Text>
-                      )}
-                    </View>
-                  </View>
                 </View>
 
-                <View style={s.divider} />
-
-                {/* Live Location Toggle - THIRD */}
-                <View style={s.settingRow}>
-                  <View style={s.settingInfo}>
-                    <Ionicons name="location" size={22} color={colors.primary} />
-                    <View style={{ marginLeft: 12 }}>
-                      <Text style={s.settingLabel}>Live Location</Text>
-                      <Text style={s.settingDesc}>Share your real-time location</Text>
-                    </View>
-                  </View>
-                  <Switch 
-                    value={liveLocation} 
-                    onValueChange={toggleLiveLocation}
-                    trackColor={{ false: colors.border, true: colors.primaryLight }}
-                    thumbColor={liveLocation ? colors.primary : '#f4f4f4'} 
-                  />
-                </View>
-
-                <View style={s.divider} />
-                
-                {/* Service Radius Slider - FOURTH */}
-                <View style={s.radiusSection}>
-                  <View style={s.radiusHeader}>
-                    <View style={s.radiusInfo}>
-                      <Ionicons name="compass-outline" size={22} color={colors.primary} />
-                      <Text style={s.radiusLabel}>Service Radius</Text>
-                    </View>
-                    <Text style={s.radiusValue}>
-                      {serviceRadius >= 200 ? '200+ km' : `${serviceRadius} km`}
-                    </Text>
-                  </View>
-                  <View style={s.sliderContainer}>
-                    <Text style={s.sliderMinMax}>0</Text>
-                    <Slider
-                      style={s.slider}
-                      minimumValue={0}
-                      maximumValue={200}
-                      step={5}
-                      value={serviceRadius}
-                      onSlidingComplete={updateServiceRadius}
-                      onValueChange={setServiceRadius}
-                      minimumTrackTintColor={colors.primary}
-                      maximumTrackTintColor={colors.border}
-                      thumbTintColor={colors.primary}
-                    />
-                    <Text style={s.sliderMinMax}>200+</Text>
-                  </View>
-                  <Text style={s.radiusHint}>
-                    How far are you willing to travel for jobs?
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Account Settings for Contractor */}
-            <View style={s.section}>
-              <Text style={s.sectionTitle}>Account Settings</Text>
-              <TouchableOpacity 
-                style={s.menuItem}
-                onPress={() => router.push('/forgot-password')}
-              >
-                <Ionicons name="lock-closed-outline" size={22} color={colors.primary} />
-                <Text style={s.menuItemText}>Reset Password</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={s.menuItem}
-                onPress={() => router.push('/support')}
-              >
-                <Ionicons name="help-circle-outline" size={22} color={colors.primary} />
-                <Text style={s.menuItemText}>Support / Contact Us</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={s.menuItem}
-                onPress={() => setShowPrivacyPolicy(true)}
-              >
-                <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
-                <Text style={s.menuItemText}>Privacy & Policy</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        {/* Client mode or pure client - simplified profile */}
-        {(!isContractor || isClientMode) && (
-          <View style={s.section}>
-            <Text style={s.sectionTitle}>Account Settings</Text>
-            <TouchableOpacity 
-              style={s.menuItem}
-              onPress={() => {
-                setEditName(user?.name || '');
-                setEditPhone(user?.phone || '');
-                setShowEditProfile(true);
-              }}
-            >
-              <Ionicons name="person-outline" size={22} color={colors.primary} />
-              <Text style={s.menuItemText}>Edit Profile</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={s.menuItem}
-              onPress={() => router.push('/forgot-password')}
-            >
-              <Ionicons name="lock-closed-outline" size={22} color={colors.primary} />
-              <Text style={s.menuItemText}>Reset Password</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={s.menuItem}
-              onPress={() => router.push('/support')}
-            >
-              <Ionicons name="help-circle-outline" size={22} color={colors.primary} />
-              <Text style={s.menuItemText}>Support / Contact Us</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={s.menuItem}
-              onPress={() => setShowPrivacyPolicy(true)}
-            >
-              <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
-              <Text style={s.menuItemText}>Privacy & Policy</Text>
-              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Logout Button */}
-        <TouchableOpacity style={s.logoutBtn} onPress={logout}>
-          <Ionicons name="log-out-outline" size={22} color={colors.red} />
-          <Text style={s.logoutBtnText}>Log Out</Text>
-        </TouchableOpacity>
-
-        {/* Add Portfolio Modal */}
-        <Modal visible={showAddPortfolio} transparent animationType="slide">
-          <View style={s.modalOverlay}>
-            <KeyboardAvoidingView 
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={s.modalKeyboard}
-            >
-              <View style={s.modalContent}>
-                <View style={s.modalHeader}>
-                  <Text style={s.modalTitle}>Add Portfolio Item</Text>
-                  <TouchableOpacity 
-                    onPress={() => {
-                      setShowAddPortfolio(false);
-                      setPortfolioTitle('');
-                      setPortfolioDesc('');
-                      setPortfolioImages([]);
-                    }}
+                {/* Account Settings for Contractor */}
+                <View style={s.section}>
+                  <Text style={s.sectionTitle}>Account Settings</Text>
+                  <TouchableOpacity
+                      style={s.menuItem}
+                      onPress={() => router.push('/forgot-password')}
                   >
-                    <Ionicons name="close" size={24} color={colors.textSecondary} />
+                    <Ionicons name="lock-closed-outline" size={22} color={colors.primary} />
+                    <Text style={s.menuItemText}>Reset Password</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                      style={s.menuItem}
+                      onPress={() => router.push('/support')}
+                  >
+                    <Ionicons name="help-circle-outline" size={22} color={colors.primary} />
+                    <Text style={s.menuItemText}>Support / Contact Us</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                      style={s.menuItem}
+                      onPress={() => setShowPrivacyPolicy(true)}
+                  >
+                    <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
+                    <Text style={s.menuItemText}>Privacy & Policy</Text>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
-                
-                {/* Photo Selection */}
-                <Text style={s.inputLabel}>Photos (up to 4)</Text>
-                <ScrollView 
-                  horizontal 
-                  showsHorizontalScrollIndicator={false}
-                  style={s.portfolioImagesPicker}
+              </>
+          )}
+
+          {/* Client mode or pure client - simplified profile */}
+          {(!isContractor || isClientMode) && (
+              <View style={s.section}>
+                <Text style={s.sectionTitle}>Account Settings</Text>
+                <TouchableOpacity
+                    style={s.menuItem}
+                    onPress={() => {
+                      setEditName(user?.name || '');
+                      setEditPhone(user?.phone || '');
+                      setShowEditProfile(true);
+                    }}
                 >
-                  {portfolioImages.map((img, idx) => (
-                    <View key={idx} style={s.pickedImageContainer}>
-                      <Image source={{ uri: img }} style={s.pickedImage} />
-                      <TouchableOpacity 
-                        style={s.removeImageBtn}
-                        onPress={() => removePortfolioImage(idx)}
-                      >
-                        <Ionicons name="close-circle" size={22} color={colors.red} />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                  {portfolioImages.length < 4 && (
-                    <TouchableOpacity style={s.addImageBtn} onPress={pickPortfolioImage}>
-                      <Ionicons name="camera-outline" size={28} color={colors.textSecondary} />
-                      <Text style={s.addImageText}>Add</Text>
-                    </TouchableOpacity>
-                  )}
-                </ScrollView>
-
-                <Text style={s.inputLabel}>Project Title *</Text>
-                <TextInput
-                  style={s.modalInput}
-                  placeholder="e.g., Kitchen Renovation"
-                  placeholderTextColor={colors.textSecondary}
-                  value={portfolioTitle}
-                  onChangeText={setPortfolioTitle}
-                />
-                
-                <Text style={s.inputLabel}>Description (optional)</Text>
-                <TextInput
-                  style={[s.modalInput, s.textArea]}
-                  placeholder="Describe the project..."
-                  placeholderTextColor={colors.textSecondary}
-                  value={portfolioDesc}
-                  onChangeText={setPortfolioDesc}
-                  multiline
-                  numberOfLines={3}
-                />
-                
-                <View style={s.modalActions}>
-                  <TouchableOpacity 
-                    style={s.modalCancelBtn} 
-                    onPress={() => {
-                      setShowAddPortfolio(false);
-                      setPortfolioTitle('');
-                      setPortfolioDesc('');
-                      setPortfolioImages([]);
-                    }}
-                  >
-                    <Text style={s.modalCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[s.modalConfirmBtn, (!portfolioTitle.trim() || portfolioImages.length === 0) && s.modalConfirmBtnDisabled]} 
-                    onPress={addPortfolioItem}
-                    disabled={saving || !portfolioTitle.trim() || portfolioImages.length === 0}
-                  >
-                    {saving ? (
-                      <ActivityIndicator color={colors.paper} />
-                    ) : (
-                      <Text style={s.modalConfirmText}>Add to Portfolio</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </KeyboardAvoidingView>
-          </View>
-        </Modal>
-
-        {/* License Modal */}
-        <Modal visible={showLicenseModal} transparent animationType="slide">
-          <View style={s.modalOverlay}>
-            <KeyboardAvoidingView 
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={s.modalKeyboard}
-            >
-              <View style={s.modalContent}>
-                <View style={s.modalHeader}>
-                  <Text style={s.modalTitle}>License Information</Text>
-                  <TouchableOpacity onPress={() => setShowLicenseModal(false)}>
-                    <Ionicons name="close" size={24} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-                
-                <Text style={s.inputLabel}>License Number *</Text>
-                <TextInput
-                  style={s.modalInput}
-                  placeholder="e.g., LIC-12345678"
-                  placeholderTextColor={colors.textSecondary}
-                  value={licenseNumber}
-                  onChangeText={setLicenseNumber}
-                />
-                
-                <Text style={s.inputLabel}>License Type</Text>
-                <TextInput
-                  style={s.modalInput}
-                  placeholder="e.g., General Contractor, Electrician"
-                  placeholderTextColor={colors.textSecondary}
-                  value={licenseType}
-                  onChangeText={setLicenseType}
-                />
-                
-                <Text style={s.inputLabel}>Expiration Date</Text>
-                <TextInput
-                  style={s.modalInput}
-                  placeholder="e.g., 12/2025"
-                  placeholderTextColor={colors.textSecondary}
-                  value={licenseExpiry}
-                  onChangeText={setLicenseExpiry}
-                />
-                
-                <Text style={s.inputLabel}>License Photo (optional)</Text>
-                <TouchableOpacity style={s.licenseImagePicker} onPress={pickLicenseImage}>
-                  {licenseImage ? (
-                    <Image source={{ uri: licenseImage }} style={s.licensePickedImage} />
-                  ) : (
-                    <View style={s.licenseImagePlaceholder}>
-                      <Ionicons name="camera-outline" size={32} color={colors.textSecondary} />
-                      <Text style={s.addImageText}>Upload Photo</Text>
-                    </View>
-                  )}
+                  <Ionicons name="person-outline" size={22} color={colors.primary} />
+                  <Text style={s.menuItemText}>Edit Profile</Text>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
-                
-                <View style={s.modalActions}>
-                  <TouchableOpacity 
-                    style={s.modalCancelBtn} 
-                    onPress={() => setShowLicenseModal(false)}
-                  >
-                    <Text style={s.modalCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[s.modalSaveBtn, saving && s.modalSaveBtnDisabled]} 
-                    onPress={saveLicense}
-                    disabled={saving}
-                  >
-                    {saving ? (
-                      <ActivityIndicator size="small" color={colors.paper} />
-                    ) : (
-                      <Text style={s.modalSaveText}>Save</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </KeyboardAvoidingView>
-          </View>
-        </Modal>
-
-        {/* Trade Edit Modal */}
-        <Modal visible={showTradeModal} transparent animationType="slide">
-          <View style={s.modalOverlay}>
-            <View style={s.tradeModalContent}>
-              <View style={s.modalHeader}>
-                <Text style={s.modalTitle}>Edit Services</Text>
-                <TouchableOpacity onPress={() => setShowTradeModal(false)}>
-                  <Ionicons name="close" size={24} color={colors.text} />
+                <TouchableOpacity
+                    style={s.menuItem}
+                    onPress={() => router.push('/forgot-password')}
+                >
+                  <Ionicons name="lock-closed-outline" size={22} color={colors.primary} />
+                  <Text style={s.menuItemText}>Reset Password</Text>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={s.menuItem}
+                    onPress={() => router.push('/support')}
+                >
+                  <Ionicons name="help-circle-outline" size={22} color={colors.primary} />
+                  <Text style={s.menuItemText}>Support / Contact Us</Text>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={s.menuItem}
+                    onPress={() => setShowPrivacyPolicy(true)}
+                >
+                  <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
+                  <Text style={s.menuItemText}>Privacy & Policy</Text>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
-              <Text style={s.tradeModalSubtitle}>Select up to 5 services ({editTrades.length}/5)</Text>
-              <ScrollView style={s.tradeList}>
-                {TRADES.map((trade) => {
-                  const isSelected = editTrades.includes(trade.name);
-                  const isDisabled = !isSelected && editTrades.length >= 5;
-                  return (
+          )}
+
+          {/* Logout Button */}
+          <TouchableOpacity style={s.logoutBtn} onPress={logout}>
+            <Ionicons name="log-out-outline" size={22} color={colors.red} />
+            <Text style={s.logoutBtnText}>Log Out</Text>
+          </TouchableOpacity>
+
+          {/* Add Portfolio Modal */}
+          <Modal visible={showAddPortfolio} transparent animationType="slide">
+            <View style={s.modalOverlay}>
+              <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                  style={s.modalKeyboard}
+              >
+                <View style={s.modalContent}>
+                  <View style={s.modalHeader}>
+                    <Text style={s.modalTitle}>Add Portfolio Item</Text>
                     <TouchableOpacity
-                      key={trade.name}
-                      style={[s.tradeItem, isSelected && s.tradeItemSelected, isDisabled && s.tradeItemDisabled]}
-                      onPress={() => !isDisabled && toggleTrade(trade.name)}
-                      disabled={isDisabled}
+                        onPress={() => {
+                          setShowAddPortfolio(false);
+                          setPortfolioTitle('');
+                          setPortfolioDesc('');
+                          setPortfolioImages([]);
+                        }}
                     >
-                      <View style={s.tradeItemLeft}>
-                        <Text style={s.tradeEmoji}>{trade.icon}</Text>
-                        <Text style={[s.tradeName, isDisabled && s.tradeNameDisabled]}>{trade.name}</Text>
-                      </View>
-                      {isSelected ? (
-                        <Ionicons name="remove-circle" size={24} color="#EF4444" />
+                      <Ionicons name="close" size={24} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Photo Selection */}
+                  <Text style={s.inputLabel}>Photos (up to 4)</Text>
+                  <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={s.portfolioImagesPicker}
+                  >
+                    {portfolioImages.map((img, idx) => (
+                        <View key={idx} style={s.pickedImageContainer}>
+                          <Image source={{ uri: img }} style={s.pickedImage} />
+                          <TouchableOpacity
+                              style={s.removeImageBtn}
+                              onPress={() => removePortfolioImage(idx)}
+                          >
+                            <Ionicons name="close-circle" size={22} color={colors.red} />
+                          </TouchableOpacity>
+                        </View>
+                    ))}
+                    {portfolioImages.length < 4 && (
+                        <TouchableOpacity style={s.addImageBtn} onPress={pickPortfolioImage}>
+                          <Ionicons name="camera-outline" size={28} color={colors.textSecondary} />
+                          <Text style={s.addImageText}>Add</Text>
+                        </TouchableOpacity>
+                    )}
+                  </ScrollView>
+
+                  <Text style={s.inputLabel}>Project Title *</Text>
+                  <TextInput
+                      style={s.modalInput}
+                      placeholder="e.g., Kitchen Renovation"
+                      placeholderTextColor={colors.textSecondary}
+                      value={portfolioTitle}
+                      onChangeText={setPortfolioTitle}
+                  />
+
+                  <Text style={s.inputLabel}>Description (optional)</Text>
+                  <TextInput
+                      style={[s.modalInput, s.textArea]}
+                      placeholder="Describe the project..."
+                      placeholderTextColor={colors.textSecondary}
+                      value={portfolioDesc}
+                      onChangeText={setPortfolioDesc}
+                      multiline
+                      numberOfLines={3}
+                  />
+
+                  <View style={s.modalActions}>
+                    <TouchableOpacity
+                        style={s.modalCancelBtn}
+                        onPress={() => {
+                          setShowAddPortfolio(false);
+                          setPortfolioTitle('');
+                          setPortfolioDesc('');
+                          setPortfolioImages([]);
+                        }}
+                    >
+                      <Text style={s.modalCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[s.modalConfirmBtn, (!portfolioTitle.trim() || portfolioImages.length === 0) && s.modalConfirmBtnDisabled]}
+                        onPress={addPortfolioItem}
+                        disabled={saving || !portfolioTitle.trim() || portfolioImages.length === 0}
+                    >
+                      {saving ? (
+                          <ActivityIndicator color={colors.paper} />
                       ) : (
-                        <Ionicons name="add-circle" size={24} color={isDisabled ? colors.border : colors.primary} />
+                          <Text style={s.modalConfirmText}>Add to Portfolio</Text>
                       )}
                     </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-              <View style={s.tradeModalActions}>
-                <TouchableOpacity style={s.tradeModalCancelBtn} onPress={() => setShowTradeModal(false)}>
-                  <Text style={s.tradeModalCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={s.tradeModalSaveBtn} onPress={saveTrades}>
-                  <Text style={s.tradeModalSaveText}>Save Changes</Text>
-                </TouchableOpacity>
+                  </View>
+                </View>
+              </KeyboardAvoidingView>
+            </View>
+          </Modal>
+
+          {/* License Modal */}
+          <Modal visible={showLicenseModal} transparent animationType="slide">
+            <View style={s.modalOverlay}>
+              <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                  style={s.modalKeyboard}
+              >
+                <View style={s.modalContent}>
+                  <View style={s.modalHeader}>
+                    <Text style={s.modalTitle}>License Information</Text>
+                    <TouchableOpacity onPress={() => setShowLicenseModal(false)}>
+                      <Ionicons name="close" size={24} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={s.inputLabel}>License Number *</Text>
+                  <TextInput
+                      style={s.modalInput}
+                      placeholder="e.g., LIC-12345678"
+                      placeholderTextColor={colors.textSecondary}
+                      value={licenseNumber}
+                      onChangeText={setLicenseNumber}
+                  />
+
+                  <Text style={s.inputLabel}>License Type</Text>
+                  <TextInput
+                      style={s.modalInput}
+                      placeholder="e.g., General Contractor, Electrician"
+                      placeholderTextColor={colors.textSecondary}
+                      value={licenseType}
+                      onChangeText={setLicenseType}
+                  />
+
+                  <Text style={s.inputLabel}>Expiration Date</Text>
+                  <TextInput
+                      style={s.modalInput}
+                      placeholder="e.g., 12/2025"
+                      placeholderTextColor={colors.textSecondary}
+                      value={licenseExpiry}
+                      onChangeText={setLicenseExpiry}
+                  />
+
+                  <Text style={s.inputLabel}>License Photo (optional)</Text>
+                  <TouchableOpacity style={s.licenseImagePicker} onPress={pickLicenseImage}>
+                    {licenseImage ? (
+                        <Image source={{ uri: licenseImage }} style={s.licensePickedImage} />
+                    ) : (
+                        <View style={s.licenseImagePlaceholder}>
+                          <Ionicons name="camera-outline" size={32} color={colors.textSecondary} />
+                          <Text style={s.addImageText}>Upload Photo</Text>
+                        </View>
+                    )}
+                  </TouchableOpacity>
+
+                  <View style={s.modalActions}>
+                    <TouchableOpacity
+                        style={s.modalCancelBtn}
+                        onPress={() => setShowLicenseModal(false)}
+                    >
+                      <Text style={s.modalCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[s.modalSaveBtn, saving && s.modalSaveBtnDisabled]}
+                        onPress={saveLicense}
+                        disabled={saving}
+                    >
+                      {saving ? (
+                          <ActivityIndicator size="small" color={colors.paper} />
+                      ) : (
+                          <Text style={s.modalSaveText}>Save</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </KeyboardAvoidingView>
+            </View>
+          </Modal>
+
+          {/* Trade Edit Modal */}
+          <Modal visible={showTradeModal} transparent animationType="slide">
+            <View style={s.modalOverlay}>
+              <View style={s.tradeModalContent}>
+                <View style={s.modalHeader}>
+                  <Text style={s.modalTitle}>Edit Services</Text>
+                  <TouchableOpacity onPress={() => setShowTradeModal(false)}>
+                    <Ionicons name="close" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+                <Text style={s.tradeModalSubtitle}>Select up to 5 services ({editTrades.length}/5)</Text>
+                <ScrollView style={s.tradeList}>
+                  {TRADES.map((trade) => {
+                    const isSelected = editTrades.includes(trade.name);
+                    const isDisabled = !isSelected && editTrades.length >= 5;
+                    return (
+                        <TouchableOpacity
+                            key={trade.name}
+                            style={[s.tradeItem, isSelected && s.tradeItemSelected, isDisabled && s.tradeItemDisabled]}
+                            onPress={() => !isDisabled && toggleTrade(trade.name)}
+                            disabled={isDisabled}
+                        >
+                          <View style={s.tradeItemLeft}>
+                            <Text style={s.tradeEmoji}>{trade.icon}</Text>
+                            <Text style={[s.tradeName, isDisabled && s.tradeNameDisabled]}>{trade.name}</Text>
+                          </View>
+                          {isSelected ? (
+                              <Ionicons name="remove-circle" size={24} color="#EF4444" />
+                          ) : (
+                              <Ionicons name="add-circle" size={24} color={isDisabled ? colors.border : colors.primary} />
+                          )}
+                        </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                <View style={s.tradeModalActions}>
+                  <TouchableOpacity style={s.tradeModalCancelBtn} onPress={() => setShowTradeModal(false)}>
+                    <Text style={s.tradeModalCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.tradeModalSaveBtn} onPress={saveTrades}>
+                    <Text style={s.tradeModalSaveText}>Save Changes</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
-        </Modal>
+          </Modal>
 
-        {/* Phone Verification Modal */}
-        <Modal visible={showPhoneVerifyModal} transparent animationType="slide">
-          <View style={s.modalOverlay}>
-            <KeyboardAvoidingView 
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={s.modalKeyboard}
-            >
-              <View style={s.phoneVerifyModalContent}>
-                <View style={s.modalHeader}>
-                  <Text style={s.modalTitle}>Verify Phone Number</Text>
-                  <TouchableOpacity onPress={() => {
-                    setShowPhoneVerifyModal(false);
-                    setEditPhone(originalPhone); // Revert to original on cancel
-                    setPhoneVerifyCode('');
-                  }}>
-                    <Ionicons name="close" size={24} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-                
-                <View style={s.phoneVerifyBody}>
-                  <View style={s.phoneIconCircle}>
-                    <Ionicons name="chatbubble-ellipses" size={32} color={colors.primary} />
+          {/* Phone Verification Modal */}
+          <Modal visible={showPhoneVerifyModal} transparent animationType="slide">
+            <View style={s.modalOverlay}>
+              <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                  style={s.modalKeyboard}
+              >
+                <View style={s.phoneVerifyModalContent}>
+                  <View style={s.modalHeader}>
+                    <Text style={s.modalTitle}>Verify Phone Number</Text>
+                    <TouchableOpacity onPress={() => {
+                      setShowPhoneVerifyModal(false);
+                      setEditPhone(originalPhone); // Revert to original on cancel
+                      setPhoneVerifyCode('');
+                    }}>
+                      <Ionicons name="close" size={24} color={colors.textSecondary} />
+                    </TouchableOpacity>
                   </View>
-                  <Text style={s.phoneVerifyTitle}>Enter Verification Code</Text>
-                  <Text style={s.phoneVerifySubtitle}>
-                    We sent a 6-digit code to{'\n'}
-                    <Text style={s.phoneVerifyNumber}>{phoneToVerify}</Text>
-                  </Text>
-                  
-                  <TextInput
-                    style={s.codeInput}
-                    value={phoneVerifyCode}
-                    onChangeText={setPhoneVerifyCode}
-                    placeholder="000000"
-                    keyboardType="number-pad"
-                    maxLength={6}
-                    autoFocus
-                  />
-                  
-                  <TouchableOpacity 
-                    style={[s.verifyCodeBtn, verifyingPhone && s.btnDisabled]}
-                    onPress={verifyAndSavePhone}
-                    disabled={verifyingPhone || phoneVerifyCode.length !== 6}
-                  >
-                    {verifyingPhone ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={s.verifyCodeBtnText}>Verify Phone Number</Text>
-                    )}
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={s.resendCodeBtn}
-                    onPress={resendPhoneCode}
-                    disabled={sendingPhoneCode}
-                  >
-                    {sendingPhoneCode ? (
-                      <ActivityIndicator size="small" color={colors.primary} />
-                    ) : (
-                      <Text style={s.resendCodeText}>Didn't receive code? Resend</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </KeyboardAvoidingView>
-          </View>
-        </Modal>
 
-        {/* Edit Profile Modal (Client - Name & Phone only) */}
-        <Modal visible={showEditProfile} transparent animationType="slide">
-          <View style={s.modalOverlay}>
-            <KeyboardAvoidingView 
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={s.modalKeyboard}
-            >
-              <View style={s.modalContent}>
-                <View style={s.modalHeader}>
-                  <Text style={s.modalTitle}>Edit Profile</Text>
-                  <TouchableOpacity onPress={() => {
-                    setShowEditProfile(false);
-                    setEditName(user?.name || '');
-                    setEditPhone(user?.phone || '');
-                  }}>
-                    <Ionicons name="close" size={24} color={colors.textSecondary} />
-                  </TouchableOpacity>
+                  <View style={s.phoneVerifyBody}>
+                    <View style={s.phoneIconCircle}>
+                      <Ionicons name="chatbubble-ellipses" size={32} color={colors.primary} />
+                    </View>
+                    <Text style={s.phoneVerifyTitle}>Enter Verification Code</Text>
+                    <Text style={s.phoneVerifySubtitle}>
+                      We sent a 6-digit code to{'\n'}
+                      <Text style={s.phoneVerifyNumber}>{phoneToVerify}</Text>
+                    </Text>
+
+                    <TextInput
+                        style={s.codeInput}
+                        value={phoneVerifyCode}
+                        onChangeText={setPhoneVerifyCode}
+                        placeholder="000000"
+                        keyboardType="number-pad"
+                        maxLength={6}
+                        autoFocus
+                    />
+
+                    <TouchableOpacity
+                        style={[s.verifyCodeBtn, verifyingPhone && s.btnDisabled]}
+                        onPress={verifyAndSavePhone}
+                        disabled={verifyingPhone || phoneVerifyCode.length !== 6}
+                    >
+                      {verifyingPhone ? (
+                          <ActivityIndicator color="#fff" />
+                      ) : (
+                          <Text style={s.verifyCodeBtnText}>Verify Phone Number</Text>
+                      )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={s.resendCodeBtn}
+                        onPress={resendPhoneCode}
+                        disabled={sendingPhoneCode}
+                    >
+                      {sendingPhoneCode ? (
+                          <ActivityIndicator size="small" color={colors.primary} />
+                      ) : (
+                          <Text style={s.resendCodeText}>Didn't receive code? Resend</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                
-                <Text style={s.inputLabel}>Name *</Text>
-                <TextInput
-                  style={s.modalInput}
-                  placeholder="Your name"
-                  placeholderTextColor={colors.textSecondary}
-                  value={editName}
-                  onChangeText={setEditName}
-                  autoCapitalize="words"
-                />
-                
-                <Text style={s.inputLabel}>Phone Number</Text>
-                <TextInput
-                  style={s.modalInput}
-                  placeholder="(555) 555 5555"
-                  placeholderTextColor={colors.textSecondary}
-                  value={editPhone}
-                  onChangeText={(text) => setEditPhone(formatPhoneNumber(text))}
-                  keyboardType="phone-pad"
-                  maxLength={14}
-                />
-                {editPhone && editPhone !== user?.phone && (
-                  <Text style={s.phoneChangeHint}>Phone number change requires verification</Text>
-                )}
-                
-                <View style={s.modalActions}>
-                  <TouchableOpacity 
-                    style={s.modalCancelBtn} 
-                    onPress={() => {
+              </KeyboardAvoidingView>
+            </View>
+          </Modal>
+
+          {/* Edit Profile Modal (Client - Name & Phone only) */}
+          <Modal visible={showEditProfile} transparent animationType="slide">
+            <View style={s.modalOverlay}>
+              <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                  style={s.modalKeyboard}
+              >
+                <View style={s.modalContent}>
+                  <View style={s.modalHeader}>
+                    <Text style={s.modalTitle}>Edit Profile</Text>
+                    <TouchableOpacity onPress={() => {
                       setShowEditProfile(false);
                       setEditName(user?.name || '');
                       setEditPhone(user?.phone || '');
-                    }}
-                  >
-                    <Text style={s.modalCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[s.modalConfirmBtn, !editName.trim() && s.modalConfirmBtnDisabled]} 
-                    onPress={saveClientProfile}
-                    disabled={saving || !editName.trim()}
-                  >
-                    {saving ? (
-                      <ActivityIndicator color={colors.paper} />
-                    ) : (
-                      <Text style={s.modalConfirmText}>
-                        {editPhone && editPhone !== user?.phone ? 'Verify & Save' : 'Save'}
-                      </Text>
-                    )}
+                    }}>
+                      <Ionicons name="close" size={24} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={s.inputLabel}>Name *</Text>
+                  <TextInput
+                      style={s.modalInput}
+                      placeholder="Your name"
+                      placeholderTextColor={colors.textSecondary}
+                      value={editName}
+                      onChangeText={setEditName}
+                      autoCapitalize="words"
+                  />
+
+                  <Text style={s.inputLabel}>Phone Number</Text>
+                  <TextInput
+                      style={s.modalInput}
+                      placeholder="(555) 555 5555"
+                      placeholderTextColor={colors.textSecondary}
+                      value={editPhone}
+                      onChangeText={(text) => setEditPhone(formatPhoneNumber(text))}
+                      keyboardType="phone-pad"
+                      maxLength={14}
+                  />
+                  {editPhone && editPhone !== user?.phone && (
+                      <Text style={s.phoneChangeHint}>Phone number change requires verification</Text>
+                  )}
+
+                  <View style={s.modalActions}>
+                    <TouchableOpacity
+                        style={s.modalCancelBtn}
+                        onPress={() => {
+                          setShowEditProfile(false);
+                          setEditName(user?.name || '');
+                          setEditPhone(user?.phone || '');
+                        }}
+                    >
+                      <Text style={s.modalCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[s.modalConfirmBtn, !editName.trim() && s.modalConfirmBtnDisabled]}
+                        onPress={saveClientProfile}
+                        disabled={saving || !editName.trim()}
+                    >
+                      {saving ? (
+                          <ActivityIndicator color={colors.paper} />
+                      ) : (
+                          <Text style={s.modalConfirmText}>
+                            {editPhone && editPhone !== user?.phone ? 'Verify & Save' : 'Save'}
+                          </Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </KeyboardAvoidingView>
+            </View>
+          </Modal>
+
+          {/* Privacy Policy Modal */}
+          <Modal visible={showPrivacyPolicy} transparent animationType="slide">
+            <View style={s.modalOverlay}>
+              <View style={[s.modalContent, { maxHeight: '80%' }]}>
+                <View style={s.modalHeader}>
+                  <Text style={s.modalTitle}>Privacy & Policy</Text>
+                  <TouchableOpacity onPress={() => setShowPrivacyPolicy(false)}>
+                    <Ionicons name="close" size={24} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
-              </View>
-            </KeyboardAvoidingView>
-          </View>
-        </Modal>
 
-        {/* Privacy Policy Modal */}
-        <Modal visible={showPrivacyPolicy} transparent animationType="slide">
-          <View style={s.modalOverlay}>
-            <View style={[s.modalContent, { maxHeight: '80%' }]}>
-              <View style={s.modalHeader}>
-                <Text style={s.modalTitle}>Privacy & Policy</Text>
-                <TouchableOpacity onPress={() => setShowPrivacyPolicy(false)}>
-                  <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <ScrollView style={s.privacyScroll} showsVerticalScrollIndicator={false}>
+                  <Text style={s.privacySection}>Data Collection</Text>
+                  <Text style={s.privacyText}>
+                    MiPropertyGuru collects personal information you provide when creating an account, including your name, email address, and phone number. We also collect information about jobs you post or respond to.
+                  </Text>
+
+                  <Text style={s.privacySection}>How We Use Your Data</Text>
+                  <Text style={s.privacyText}>
+                    Your information is used to facilitate connections between property owners and service contractors. We use your contact details to enable communication between parties and to send important service updates.
+                  </Text>
+
+                  <Text style={s.privacySection}>Data Security</Text>
+                  <Text style={s.privacyText}>
+                    We implement industry-standard security measures to protect your personal information. Your data is encrypted during transmission and stored securely on our servers.
+                  </Text>
+
+                  <Text style={s.privacySection}>Third-Party Sharing</Text>
+                  <Text style={s.privacyText}>
+                    We do not sell your personal information to third parties. Your contact details are only shared with contractors or clients you choose to connect with through our platform.
+                  </Text>
+
+                  <Text style={s.privacySection}>Your Rights</Text>
+                  <Text style={s.privacyText}>
+                    You have the right to access, correct, or delete your personal information at any time. Contact our support team for assistance with data-related requests.
+                  </Text>
+
+                  <Text style={s.privacySection}>Contact Us</Text>
+                  <Text style={s.privacyText}>
+                    If you have questions about our privacy practices, please contact us at support@mipropertyguru.com
+                  </Text>
+
+                  <Text style={s.privacyUpdated}>Last updated: June 2025</Text>
+                </ScrollView>
+
+                <TouchableOpacity
+                    style={s.privacyCloseBtn}
+                    onPress={() => setShowPrivacyPolicy(false)}
+                >
+                  <Text style={s.privacyCloseBtnText}>Close</Text>
                 </TouchableOpacity>
               </View>
-              
-              <ScrollView style={s.privacyScroll} showsVerticalScrollIndicator={false}>
-                <Text style={s.privacySection}>Data Collection</Text>
-                <Text style={s.privacyText}>
-                  MiPropertyGuru collects personal information you provide when creating an account, including your name, email address, and phone number. We also collect information about jobs you post or respond to.
-                </Text>
-                
-                <Text style={s.privacySection}>How We Use Your Data</Text>
-                <Text style={s.privacyText}>
-                  Your information is used to facilitate connections between property owners and service contractors. We use your contact details to enable communication between parties and to send important service updates.
-                </Text>
-                
-                <Text style={s.privacySection}>Data Security</Text>
-                <Text style={s.privacyText}>
-                  We implement industry-standard security measures to protect your personal information. Your data is encrypted during transmission and stored securely on our servers.
-                </Text>
-                
-                <Text style={s.privacySection}>Third-Party Sharing</Text>
-                <Text style={s.privacyText}>
-                  We do not sell your personal information to third parties. Your contact details are only shared with contractors or clients you choose to connect with through our platform.
-                </Text>
-                
-                <Text style={s.privacySection}>Your Rights</Text>
-                <Text style={s.privacyText}>
-                  You have the right to access, correct, or delete your personal information at any time. Contact our support team for assistance with data-related requests.
-                </Text>
-                
-                <Text style={s.privacySection}>Contact Us</Text>
-                <Text style={s.privacyText}>
-                  If you have questions about our privacy practices, please contact us at support@mipropertyguru.com
-                </Text>
-                
-                <Text style={s.privacyUpdated}>Last updated: June 2025</Text>
-              </ScrollView>
-              
-              <TouchableOpacity 
-                style={s.privacyCloseBtn} 
-                onPress={() => setShowPrivacyPolicy(false)}
-              >
-                <Text style={s.privacyCloseBtnText}>Close</Text>
-              </TouchableOpacity>
             </View>
-          </View>
-        </Modal>
-      </ScrollView>
-    </SafeAreaView>
+          </Modal>
+        </ScrollView>
+      </SafeAreaView>
   );
 }
 
