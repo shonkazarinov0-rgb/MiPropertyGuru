@@ -14,10 +14,11 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Find contractors near your location",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Share your location with clients to get more jobs",
+        "NSLocationAlwaysUsageDescription": "Share your location with clients to get more jobs",
         "NSCameraUsageDescription": "Take photos of your completed work",
         "NSPhotoLibraryUsageDescription": "Upload photos to your portfolio",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": ["location", "remote-notification"]
       }
     },
     "android": {
@@ -60,7 +61,9 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Find contractors near your location",
-          "locationAlwaysAndWhenInUsePermission": "Share your location with clients to get more jobs"
+          "locationAlwaysAndWhenInUsePermission": "Share your location with clients to get more jobs",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       [

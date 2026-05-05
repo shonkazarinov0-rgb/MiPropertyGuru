@@ -30,17 +30,12 @@ const colors = {
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, refreshUser, switchMode, isClientMode, isContractorMode } = useAuth();
-  const [liveLocation, setLiveLocation] = useState(false)
 
-  useEffect(() => {
-    if (user?.isonline !== undefined) {
-      setLiveLocation(user.isonline)
-    }
-  }, [user?.isonline])
-  const [phoneVisible, setPhoneVisible] = useState(user?.phone_visible !== false); // Default to true
+  const [liveLocation, setLiveLocation] = useState(false);
+  const [phoneVisible, setPhoneVisible] = useState(user?.phone_visible !== false);
   const [serviceRadius, setServiceRadius] = useState(user?.service_radius || 50);
   const [editPhone, setEditPhone] = useState(user?.phone || '');
-  const [originalPhone, setOriginalPhone] = useState(user?.phone || ''); // Store original for revert
+  const [originalPhone, setOriginalPhone] = useState(user?.phone || '');
   const [editTrades, setEditTrades] = useState<string[]>(user?.trades || []);
   const [showTradeModal, setShowTradeModal] = useState(false);
   const [showPhoneVerifyModal, setShowPhoneVerifyModal] = useState(false);
@@ -48,7 +43,7 @@ export default function ProfileScreen() {
   const [phoneToVerify, setPhoneToVerify] = useState('');
   const [sendingPhoneCode, setSendingPhoneCode] = useState(false);
   const [verifyingPhone, setVerifyingPhone] = useState(false);
-  const [pendingNameUpdate, setPendingNameUpdate] = useState<string | null>(null); // For client profile edits
+  const [pendingNameUpdate, setPendingNameUpdate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showAddLocation, setShowAddLocation] = useState(false);
   const [locationName, setLocationName] = useState('');
@@ -61,43 +56,32 @@ export default function ProfileScreen() {
   const [licenseNumber, setLicenseNumber] = useState(user?.license_number || '');
   const [licenseType, setLicenseType] = useState(user?.license_type || '');
   const [licenseExpiry, setLicenseExpiry] = useState(user?.license_expiry || '');
-
-  // Phone number formatter: (555) 555 5555
-  const formatPhoneNumber = (value: string) => {
-    // Remove all non-digits
-    const digits = value.replace(/\D/g, '');
-
-    // Format as (XXX) XXX XXXX
-    if (digits.length <= 3) {
-      return digits.length > 0 ? `(${digits}` : '';
-    } else if (digits.length <= 6) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    } else {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
-    }
-  };
   const [licenseImage, setLicenseImage] = useState<string | null>(user?.license_image || null);
-
-  // Client profile edit states
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [editName, setEditName] = useState(user?.name || '');
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
-
-  // Edit work location states
   const [showEditLocation, setShowEditLocation] = useState(false);
   const [editLocationIndex, setEditLocationIndex] = useState<number>(-1);
   const [editLocationName, setEditLocationName] = useState('');
 
   useEffect(() => {
-    if (user?.role === 'contractor') {
-      fetchPortfolio();
-    }
+    if (user?.isonline !== undefined) setLiveLocation(user.isonline);
+  }, [user?.isonline]);
+
+  useEffect(() => {
+    if (user?.role === 'contractor') fetchPortfolio();
     if (user?.phone) {
       setEditPhone(user.phone);
       setOriginalPhone(user.phone);
     }
   }, [user]);
 
+  const formatPhoneNumber = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length <= 3) return digits.length > 0 ? `(${digits}` : '';
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
+  };
 
   const fetchPortfolio = async () => {
     try {
@@ -106,35 +90,86 @@ export default function ProfileScreen() {
     } catch {}
   };
 
+  // ── Location Toggle ───────────────────────────────────────────────────────
   const toggleLiveLocation = async (val: boolean) => {
     if (saving) return;
     setSaving(true);
     try {
-      let lat, lng;
+      let lat: number | undefined;
+      let lng: number | undefined;
+
       if (val) {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
+          Alert.alert(
+              'Location Permission Required',
+              'Please enable location access in your device Settings to share your live location.',
+              [{ text: 'OK' }]
+          );
+          setLiveLocation(false);
           setSaving(false);
           return;
         }
-        const loc = await Location.getCurrentPositionAsync({});
+
+        const locationPromise = Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Location request timed out')), 8000)
+        );
+
+        const loc = await Promise.race([locationPromise, timeoutPromise]);
         lat = loc.coords.latitude;
         lng = loc.coords.longitude;
       }
+
       await api.put('/contractors/online-status', {
         is_online: val,
-        current_lat: lat,
-        current_lng: lng,
+        current_lat: lat ?? null,
+        current_lng: lng ?? null,
       });
       setLiveLocation(val);
       await refreshUser();
     } catch (e: any) {
       console.error('toggleLiveLocation error:', e?.message);
+      setLiveLocation(!val);
+      Alert.alert('Error', 'Could not update location. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
+  // ── Phone Visibility Toggle ───────────────────────────────────────────────
+  const togglePhoneVisibility = async (val: boolean) => {
+    if (!user?.phone_verified) {
+      Alert.alert(
+          'Verification Required',
+          'Please add and verify your phone number first.',
+          [{ text: 'OK' }]
+      );
+      return;
+    }
+    if (saving) return;
+    setSaving(true);
+    const previous = phoneVisible;
+    setPhoneVisible(val);
+    try {
+      await api.put('/contractors/phone-visibility', { phone_visible: val });
+      await refreshUser();
+    } catch (e: any) {
+      console.error('togglePhoneVisibility error:', e?.message);
+      setPhoneVisible(previous);
+      const isServerDown = e?.response?.status >= 500;
+      const isTimeout = e?.code === 'ECONNABORTED' || e?.message?.includes('timeout');
+      if (isServerDown || isTimeout) {
+        Alert.alert('Server Starting Up', 'Please wait a moment and try again.');
+      } else {
+        Alert.alert('Error', 'Could not update phone visibility. Please try again.');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const updateServiceRadius = async (value: number) => {
     setServiceRadius(value);
@@ -146,27 +181,9 @@ export default function ProfileScreen() {
     }
   };
 
-  const togglePhoneVisibility = async (val: boolean) => {
-    console.log('togglePhoneVisibility pressed, val =', val);
-    setPhoneVisible(val);
-    try {
-      console.log('about to call /contractors/phone-visibility');
-      await api.put('/contractors/phone-visibility', { phone_visible: val });
-      console.log('phone-visibility success');
-      await refreshUser();
-      console.log('refreshUser success after phone visibility');
-    } catch (e: any) {
-      console.error('togglePhoneVisibility crash:', e);
-      console.error('togglePhoneVisibility message:', e?.message);
-      setPhoneVisible(!val);
-    }
-  };
-
+  // ── Phone Verification ────────────────────────────────────────────────────
   const savePhoneNumber = async () => {
-    if (editPhone === user?.phone) return; // No change
-    if (!editPhone.trim()) return; // Empty phone
-
-    // If phone changed, require verification
+    if (editPhone === user?.phone || !editPhone.trim()) return;
     setPhoneToVerify(editPhone);
     setSendingPhoneCode(true);
     try {
@@ -174,11 +191,7 @@ export default function ProfileScreen() {
       setShowPhoneVerifyModal(true);
       setPhoneVerifyCode('');
     } catch (e: any) {
-      if (Platform.OS === 'web') {
-        window.alert('Error sending verification code: ' + (e.message || 'Unknown error'));
-      } else {
-        console.error('Error:', 'Failed to send verification code: ' + (e.message || 'Unknown error'));
-      }
+      Alert.alert('Error', 'Failed to send verification code: ' + (e.message || 'Unknown error'));
     } finally {
       setSendingPhoneCode(false);
     }
@@ -186,45 +199,23 @@ export default function ProfileScreen() {
 
   const verifyAndSavePhone = async () => {
     if (phoneVerifyCode.length !== 6) {
-      if (Platform.OS === 'web') {
-        window.alert('Please enter the 6-digit code');
-      } else {
-        console.error('Error:', 'Please enter the 6-digit code');
-      }
+      Alert.alert('Error', 'Please enter the 6-digit code');
       return;
     }
-
     setVerifyingPhone(true);
     try {
-      await api.post('/auth/verify-phone', {
-        phone: phoneToVerify,
-        code: phoneVerifyCode
-      });
-
-      // If there's a pending name update from client profile edit, save it now
+      await api.post('/auth/verify-phone', { phone: phoneToVerify, code: phoneVerifyCode });
       if (pendingNameUpdate) {
-        await api.put('/users/profile', {
-          name: pendingNameUpdate,
-          phone: phoneToVerify,
-        });
+        await api.put('/users/profile', { name: pendingNameUpdate, phone: phoneToVerify });
         setPendingNameUpdate(null);
       }
-
       await refreshUser();
       setShowPhoneVerifyModal(false);
       setEditPhone(phoneToVerify);
       setOriginalPhone(phoneToVerify);
-      if (Platform.OS === 'web') {
-        window.alert('Phone number verified and saved successfully!');
-      } else {
-        console.log('Success:', 'Phone number verified and saved successfully!');
-      }
+      Alert.alert('Success', 'Phone number verified and saved successfully!');
     } catch (e: any) {
-      if (Platform.OS === 'web') {
-        window.alert('Verification failed: ' + (e.message || 'Invalid code'));
-      } else {
-        console.error('Error:', e.message || 'Invalid verification code');
-      }
+      Alert.alert('Error', e.message || 'Invalid verification code');
     } finally {
       setVerifyingPhone(false);
     }
@@ -234,27 +225,18 @@ export default function ProfileScreen() {
     setSendingPhoneCode(true);
     try {
       await api.post('/auth/send-phone-code', { phone: phoneToVerify });
-      if (Platform.OS === 'web') {
-        window.alert('New code sent!');
-      } else {
-        console.log('Code Sent', 'A new verification code has been sent to your phone.');
-      }
-    } catch (e: any) {
-      if (Platform.OS === 'web') {
-        window.alert('Failed to resend code');
-      } else {
-        console.error('Error:', 'Failed to resend code');
-      }
+      Alert.alert('Code Sent', 'A new verification code has been sent to your phone.');
+    } catch {
+      Alert.alert('Error', 'Failed to resend code');
     } finally {
       setSendingPhoneCode(false);
     }
   };
 
+  // ── Trades ────────────────────────────────────────────────────────────────
   const toggleTrade = (tradeName: string) => {
     if (editTrades.includes(tradeName)) {
-      if (editTrades.length > 1) { // Must have at least 1 trade
-        setEditTrades(editTrades.filter(t => t !== tradeName));
-      }
+      if (editTrades.length > 1) setEditTrades(editTrades.filter(t => t !== tradeName));
     } else if (editTrades.length < 5) {
       setEditTrades([...editTrades, tradeName]);
     }
@@ -270,49 +252,33 @@ export default function ProfileScreen() {
     }
   };
 
-  // Save client profile (name and phone)
+  // ── Client Profile ────────────────────────────────────────────────────────
   const saveClientProfile = async () => {
     if (!editName.trim()) {
-      console.error('Error:', 'Name is required');
+      Alert.alert('Error', 'Name is required');
       return;
     }
-
-    // If phone number changed, require verification first
     if (editPhone.trim() && editPhone !== user?.phone) {
-      // Validate phone format (10 digits)
       const digits = editPhone.replace(/\D/g, '');
       if (digits.length !== 10) {
-        if (Platform.OS === 'web') {
-          window.alert('Please enter a valid 10-digit phone number');
-        } else {
-          console.log('Invalid Phone', 'Please enter a valid 10-digit phone number');
-        }
+        Alert.alert('Invalid Phone', 'Please enter a valid 10-digit phone number');
         return;
       }
-
-      // Send verification code and open verification modal
       setPhoneToVerify(editPhone);
       setSendingPhoneCode(true);
       try {
         await api.post('/auth/send-phone-code', { phone: editPhone });
-        setShowEditProfile(false); // Close edit modal
-        setShowPhoneVerifyModal(true); // Open verification modal
+        setShowEditProfile(false);
+        setShowPhoneVerifyModal(true);
         setPhoneVerifyCode('');
-        // Store that we need to save name after verification
         setPendingNameUpdate(editName.trim());
       } catch (e: any) {
-        if (Platform.OS === 'web') {
-          window.alert('Error sending verification code: ' + (e.message || 'Unknown error'));
-        } else {
-          console.error('Error:', 'Failed to send verification code: ' + (e.message || 'Unknown error'));
-        }
+        Alert.alert('Error', 'Failed to send verification code: ' + (e.message || 'Unknown error'));
       } finally {
         setSendingPhoneCode(false);
       }
       return;
     }
-
-    // No phone change, just save name
     setSaving(true);
     try {
       await api.put('/users/profile', {
@@ -321,22 +287,15 @@ export default function ProfileScreen() {
       });
       await refreshUser();
       setShowEditProfile(false);
-      if (Platform.OS === 'web') {
-        window.alert('Profile updated successfully');
-      } else {
-        console.log('Success:', 'Profile updated');
-      }
+      Alert.alert('Success', 'Profile updated');
     } catch (e: any) {
-      if (Platform.OS === 'web') {
-        window.alert('Error: ' + (e.message || 'Could not update profile'));
-      } else {
-        console.error('Error:', e.message || 'Could not update profile');
-      }
+      Alert.alert('Error', e.message || 'Could not update profile');
     } finally {
       setSaving(false);
     }
   };
 
+  // ── Work Locations ────────────────────────────────────────────────────────
   const addWorkLocation = async () => {
     if (!locationName.trim()) return;
     setSaving(true);
@@ -344,156 +303,122 @@ export default function ProfileScreen() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       let lat = 40.7128, lng = -74.0060;
       if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({});
-        lat = loc.coords.latitude; lng = loc.coords.longitude;
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        lat = loc.coords.latitude;
+        lng = loc.coords.longitude;
       }
       const newLocs = [...(user?.work_locations || []), { name: locationName, lat, lng }].slice(0, 3);
-      await api.put('/contractors/location', {
-        live_location_enabled: liveLocation,
-        work_locations: newLocs,
-      });
+      await api.put('/contractors/location', { live_location_enabled: liveLocation, work_locations: newLocs });
       await refreshUser();
-      setLocationName(''); setShowAddLocation(false);
-    } catch (e: any) { console.error('Error:', e.message); }
-    finally { setSaving(false); }
+      setLocationName('');
+      setShowAddLocation(false);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // Edit work location
   const editWorkLocation = async () => {
     if (!editLocationName.trim() || editLocationIndex < 0) return;
     setSaving(true);
     try {
       const updatedLocs = [...(user?.work_locations || [])];
-      updatedLocs[editLocationIndex] = {
-        ...updatedLocs[editLocationIndex],
-        name: editLocationName.trim()
-      };
-      await api.put('/contractors/location', {
-        live_location_enabled: liveLocation,
-        work_locations: updatedLocs,
-      });
+      updatedLocs[editLocationIndex] = { ...updatedLocs[editLocationIndex], name: editLocationName.trim() };
+      await api.put('/contractors/location', { live_location_enabled: liveLocation, work_locations: updatedLocs });
       await refreshUser();
       setEditLocationName('');
       setEditLocationIndex(-1);
       setShowEditLocation(false);
-    } catch (e: any) { console.error('Error:', e.message); }
-    finally { setSaving(false); }
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // Delete work location
   const deleteWorkLocation = async (index: number) => {
-    console.log(
-        'Delete Location',
-        'Are you sure you want to remove this work location?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              setSaving(true);
-              try {
-                const updatedLocs = (user?.work_locations || []).filter((_: any, i: number) => i !== index);
-                await api.put('/contractors/location', {
-                  live_location_enabled: liveLocation,
-                  work_locations: updatedLocs,
-                });
-                await refreshUser();
-              } catch (e: any) { console.error('Error:', e.message); }
-              finally { setSaving(false); }
-            }
+    Alert.alert('Delete Location', 'Are you sure you want to remove this work location?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          setSaving(true);
+          try {
+            const updatedLocs = (user?.work_locations || []).filter((_: any, i: number) => i !== index);
+            await api.put('/contractors/location', { live_location_enabled: liveLocation, work_locations: updatedLocs });
+            await refreshUser();
+          } catch (e: any) {
+            Alert.alert('Error', e.message);
+          } finally {
+            setSaving(false);
           }
-        ]
-    );
+        },
+      },
+    ]);
   };
 
+  // ── Portfolio ─────────────────────────────────────────────────────────────
   const addPortfolioItem = async () => {
-    if (!portfolioTitle.trim()) {
-      console.error('Error:', 'Please enter a project title');
-      return;
-    }
-    if (portfolioImages.length === 0) {
-      console.error('Error:', 'Please add at least one photo');
-      return;
-    }
+    if (!portfolioTitle.trim()) { Alert.alert('Error', 'Please enter a project title'); return; }
+    if (portfolioImages.length === 0) { Alert.alert('Error', 'Please add at least one photo'); return; }
     setSaving(true);
     try {
-      await api.post('/portfolio', {
-        title: portfolioTitle,
-        description: portfolioDesc,
-        images: portfolioImages
-      });
+      await api.post('/portfolio', { title: portfolioTitle, description: portfolioDesc, images: portfolioImages });
       await fetchPortfolio();
-      setPortfolioTitle('');
-      setPortfolioDesc('');
-      setPortfolioImages([]);
-      setShowAddPortfolio(false);
-    } catch (e: any) { console.error('Error:', e.message); }
-    finally { setSaving(false); }
+      setPortfolioTitle(''); setPortfolioDesc(''); setPortfolioImages([]); setShowAddPortfolio(false);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const pickPortfolioImage = async () => {
-    if (portfolioImages.length >= 4) {
-      console.log('Limit reached', 'You can add up to 4 photos per portfolio item');
-      return;
-    }
-
+    if (portfolioImages.length >= 4) { Alert.alert('Limit reached', 'You can add up to 4 photos per portfolio item'); return; }
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.7,
-        base64: true,
+        allowsEditing: true, aspect: [4, 3], quality: 0.7, base64: true,
       });
-
       if (!result.canceled && result.assets[0].base64) {
-        const photoUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
-        setPortfolioImages([...portfolioImages, photoUri]);
+        setPortfolioImages([...portfolioImages, `image/jpeg;base64,${result.assets[0].base64}`]);
       }
     } catch (error) {
       console.error('Error picking image:', error);
     }
   };
 
-  const removePortfolioImage = (index: number) => {
-    setPortfolioImages(portfolioImages.filter((_, i) => i !== index));
-  };
+  const removePortfolioImage = (index: number) => setPortfolioImages(portfolioImages.filter((_, i) => i !== index));
 
   const deletePortfolioItem = async (itemId: string) => {
-    console.log(
-        'Delete Portfolio Item',
-        'Are you sure you want to delete this item?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                await api.delete(`/portfolio/${itemId}`);
-                await fetchPortfolio();
-              } catch (e: any) {
-                console.error('Error:', e.message || 'Failed to delete');
-              }
-            }
+    Alert.alert('Delete Portfolio Item', 'Are you sure you want to delete this item?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.delete(`/portfolio/${itemId}`);
+            await fetchPortfolio();
+          } catch (e: any) {
+            Alert.alert('Error', e.message || 'Failed to delete');
           }
-        ]
-    );
+        },
+      },
+    ]);
   };
 
-  // License functions
+  // ── License ───────────────────────────────────────────────────────────────
   const pickLicenseImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.7,
-        base64: true,
+        allowsEditing: true, quality: 0.7, base64: true,
       });
-
       if (!result.canceled && result.assets[0].base64) {
-        setLicenseImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+        setLicenseImage(`image/jpeg;base64,${result.assets[0].base64}`);
       }
     } catch (error) {
       console.error('Error picking license image:', error);
@@ -501,11 +426,7 @@ export default function ProfileScreen() {
   };
 
   const saveLicense = async () => {
-    if (!licenseNumber.trim()) {
-      console.error('Error:', 'Please enter a license number');
-      return;
-    }
-
+    if (!licenseNumber.trim()) { Alert.alert('Error', 'Please enter a license number'); return; }
     setSaving(true);
     try {
       await api.put('/auth/profile', {
@@ -516,29 +437,21 @@ export default function ProfileScreen() {
       });
       await refreshUser();
       setShowLicenseModal(false);
-      console.log('Success:', 'License information saved');
+      Alert.alert('Success', 'License information saved');
     } catch (e: any) {
-      console.error('Error:', e.message || 'Failed to save license');
+      Alert.alert('Error', e.message || 'Failed to save license');
     } finally {
       setSaving(false);
     }
   };
 
+  // ── Mode Switch ───────────────────────────────────────────────────────────
   const handleModeSwitch = async () => {
-    console.log('handleModeSwitch pressed');
-    if (user?.role !== 'contractor') {
-      console.log('not contractor, returning');
-      return;
-    }
-
+    if (user?.role !== 'contractor') return;
     try {
-      const newMode = isContractorMode ? 'client' : 'contractor';
-      console.log('switching mode to:', newMode);
-      await switchMode(newMode);
-      console.log('switchMode success');
+      await switchMode(isContractorMode ? 'client' : 'contractor');
     } catch (e: any) {
-      console.error('handleModeSwitch crash:', e);
-      console.error('handleModeSwitch message:', e?.message);
+      console.error('handleModeSwitch error:', e?.message);
     }
   };
 
@@ -546,7 +459,6 @@ export default function ProfileScreen() {
 
   return (
       <SafeAreaView style={s.container} edges={['top']}>
-        {/* Header - Outside ScrollView for consistency */}
         <View style={s.header}>
           <Text style={s.title}>Profile</Text>
           <ModeToggle />
@@ -557,12 +469,11 @@ export default function ProfileScreen() {
           <View style={s.profileCard}>
             <View style={s.avatarLg}>
               <Text style={s.avatarLgText}>
-                {user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                {user?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
               </Text>
             </View>
             <Text style={s.profileName}>{user?.name}</Text>
 
-            {/* Show trade badges with icons only in contractor mode - with edit button */}
             {isContractor && isContractorMode && user?.trades && user.trades.length > 0 && (
                 <TouchableOpacity style={s.tradesContainerEditable} onPress={() => { setEditTrades(user.trades); setShowTradeModal(true); }}>
                   {user.trades.map((trade: string, index: number) => (
@@ -576,7 +487,7 @@ export default function ProfileScreen() {
                   </View>
                 </TouchableOpacity>
             )}
-            {/* Fallback to contractor_type if no trades array - with edit button */}
+
             {isContractor && isContractorMode && (!user?.trades || user.trades.length === 0) && user?.contractor_type && (
                 <TouchableOpacity style={s.tradesContainerEditable} onPress={() => { setEditTrades([user.contractor_type]); setShowTradeModal(true); }}>
                   <View style={s.typeBadge}>
@@ -592,7 +503,6 @@ export default function ProfileScreen() {
             <Text style={s.profileEmail}>{user?.email}</Text>
             <Text style={s.profilePhone}>{user?.phone}</Text>
 
-            {/* Show stats only in contractor mode - improved layout */}
             {isContractor && isContractorMode && (
                 <View style={s.statsRow}>
                   <View style={s.stat}>
@@ -621,7 +531,6 @@ export default function ProfileScreen() {
                 </View>
             )}
 
-            {/* Languages Spoken - show for contractors */}
             {isContractor && isContractorMode && user?.languages && user.languages.length > 0 && (
                 <View style={s.languagesRow}>
                   <Ionicons name="earth" size={18} color="#4A90D9" />
@@ -629,7 +538,6 @@ export default function ProfileScreen() {
                 </View>
             )}
 
-            {/* License Badge - show for contractors with license */}
             {isContractor && isContractorMode && user?.has_license && (
                 <View style={s.licenseBadgeProfile}>
                   <Text style={s.licenseBadgeProfileText}>🪪 License on file</Text>
@@ -637,10 +545,9 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          {/* Contractor-only sections - only show in contractor mode */}
+          {/* Contractor-only sections */}
           {isContractor && isContractorMode && (
               <>
-                {/* Bio Section */}
                 {user?.bio && (
                     <View style={s.section}>
                       <Text style={s.sectionTitle}>About Me</Text>
@@ -650,12 +557,12 @@ export default function ProfileScreen() {
                     </View>
                 )}
 
-                {/* License Section */}
+                {/* License */}
                 <View style={s.section}>
                   <View style={s.sectionHeader}>
                     <Text style={s.sectionTitle}>License</Text>
                     <TouchableOpacity onPress={() => setShowLicenseModal(true)}>
-                      <Ionicons name={user?.license_number ? "create-outline" : "add-circle"} size={24} color={colors.primary} />
+                      <Ionicons name={user?.license_number ? 'create-outline' : 'add-circle'} size={24} color={colors.primary} />
                     </TouchableOpacity>
                   </View>
                   {user?.license_number ? (
@@ -684,9 +591,7 @@ export default function ProfileScreen() {
                               </View>
                           )}
                         </View>
-                        {user.license_image && (
-                            <Image source={{ uri: user.license_image }} style={s.licenseImage} />
-                        )}
+                        {user.license_image && <Image source={{ uri: user.license_image }} style={s.licenseImage} />}
                       </View>
                   ) : (
                       <TouchableOpacity style={s.addLicenseBtn} onPress={() => setShowLicenseModal(true)}>
@@ -697,7 +602,7 @@ export default function ProfileScreen() {
                   )}
                 </View>
 
-                {/* Portfolio Section - Combined photos with title/description */}
+                {/* Portfolio */}
                 <View style={s.section}>
                   <View style={s.sectionHeader}>
                     <Text style={s.sectionTitle}>Portfolio</Text>
@@ -708,30 +613,17 @@ export default function ProfileScreen() {
                   {portfolio.map(item => (
                       <View key={item.id} style={s.portfolioItem}>
                         {item.images && item.images.length > 0 && (
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                style={s.portfolioImagesScroll}
-                            >
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.portfolioImagesScroll}>
                               {item.images.map((img: string, idx: number) => (
-                                  <Image
-                                      key={idx}
-                                      source={{ uri: img }}
-                                      style={s.portfolioImage}
-                                  />
+                                  <Image key={idx} source={{ uri: img }} style={s.portfolioImage} />
                               ))}
                             </ScrollView>
                         )}
                         <View style={s.portfolioInfo}>
                           <Text style={s.portfolioTitle}>{item.title}</Text>
-                          {item.description && (
-                              <Text style={s.portfolioDesc}>{item.description}</Text>
-                          )}
+                          {item.description && <Text style={s.portfolioDesc}>{item.description}</Text>}
                         </View>
-                        <TouchableOpacity
-                            style={s.deletePortfolioBtn}
-                            onPress={() => deletePortfolioItem(item.id)}
-                        >
+                        <TouchableOpacity style={s.deletePortfolioBtn} onPress={() => deletePortfolioItem(item.id)}>
                           <Ionicons name="trash-outline" size={18} color={colors.red} />
                         </TouchableOpacity>
                       </View>
@@ -765,47 +657,32 @@ export default function ProfileScreen() {
                 <View style={s.section}>
                   <Text style={s.sectionTitle}>Location & Phone Settings</Text>
                   <View style={s.settingCard}>
-                    {/* Phone Visibility Toggle - FIRST */}
-                    <TouchableOpacity
-                        style={[s.settingRow, !user?.phone_verified && s.settingRowDisabled]}
-                        activeOpacity={user?.phone_verified ? 1 : 0.7}
-                        onPress={() => {
-                          if (!user?.phone_verified) {
-                            if (Platform.OS === 'web') {
-                              window.alert('Please add and verify your phone number first to enable this feature.');
-                            } else {
-                              console.log(
-                                  'Phone Verification Required',
-                                  'Please add and verify your phone number below before enabling this feature.',
-                                  [{ text: 'OK' }]
-                              );
-                            }
-                          }
-                        }}
-                    >
+
+                    {/* Phone Visibility Toggle — View wrapper (not TouchableOpacity) prevents double-trigger */}
+                    <View style={[s.settingRow, !user?.phone_verified && s.settingRowDisabled]}>
                       <View style={s.settingInfo}>
                         <Ionicons name="eye" size={22} color={user?.phone_verified ? colors.primary : colors.textSecondary} />
                         <View style={{ marginLeft: 12 }}>
-                          <Text style={[s.settingLabel, !user?.phone_verified && s.settingLabelDisabled]}>Show Phone to Clients</Text>
+                          <Text style={[s.settingLabel, !user?.phone_verified && s.settingLabelDisabled]}>
+                            Show Phone to Clients
+                          </Text>
                           <Text style={s.settingDesc}>
-                            {user?.phone_verified
-                                ? 'Allow clients to call you directly'
-                                : 'Add & verify a phone number first'}
+                            {user?.phone_verified ? 'Allow clients to call you directly' : 'Add & verify a phone number first'}
                           </Text>
                         </View>
                       </View>
                       <Switch
-                          value={phoneVisible && user?.phone_verified}
+                          value={phoneVisible && !!user?.phone_verified}
                           onValueChange={togglePhoneVisibility}
                           trackColor={{ false: colors.border, true: colors.primaryLight }}
                           thumbColor={phoneVisible && user?.phone_verified ? colors.primary : '#f4f4f4'}
-                          disabled={!user?.phone_verified}
+                          disabled={!user?.phone_verified || saving}
                       />
-                    </TouchableOpacity>
+                    </View>
 
                     <View style={s.divider} />
 
-                    {/* Phone Number Edit - SECOND */}
+                    {/* Phone Number Edit */}
                     <View style={s.settingRow}>
                       <View style={s.settingInfo}>
                         <Ionicons name="call" size={22} color={colors.primary} />
@@ -821,11 +698,7 @@ export default function ProfileScreen() {
                           </View>
                           <View style={s.phoneInputRow}>
                             <TextInput
-                                style={[
-                                  s.phoneInput,
-                                  { flex: 1 },
-                                  !user?.phone_verified && !editPhone && s.phoneInputPlaceholder
-                                ]}
+                                style={[s.phoneInput, { flex: 1 }, !user?.phone_verified && !editPhone && s.phoneInputPlaceholder]}
                                 value={editPhone}
                                 onChangeText={(text) => setEditPhone(formatPhoneNumber(text))}
                                 placeholder="(555) 555 5555"
@@ -834,23 +707,15 @@ export default function ProfileScreen() {
                                 maxLength={14}
                             />
                             {editPhone && editPhone !== user?.phone && (
-                                <TouchableOpacity
-                                    style={s.verifyPhoneBtn}
-                                    onPress={savePhoneNumber}
-                                    disabled={sendingPhoneCode}
-                                >
-                                  {sendingPhoneCode ? (
-                                      <ActivityIndicator size="small" color={colors.primary} />
-                                  ) : (
-                                      <Text style={s.verifyPhoneBtnText}>Verify</Text>
-                                  )}
+                                <TouchableOpacity style={s.verifyPhoneBtn} onPress={savePhoneNumber} disabled={sendingPhoneCode}>
+                                  {sendingPhoneCode
+                                      ? <ActivityIndicator size="small" color={colors.primary} />
+                                      : <Text style={s.verifyPhoneBtnText}>Verify</Text>
+                                  }
                                 </TouchableOpacity>
                             )}
                             {editPhone && editPhone !== user?.phone && !sendingPhoneCode && (
-                                <TouchableOpacity
-                                    style={s.cancelPhoneBtn}
-                                    onPress={() => setEditPhone(originalPhone)}
-                                >
+                                <TouchableOpacity style={s.cancelPhoneBtn} onPress={() => setEditPhone(originalPhone)}>
                                   <Ionicons name="close-circle" size={22} color={colors.textSecondary} />
                                 </TouchableOpacity>
                             )}
@@ -864,7 +729,7 @@ export default function ProfileScreen() {
 
                     <View style={s.divider} />
 
-                    {/* Live Location Toggle - THIRD */}
+                    {/* Live Location Toggle */}
                     <View style={s.settingRow}>
                       <View style={s.settingInfo}>
                         <Ionicons name="location" size={22} color={colors.primary} />
@@ -878,21 +743,20 @@ export default function ProfileScreen() {
                           onValueChange={toggleLiveLocation}
                           trackColor={{ false: colors.border, true: colors.primaryLight }}
                           thumbColor={liveLocation ? colors.primary : '#f4f4f4'}
+                          disabled={saving}
                       />
                     </View>
 
                     <View style={s.divider} />
 
-                    {/* Service Radius Slider - FOURTH */}
+                    {/* Service Radius Slider */}
                     <View style={s.radiusSection}>
                       <View style={s.radiusHeader}>
                         <View style={s.radiusInfo}>
                           <Ionicons name="compass-outline" size={22} color={colors.primary} />
                           <Text style={s.radiusLabel}>Service Radius</Text>
                         </View>
-                        <Text style={s.radiusValue}>
-                          {serviceRadius >= 200 ? '200+ km' : `${serviceRadius} km`}
-                        </Text>
+                        <Text style={s.radiusValue}>{serviceRadius >= 200 ? '200+ km' : `${serviceRadius} km`}</Text>
                       </View>
                       <View style={s.sliderContainer}>
                         <Text style={s.sliderMinMax}>0</Text>
@@ -910,129 +774,72 @@ export default function ProfileScreen() {
                         />
                         <Text style={s.sliderMinMax}>200+</Text>
                       </View>
-                      <Text style={s.radiusHint}>
-                        How far are you willing to travel for jobs?
-                      </Text>
+                      <Text style={s.radiusHint}>How far are you willing to travel for jobs?</Text>
                     </View>
                   </View>
                 </View>
 
-                {/* Account Settings for Contractor */}
+                {/* Account Settings — Contractor */}
                 <View style={s.section}>
                   <Text style={s.sectionTitle}>Account Settings</Text>
-                  <TouchableOpacity
-                      style={s.menuItem}
-                      onPress={() => router.push('/forgot-password')}
-                  >
-                    <Ionicons name="lock-closed-outline" size={22} color={colors.primary} />
-                    <Text style={s.menuItemText}>Reset Password</Text>
-                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                      style={s.menuItem}
-                      onPress={() => router.push('/support')}
-                  >
-                    <Ionicons name="help-circle-outline" size={22} color={colors.primary} />
-                    <Text style={s.menuItemText}>Support / Contact Us</Text>
-                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                      style={s.menuItem}
-                      onPress={() => setShowPrivacyPolicy(true)}
-                  >
-                    <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
-                    <Text style={s.menuItemText}>Privacy & Policy</Text>
-                    <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                  </TouchableOpacity>
+                  {[
+                    { label: 'Reset Password', icon: 'lock-closed-outline', onPress: () => router.push('/forgot-password') },
+                    { label: 'Support / Contact Us', icon: 'help-circle-outline', onPress: () => router.push('/support') },
+                    { label: 'Privacy & Policy', icon: 'shield-checkmark-outline', onPress: () => setShowPrivacyPolicy(true) },
+                  ].map(item => (
+                      <TouchableOpacity key={item.label} style={s.menuItem} onPress={item.onPress}>
+                        <Ionicons name={item.icon as any} size={22} color={colors.primary} />
+                        <Text style={s.menuItemText}>{item.label}</Text>
+                        <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                  ))}
                 </View>
               </>
           )}
 
-          {/* Client mode or pure client - simplified profile */}
+          {/* Client mode */}
           {(!isContractor || isClientMode) && (
               <View style={s.section}>
                 <Text style={s.sectionTitle}>Account Settings</Text>
-                <TouchableOpacity
-                    style={s.menuItem}
-                    onPress={() => {
-                      setEditName(user?.name || '');
-                      setEditPhone(user?.phone || '');
-                      setShowEditProfile(true);
-                    }}
-                >
-                  <Ionicons name="person-outline" size={22} color={colors.primary} />
-                  <Text style={s.menuItemText}>Edit Profile</Text>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={s.menuItem}
-                    onPress={() => router.push('/forgot-password')}
-                >
-                  <Ionicons name="lock-closed-outline" size={22} color={colors.primary} />
-                  <Text style={s.menuItemText}>Reset Password</Text>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={s.menuItem}
-                    onPress={() => router.push('/support')}
-                >
-                  <Ionicons name="help-circle-outline" size={22} color={colors.primary} />
-                  <Text style={s.menuItemText}>Support / Contact Us</Text>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={s.menuItem}
-                    onPress={() => setShowPrivacyPolicy(true)}
-                >
-                  <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
-                  <Text style={s.menuItemText}>Privacy & Policy</Text>
-                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
+                {[
+                  { label: 'Edit Profile', icon: 'person-outline', onPress: () => { setEditName(user?.name || ''); setEditPhone(user?.phone || ''); setShowEditProfile(true); } },
+                  { label: 'Reset Password', icon: 'lock-closed-outline', onPress: () => router.push('/forgot-password') },
+                  { label: 'Support / Contact Us', icon: 'help-circle-outline', onPress: () => router.push('/support') },
+                  { label: 'Privacy & Policy', icon: 'shield-checkmark-outline', onPress: () => setShowPrivacyPolicy(true) },
+                ].map(item => (
+                    <TouchableOpacity key={item.label} style={s.menuItem} onPress={item.onPress}>
+                      <Ionicons name={item.icon as any} size={22} color={colors.primary} />
+                      <Text style={s.menuItemText}>{item.label}</Text>
+                      <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                ))}
               </View>
           )}
 
-          {/* Logout Button */}
           <TouchableOpacity style={s.logoutBtn} onPress={logout}>
             <Ionicons name="log-out-outline" size={22} color={colors.red} />
             <Text style={s.logoutBtnText}>Log Out</Text>
           </TouchableOpacity>
 
+          {/* ── Modals ─────────────────────────────────────────────────────── */}
+
           {/* Add Portfolio Modal */}
           <Modal visible={showAddPortfolio} transparent animationType="slide">
             <View style={s.modalOverlay}>
-              <KeyboardAvoidingView
-                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                  style={s.modalKeyboard}
-              >
+              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalKeyboard}>
                 <View style={s.modalContent}>
                   <View style={s.modalHeader}>
                     <Text style={s.modalTitle}>Add Portfolio Item</Text>
-                    <TouchableOpacity
-                        onPress={() => {
-                          setShowAddPortfolio(false);
-                          setPortfolioTitle('');
-                          setPortfolioDesc('');
-                          setPortfolioImages([]);
-                        }}
-                    >
+                    <TouchableOpacity onPress={() => { setShowAddPortfolio(false); setPortfolioTitle(''); setPortfolioDesc(''); setPortfolioImages([]); }}>
                       <Ionicons name="close" size={24} color={colors.textSecondary} />
                     </TouchableOpacity>
                   </View>
-
-                  {/* Photo Selection */}
                   <Text style={s.inputLabel}>Photos (up to 4)</Text>
-                  <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      style={s.portfolioImagesPicker}
-                  >
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.portfolioImagesPicker}>
                     {portfolioImages.map((img, idx) => (
                         <View key={idx} style={s.pickedImageContainer}>
                           <Image source={{ uri: img }} style={s.pickedImage} />
-                          <TouchableOpacity
-                              style={s.removeImageBtn}
-                              onPress={() => removePortfolioImage(idx)}
-                          >
+                          <TouchableOpacity style={s.removeImageBtn} onPress={() => removePortfolioImage(idx)}>
                             <Ionicons name="close-circle" size={22} color={colors.red} />
                           </TouchableOpacity>
                         </View>
@@ -1044,49 +851,16 @@ export default function ProfileScreen() {
                         </TouchableOpacity>
                     )}
                   </ScrollView>
-
                   <Text style={s.inputLabel}>Project Title *</Text>
-                  <TextInput
-                      style={s.modalInput}
-                      placeholder="e.g., Kitchen Renovation"
-                      placeholderTextColor={colors.textSecondary}
-                      value={portfolioTitle}
-                      onChangeText={setPortfolioTitle}
-                  />
-
+                  <TextInput style={s.modalInput} placeholder="e.g., Kitchen Renovation" placeholderTextColor={colors.textSecondary} value={portfolioTitle} onChangeText={setPortfolioTitle} />
                   <Text style={s.inputLabel}>Description (optional)</Text>
-                  <TextInput
-                      style={[s.modalInput, s.textArea]}
-                      placeholder="Describe the project..."
-                      placeholderTextColor={colors.textSecondary}
-                      value={portfolioDesc}
-                      onChangeText={setPortfolioDesc}
-                      multiline
-                      numberOfLines={3}
-                  />
-
+                  <TextInput style={[s.modalInput, s.textArea]} placeholder="Describe the project..." placeholderTextColor={colors.textSecondary} value={portfolioDesc} onChangeText={setPortfolioDesc} multiline numberOfLines={3} />
                   <View style={s.modalActions}>
-                    <TouchableOpacity
-                        style={s.modalCancelBtn}
-                        onPress={() => {
-                          setShowAddPortfolio(false);
-                          setPortfolioTitle('');
-                          setPortfolioDesc('');
-                          setPortfolioImages([]);
-                        }}
-                    >
+                    <TouchableOpacity style={s.modalCancelBtn} onPress={() => { setShowAddPortfolio(false); setPortfolioTitle(''); setPortfolioDesc(''); setPortfolioImages([]); }}>
                       <Text style={s.modalCancelText}>Cancel</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[s.modalConfirmBtn, (!portfolioTitle.trim() || portfolioImages.length === 0) && s.modalConfirmBtnDisabled]}
-                        onPress={addPortfolioItem}
-                        disabled={saving || !portfolioTitle.trim() || portfolioImages.length === 0}
-                    >
-                      {saving ? (
-                          <ActivityIndicator color={colors.paper} />
-                      ) : (
-                          <Text style={s.modalConfirmText}>Add to Portfolio</Text>
-                      )}
+                    <TouchableOpacity style={[s.modalConfirmBtn, (!portfolioTitle.trim() || portfolioImages.length === 0) && s.modalConfirmBtnDisabled]} onPress={addPortfolioItem} disabled={saving || !portfolioTitle.trim() || portfolioImages.length === 0}>
+                      {saving ? <ActivityIndicator color={colors.paper} /> : <Text style={s.modalConfirmText}>Add to Portfolio</Text>}
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1097,10 +871,7 @@ export default function ProfileScreen() {
           {/* License Modal */}
           <Modal visible={showLicenseModal} transparent animationType="slide">
             <View style={s.modalOverlay}>
-              <KeyboardAvoidingView
-                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                  style={s.modalKeyboard}
-              >
+              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalKeyboard}>
                 <View style={s.modalContent}>
                   <View style={s.modalHeader}>
                     <Text style={s.modalTitle}>License Information</Text>
@@ -1108,34 +879,12 @@ export default function ProfileScreen() {
                       <Ionicons name="close" size={24} color={colors.textSecondary} />
                     </TouchableOpacity>
                   </View>
-
                   <Text style={s.inputLabel}>License Number *</Text>
-                  <TextInput
-                      style={s.modalInput}
-                      placeholder="e.g., LIC-12345678"
-                      placeholderTextColor={colors.textSecondary}
-                      value={licenseNumber}
-                      onChangeText={setLicenseNumber}
-                  />
-
+                  <TextInput style={s.modalInput} placeholder="e.g., LIC-12345678" placeholderTextColor={colors.textSecondary} value={licenseNumber} onChangeText={setLicenseNumber} />
                   <Text style={s.inputLabel}>License Type</Text>
-                  <TextInput
-                      style={s.modalInput}
-                      placeholder="e.g., General Contractor, Electrician"
-                      placeholderTextColor={colors.textSecondary}
-                      value={licenseType}
-                      onChangeText={setLicenseType}
-                  />
-
+                  <TextInput style={s.modalInput} placeholder="e.g., General Contractor, Electrician" placeholderTextColor={colors.textSecondary} value={licenseType} onChangeText={setLicenseType} />
                   <Text style={s.inputLabel}>Expiration Date</Text>
-                  <TextInput
-                      style={s.modalInput}
-                      placeholder="e.g., 12/2025"
-                      placeholderTextColor={colors.textSecondary}
-                      value={licenseExpiry}
-                      onChangeText={setLicenseExpiry}
-                  />
-
+                  <TextInput style={s.modalInput} placeholder="e.g., 12/2025" placeholderTextColor={colors.textSecondary} value={licenseExpiry} onChangeText={setLicenseExpiry} />
                   <Text style={s.inputLabel}>License Photo (optional)</Text>
                   <TouchableOpacity style={s.licenseImagePicker} onPress={pickLicenseImage}>
                     {licenseImage ? (
@@ -1147,24 +896,12 @@ export default function ProfileScreen() {
                         </View>
                     )}
                   </TouchableOpacity>
-
                   <View style={s.modalActions}>
-                    <TouchableOpacity
-                        style={s.modalCancelBtn}
-                        onPress={() => setShowLicenseModal(false)}
-                    >
+                    <TouchableOpacity style={s.modalCancelBtn} onPress={() => setShowLicenseModal(false)}>
                       <Text style={s.modalCancelText}>Cancel</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[s.modalSaveBtn, saving && s.modalSaveBtnDisabled]}
-                        onPress={saveLicense}
-                        disabled={saving}
-                    >
-                      {saving ? (
-                          <ActivityIndicator size="small" color={colors.paper} />
-                      ) : (
-                          <Text style={s.modalSaveText}>Save</Text>
-                      )}
+                    <TouchableOpacity style={[s.modalSaveBtn, saving && s.modalSaveBtnDisabled]} onPress={saveLicense} disabled={saving}>
+                      {saving ? <ActivityIndicator size="small" color={colors.paper} /> : <Text style={s.modalSaveText}>Save</Text>}
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1188,21 +925,15 @@ export default function ProfileScreen() {
                     const isSelected = editTrades.includes(trade.name);
                     const isDisabled = !isSelected && editTrades.length >= 5;
                     return (
-                        <TouchableOpacity
-                            key={trade.name}
-                            style={[s.tradeItem, isSelected && s.tradeItemSelected, isDisabled && s.tradeItemDisabled]}
-                            onPress={() => !isDisabled && toggleTrade(trade.name)}
-                            disabled={isDisabled}
-                        >
+                        <TouchableOpacity key={trade.name} style={[s.tradeItem, isSelected && s.tradeItemSelected, isDisabled && s.tradeItemDisabled]} onPress={() => !isDisabled && toggleTrade(trade.name)} disabled={isDisabled}>
                           <View style={s.tradeItemLeft}>
                             <Text style={s.tradeEmoji}>{trade.icon}</Text>
                             <Text style={[s.tradeName, isDisabled && s.tradeNameDisabled]}>{trade.name}</Text>
                           </View>
-                          {isSelected ? (
-                              <Ionicons name="remove-circle" size={24} color="#EF4444" />
-                          ) : (
-                              <Ionicons name="add-circle" size={24} color={isDisabled ? colors.border : colors.primary} />
-                          )}
+                          {isSelected
+                              ? <Ionicons name="remove-circle" size={24} color="#EF4444" />
+                              : <Ionicons name="add-circle" size={24} color={isDisabled ? colors.border : colors.primary} />
+                          }
                         </TouchableOpacity>
                     );
                   })}
@@ -1222,22 +953,14 @@ export default function ProfileScreen() {
           {/* Phone Verification Modal */}
           <Modal visible={showPhoneVerifyModal} transparent animationType="slide">
             <View style={s.modalOverlay}>
-              <KeyboardAvoidingView
-                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                  style={s.modalKeyboard}
-              >
+              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalKeyboard}>
                 <View style={s.phoneVerifyModalContent}>
                   <View style={s.modalHeader}>
                     <Text style={s.modalTitle}>Verify Phone Number</Text>
-                    <TouchableOpacity onPress={() => {
-                      setShowPhoneVerifyModal(false);
-                      setEditPhone(originalPhone); // Revert to original on cancel
-                      setPhoneVerifyCode('');
-                    }}>
+                    <TouchableOpacity onPress={() => { setShowPhoneVerifyModal(false); setEditPhone(originalPhone); setPhoneVerifyCode(''); }}>
                       <Ionicons name="close" size={24} color={colors.textSecondary} />
                     </TouchableOpacity>
                   </View>
-
                   <View style={s.phoneVerifyBody}>
                     <View style={s.phoneIconCircle}>
                       <Ionicons name="chatbubble-ellipses" size={32} color={colors.primary} />
@@ -1247,39 +970,15 @@ export default function ProfileScreen() {
                       We sent a 6-digit code to{'\n'}
                       <Text style={s.phoneVerifyNumber}>{phoneToVerify}</Text>
                     </Text>
-
-                    <TextInput
-                        style={s.codeInput}
-                        value={phoneVerifyCode}
-                        onChangeText={setPhoneVerifyCode}
-                        placeholder="000000"
-                        keyboardType="number-pad"
-                        maxLength={6}
-                        autoFocus
-                    />
-
-                    <TouchableOpacity
-                        style={[s.verifyCodeBtn, verifyingPhone && s.btnDisabled]}
-                        onPress={verifyAndSavePhone}
-                        disabled={verifyingPhone || phoneVerifyCode.length !== 6}
-                    >
-                      {verifyingPhone ? (
-                          <ActivityIndicator color="#fff" />
-                      ) : (
-                          <Text style={s.verifyCodeBtnText}>Verify Phone Number</Text>
-                      )}
+                    <TextInput style={s.codeInput} value={phoneVerifyCode} onChangeText={setPhoneVerifyCode} placeholder="000000" keyboardType="number-pad" maxLength={6} autoFocus />
+                    <TouchableOpacity style={[s.verifyCodeBtn, verifyingPhone && s.btnDisabled]} onPress={verifyAndSavePhone} disabled={verifyingPhone || phoneVerifyCode.length !== 6}>
+                      {verifyingPhone ? <ActivityIndicator color="#fff" /> : <Text style={s.verifyCodeBtnText}>Verify Phone Number</Text>}
                     </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={s.resendCodeBtn}
-                        onPress={resendPhoneCode}
-                        disabled={sendingPhoneCode}
-                    >
-                      {sendingPhoneCode ? (
-                          <ActivityIndicator size="small" color={colors.primary} />
-                      ) : (
-                          <Text style={s.resendCodeText}>Didn't receive code? Resend</Text>
-                      )}
+                    <TouchableOpacity style={s.resendCodeBtn} onPress={resendPhoneCode} disabled={sendingPhoneCode}>
+                      {sendingPhoneCode
+                          ? <ActivityIndicator size="small" color={colors.primary} />
+                          : <Text style={s.resendCodeText}>Didn't receive code? Resend</Text>
+                      }
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1287,72 +986,30 @@ export default function ProfileScreen() {
             </View>
           </Modal>
 
-          {/* Edit Profile Modal (Client - Name & Phone only) */}
+          {/* Edit Profile Modal (Client) */}
           <Modal visible={showEditProfile} transparent animationType="slide">
             <View style={s.modalOverlay}>
-              <KeyboardAvoidingView
-                  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                  style={s.modalKeyboard}
-              >
+              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={s.modalKeyboard}>
                 <View style={s.modalContent}>
                   <View style={s.modalHeader}>
                     <Text style={s.modalTitle}>Edit Profile</Text>
-                    <TouchableOpacity onPress={() => {
-                      setShowEditProfile(false);
-                      setEditName(user?.name || '');
-                      setEditPhone(user?.phone || '');
-                    }}>
+                    <TouchableOpacity onPress={() => { setShowEditProfile(false); setEditName(user?.name || ''); setEditPhone(user?.phone || ''); }}>
                       <Ionicons name="close" size={24} color={colors.textSecondary} />
                     </TouchableOpacity>
                   </View>
-
                   <Text style={s.inputLabel}>Name *</Text>
-                  <TextInput
-                      style={s.modalInput}
-                      placeholder="Your name"
-                      placeholderTextColor={colors.textSecondary}
-                      value={editName}
-                      onChangeText={setEditName}
-                      autoCapitalize="words"
-                  />
-
+                  <TextInput style={s.modalInput} placeholder="Your name" placeholderTextColor={colors.textSecondary} value={editName} onChangeText={setEditName} autoCapitalize="words" />
                   <Text style={s.inputLabel}>Phone Number</Text>
-                  <TextInput
-                      style={s.modalInput}
-                      placeholder="(555) 555 5555"
-                      placeholderTextColor={colors.textSecondary}
-                      value={editPhone}
-                      onChangeText={(text) => setEditPhone(formatPhoneNumber(text))}
-                      keyboardType="phone-pad"
-                      maxLength={14}
-                  />
+                  <TextInput style={s.modalInput} placeholder="(555) 555 5555" placeholderTextColor={colors.textSecondary} value={editPhone} onChangeText={(text) => setEditPhone(formatPhoneNumber(text))} keyboardType="phone-pad" maxLength={14} />
                   {editPhone && editPhone !== user?.phone && (
                       <Text style={s.phoneChangeHint}>Phone number change requires verification</Text>
                   )}
-
                   <View style={s.modalActions}>
-                    <TouchableOpacity
-                        style={s.modalCancelBtn}
-                        onPress={() => {
-                          setShowEditProfile(false);
-                          setEditName(user?.name || '');
-                          setEditPhone(user?.phone || '');
-                        }}
-                    >
+                    <TouchableOpacity style={s.modalCancelBtn} onPress={() => { setShowEditProfile(false); setEditName(user?.name || ''); setEditPhone(user?.phone || ''); }}>
                       <Text style={s.modalCancelText}>Cancel</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[s.modalConfirmBtn, !editName.trim() && s.modalConfirmBtnDisabled]}
-                        onPress={saveClientProfile}
-                        disabled={saving || !editName.trim()}
-                    >
-                      {saving ? (
-                          <ActivityIndicator color={colors.paper} />
-                      ) : (
-                          <Text style={s.modalConfirmText}>
-                            {editPhone && editPhone !== user?.phone ? 'Verify & Save' : 'Save'}
-                          </Text>
-                      )}
+                    <TouchableOpacity style={[s.modalConfirmBtn, !editName.trim() && s.modalConfirmBtnDisabled]} onPress={saveClientProfile} disabled={saving || !editName.trim()}>
+                      {saving ? <ActivityIndicator color={colors.paper} /> : <Text style={s.modalConfirmText}>{editPhone && editPhone !== user?.phone ? 'Verify & Save' : 'Save'}</Text>}
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1370,45 +1027,23 @@ export default function ProfileScreen() {
                     <Ionicons name="close" size={24} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
-
                 <ScrollView style={s.privacyScroll} showsVerticalScrollIndicator={false}>
-                  <Text style={s.privacySection}>Data Collection</Text>
-                  <Text style={s.privacyText}>
-                    MiPropertyGuru collects personal information you provide when creating an account, including your name, email address, and phone number. We also collect information about jobs you post or respond to.
-                  </Text>
-
-                  <Text style={s.privacySection}>How We Use Your Data</Text>
-                  <Text style={s.privacyText}>
-                    Your information is used to facilitate connections between property owners and service contractors. We use your contact details to enable communication between parties and to send important service updates.
-                  </Text>
-
-                  <Text style={s.privacySection}>Data Security</Text>
-                  <Text style={s.privacyText}>
-                    We implement industry-standard security measures to protect your personal information. Your data is encrypted during transmission and stored securely on our servers.
-                  </Text>
-
-                  <Text style={s.privacySection}>Third-Party Sharing</Text>
-                  <Text style={s.privacyText}>
-                    We do not sell your personal information to third parties. Your contact details are only shared with contractors or clients you choose to connect with through our platform.
-                  </Text>
-
-                  <Text style={s.privacySection}>Your Rights</Text>
-                  <Text style={s.privacyText}>
-                    You have the right to access, correct, or delete your personal information at any time. Contact our support team for assistance with data-related requests.
-                  </Text>
-
-                  <Text style={s.privacySection}>Contact Us</Text>
-                  <Text style={s.privacyText}>
-                    If you have questions about our privacy practices, please contact us at support@mipropertyguru.com
-                  </Text>
-
+                  {[
+                    { title: 'Data Collection', body: 'MiPropertyGuru collects personal information you provide when creating an account, including your name, email address, and phone number. We also collect information about jobs you post or respond to.' },
+                    { title: 'How We Use Your Data', body: 'Your information is used to facilitate connections between property owners and service contractors. We use your contact details to enable communication between parties and to send important service updates.' },
+                    { title: 'Data Security', body: 'We implement industry-standard security measures to protect your personal information. Your data is encrypted during transmission and stored securely on our servers.' },
+                    { title: 'Third-Party Sharing', body: 'We do not sell your personal information to third parties. Your contact details are only shared with contractors or clients you choose to connect with through our platform.' },
+                    { title: 'Your Rights', body: 'You have the right to access, correct, or delete your personal information at any time. Contact our support team for assistance with data-related requests.' },
+                    { title: 'Contact Us', body: 'If you have questions about our privacy practices, please contact us at support@mipropertyguru.com' },
+                  ].map(item => (
+                      <View key={item.title}>
+                        <Text style={s.privacySection}>{item.title}</Text>
+                        <Text style={s.privacyText}>{item.body}</Text>
+                      </View>
+                  ))}
                   <Text style={s.privacyUpdated}>Last updated: June 2025</Text>
                 </ScrollView>
-
-                <TouchableOpacity
-                    style={s.privacyCloseBtn}
-                    onPress={() => setShowPrivacyPolicy(false)}
-                >
+                <TouchableOpacity style={s.privacyCloseBtn} onPress={() => setShowPrivacyPolicy(false)}>
                   <Text style={s.privacyCloseBtnText}>Close</Text>
                 </TouchableOpacity>
               </View>
@@ -1420,1021 +1055,164 @@ export default function ProfileScreen() {
 }
 
 const s = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: colors.paper,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    minHeight: 64,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  modeBadge: {
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  modeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  switchModeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primaryLight,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    gap: 8,
-  },
-  switchModeBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  becomeContractorBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    alignItems: 'center',
-    gap: 4,
-  },
-  becomeContractorBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.paper,
-  },
-  becomeContractorSubtext: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  profileCard: {
-    backgroundColor: colors.paper,
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  avatarLg: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  avatarLgText: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.paper,
-  },
-  profileName: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  typeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginTop: 6,
-    gap: 6,
-  },
-  tradesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 10,
-    paddingHorizontal: 10,
-  },
-  tradesContainerEditable: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 10,
-    paddingHorizontal: 10,
-  },
-  editTradesBtn: {
-    backgroundColor: colors.primaryLight,
-    padding: 6,
-    borderRadius: 15,
-    marginLeft: 4,
-  },
-  phoneInput: {
-    fontSize: 14,
-    color: colors.text,
-    paddingVertical: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    marginTop: 4,
-  },
-  // Trade Modal Styles
-  tradeModalContent: {
-    backgroundColor: colors.paper,
-    borderRadius: 20,
-    padding: 20,
-    width: '90%',
-    maxHeight: '80%',
-  },
-  tradeModalSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 16,
-  },
-  tradeList: {
-    maxHeight: 400,
-  },
-  tradeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 8,
-    backgroundColor: colors.background,
-  },
-  tradeItemSelected: {
-    backgroundColor: colors.primaryLight,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  tradeItemDisabled: {
-    opacity: 0.5,
-  },
-  tradeItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  tradeEmoji: {
-    fontSize: 24,
-  },
-  tradeName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  tradeNameDisabled: {
-    color: colors.textSecondary,
-  },
-  tradeModalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-    gap: 12,
-  },
-  tradeModalCancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-  },
-  tradeModalCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  tradeModalSaveBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-  },
-  tradeModalSaveText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.paper,
-  },
-  // Phone verification styles
-  phoneRowHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  verifiedText: {
-    fontSize: 12,
-    color: colors.green,
-    fontWeight: '500',
-  },
-  phoneInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
-  },
-  phoneInputPlaceholder: {
-    color: colors.textSecondary,
-  },
-  phoneHint: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    marginTop: 6,
-  },
-  phoneChangeHint: {
-    fontSize: 12,
-    color: colors.primary,
-    fontStyle: 'italic',
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  settingRowDisabled: {
-    opacity: 0.6,
-  },
-  settingLabelDisabled: {
-    color: colors.textSecondary,
-  },
-  verifyPhoneBtn: {
-    backgroundColor: colors.primaryLight,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-  },
-  verifyPhoneBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  cancelPhoneBtn: {
-    marginLeft: 8,
-    padding: 4,
-  },
-  phoneVerifyModalContent: {
-    backgroundColor: colors.paper,
-    borderRadius: 20,
-    padding: 24,
-    width: '90%',
-    alignSelf: 'center',
-  },
-  phoneVerifyBody: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  phoneIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  phoneVerifyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  phoneVerifySubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  phoneVerifyNumber: {
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  codeInput: {
-    fontSize: 32,
-    fontWeight: '700',
-    textAlign: 'center',
-    letterSpacing: 8,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: 12,
-    width: '80%',
-    marginBottom: 20,
-  },
-  verifyCodeBtn: {
-    backgroundColor: colors.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  verifyCodeBtnText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  resendCodeBtn: {
-    paddingVertical: 8,
-  },
-  resendCodeText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  btnDisabled: {
-    opacity: 0.6,
-  },
-  typeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  tradeIcon: {
-    fontSize: 14,
-    marginRight: 2,
-  },
-  profileEmail: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 10,
-  },
-  profilePhone: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    marginTop: 20,
-    paddingTop: 20,
-    paddingHorizontal: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    width: '100%',
-  },
-  stat: {
-    alignItems: 'center',
-    flex: 1,
-    paddingHorizontal: 8,
-  },
-  statIconRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  statEmoji: {
-    fontSize: 16,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: colors.border,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  bioCard: {
-    backgroundColor: colors.paper,
-    borderRadius: 12,
-    padding: 16,
-  },
-  bioText: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
-  },
-  photoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  photoItem: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  workPhoto: {
-    width: '100%',
-    height: '100%',
-  },
-  removePhotoBtn: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: colors.paper,
-    borderRadius: 12,
-  },
-  addPhotoBtn: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.paper,
-  },
-  addPhotoText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  subscriptionCard: {
-    backgroundColor: colors.paper,
-    borderRadius: 12,
-    padding: 16,
-  },
-  subRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  subLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  subBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  subActive: {
-    backgroundColor: colors.greenLight,
-  },
-  subPending: {
-    backgroundColor: colors.primaryLight,
-  },
-  subBadgeText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.green,
-  },
-  subNote: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-  },
-  settingCard: {
-    backgroundColor: colors.paper,
-    borderRadius: 12,
-    padding: 16,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  settingInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  settingLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  settingDesc: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 16,
-  },
-  radiusSection: {
-    marginBottom: 4,
-  },
-  radiusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  radiusInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  radiusLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  radiusValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.primary,
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  sliderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  slider: {
-    flex: 1,
-    height: 40,
-  },
-  sliderMinMax: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '500',
-    width: 30,
-  },
-  radiusHint: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  workLocTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  workLocItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-    flex: 1,
-  },
-  workLocItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  workLocActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  workLocEditBtn: {
-    padding: 6,
-    backgroundColor: colors.primaryLight,
-    borderRadius: 8,
-  },
-  workLocDeleteBtn: {
-    padding: 6,
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
-  },
-  workLocText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
-  },
-  addBtnText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.primary,
-  },
-  portfolioItem: {
-    backgroundColor: colors.paper,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    overflow: 'hidden',
-  },
-  portfolioImagesScroll: {
-    marginBottom: 10,
-  },
-  portfolioImage: {
-    width: 120,
-    height: 90,
-    borderRadius: 8,
-    marginRight: 8,
-  },
-  portfolioInfo: {
-    flex: 1,
-  },
-  portfolioTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  portfolioDesc: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  deletePortfolioBtn: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    padding: 6,
-    backgroundColor: colors.background,
-    borderRadius: 20,
-  },
-  emptyPortfolio: {
-    alignItems: 'center',
-    padding: 30,
-    backgroundColor: colors.paper,
-    borderRadius: 12,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    marginTop: 12,
-    fontWeight: '500',
-  },
-  emptySubtext: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  settingsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.paper,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    gap: 12,
-  },
-  settingsBtnText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.paper,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
-    gap: 12,
-  },
-  menuItemText: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.text,
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.paper,
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 20,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.red,
-  },
-  logoutBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.red,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: colors.paper,
-    borderRadius: 16,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  modalInput: {
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    color: colors.text,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  modalCancelBtn: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-  },
-  modalCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  modalConfirmBtn: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-  },
-  modalConfirmBtnDisabled: {
-    backgroundColor: colors.border,
-  },
-  modalConfirmText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.paper,
-  },
-  modalKeyboard: {
-    width: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 6,
-  },
-  portfolioImagesPicker: {
-    marginBottom: 16,
-  },
-  pickedImageContainer: {
-    position: 'relative',
-    marginRight: 10,
-  },
-  pickedImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-  },
-  removeImageBtn: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: colors.paper,
-    borderRadius: 12,
-  },
-  addImageBtn: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-  },
-  addImageText: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  // Languages display
-  languagesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#EBF5FF',
-    borderRadius: 20,
-    gap: 8,
-  },
-  languagesText: {
-    fontSize: 14,
-    color: '#1E40AF',
-    fontWeight: '600',
-  },
-  // License badge on profile
-  licenseBadgeProfile: {
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginTop: 12,
-  },
-  licenseBadgeProfileText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#166534',
-  },
-  // License section styles
-  licenseCard: {
-    backgroundColor: colors.paper,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: '#DCFCE7',
-  },
-  licenseHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  licenseBadge: {
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  licenseBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#166534',
-  },
-  licenseDetails: {
-    gap: 8,
-  },
-  licenseRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  licenseLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  licenseValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  licenseImage: {
-    width: '100%',
-    height: 120,
-    borderRadius: 8,
-    marginTop: 12,
-  },
-  addLicenseBtn: {
-    backgroundColor: colors.paper,
-    borderRadius: 12,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.primaryLight,
-    borderStyle: 'dashed',
-  },
-  addLicenseText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 8,
-  },
-  addLicenseSubtext: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  licenseImagePicker: {
-    width: '100%',
-    height: 120,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: colors.background,
-    marginBottom: 16,
-  },
-  licensePickedImage: {
-    width: '100%',
-    height: '100%',
-  },
-  licenseImagePlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  // Privacy Policy Modal styles
-  privacyScroll: {
-    maxHeight: 400,
-    marginBottom: 16,
-  },
-  privacySection: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  privacyText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
-  privacyUpdated: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontStyle: 'italic',
-    marginTop: 20,
-    textAlign: 'center',
-  },
-  privacyCloseBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    padding: 14,
-    alignItems: 'center',
-  },
-  privacyCloseBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.paper,
-  },
-  // Modal Save button styles (if missing)
-  modalSaveBtn: {
-    flex: 1,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-  },
-  modalSaveBtnDisabled: {
-    backgroundColor: colors.border,
-  },
-  modalSaveText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.paper,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  scrollContent: { padding: 16, paddingBottom: 40 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 16, backgroundColor: colors.paper, borderBottomWidth: 1, borderBottomColor: colors.border, minHeight: 64 },
+  title: { fontSize: 28, fontWeight: '700', color: colors.text },
+  profileCard: { backgroundColor: colors.paper, borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 20 },
+  avatarLg: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  avatarLgText: { fontSize: 28, fontWeight: '700', color: colors.paper },
+  profileName: { fontSize: 22, fontWeight: '700', color: colors.text },
+  typeBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primaryLight, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, marginTop: 6, gap: 6 },
+  tradesContainerEditable: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 10, paddingHorizontal: 10 },
+  editTradesBtn: { backgroundColor: colors.primaryLight, padding: 6, borderRadius: 15, marginLeft: 4 },
+  tradeIcon: { fontSize: 14, marginRight: 2 },
+  typeText: { fontSize: 14, fontWeight: '600', color: colors.primary },
+  profileEmail: { fontSize: 14, color: colors.textSecondary, marginTop: 10 },
+  profilePhone: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
+  statsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', marginTop: 20, paddingTop: 20, paddingHorizontal: 10, borderTopWidth: 1, borderTopColor: colors.border, width: '100%' },
+  stat: { alignItems: 'center', flex: 1, paddingHorizontal: 8 },
+  statIconRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  statValue: { fontSize: 22, fontWeight: '700', color: colors.text },
+  statLabel: { fontSize: 12, color: colors.textSecondary, marginTop: 4, fontWeight: '500' },
+  statDivider: { width: 1, height: 40, backgroundColor: colors.border },
+  languagesRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: '#EBF5FF', borderRadius: 20, gap: 8 },
+  languagesText: { fontSize: 14, color: '#1E40AF', fontWeight: '600' },
+  licenseBadgeProfile: { backgroundColor: '#DCFCE7', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginTop: 12 },
+  licenseBadgeProfileText: { fontSize: 14, fontWeight: '600', color: '#166534' },
+  section: { marginBottom: 20 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: '600', color: colors.text, marginBottom: 12 },
+  bioCard: { backgroundColor: colors.paper, borderRadius: 12, padding: 16 },
+  bioText: { fontSize: 14, color: colors.text, lineHeight: 20 },
+  licenseCard: { backgroundColor: colors.paper, borderRadius: 12, padding: 16, borderWidth: 2, borderColor: '#DCFCE7' },
+  licenseHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  licenseBadge: { backgroundColor: '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  licenseBadgeText: { fontSize: 12, fontWeight: '600', color: '#166534' },
+  licenseDetails: { gap: 8 },
+  licenseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  licenseLabel: { fontSize: 14, color: colors.textSecondary },
+  licenseValue: { fontSize: 14, fontWeight: '600', color: colors.text },
+  licenseImage: { width: '100%', height: 120, borderRadius: 8, marginTop: 12 },
+  addLicenseBtn: { backgroundColor: colors.paper, borderRadius: 12, padding: 24, alignItems: 'center', borderWidth: 2, borderColor: colors.primaryLight, borderStyle: 'dashed' },
+  addLicenseText: { fontSize: 16, fontWeight: '600', color: colors.text, marginTop: 8 },
+  addLicenseSubtext: { fontSize: 13, color: colors.textSecondary, marginTop: 4 },
+  portfolioItem: { backgroundColor: colors.paper, borderRadius: 12, padding: 12, marginBottom: 12, overflow: 'hidden' },
+  portfolioImagesScroll: { marginBottom: 10 },
+  portfolioImage: { width: 120, height: 90, borderRadius: 8, marginRight: 8 },
+  portfolioInfo: { flex: 1 },
+  portfolioTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
+  portfolioDesc: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
+  deletePortfolioBtn: { position: 'absolute', top: 12, right: 12, padding: 6, backgroundColor: colors.background, borderRadius: 20 },
+  emptyPortfolio: { alignItems: 'center', padding: 30, backgroundColor: colors.paper, borderRadius: 12 },
+  emptyText: { fontSize: 15, color: colors.textSecondary, marginTop: 12, fontWeight: '500' },
+  emptySubtext: { fontSize: 13, color: colors.textSecondary, marginTop: 4, textAlign: 'center' },
+  subscriptionCard: { backgroundColor: colors.paper, borderRadius: 12, padding: 16 },
+  subRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  subLabel: { fontSize: 14, color: colors.textSecondary },
+  subBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  subActive: { backgroundColor: colors.greenLight },
+  subPending: { backgroundColor: colors.primaryLight },
+  subBadgeText: { fontSize: 13, fontWeight: '600', color: colors.green },
+  subNote: { fontSize: 12, color: colors.textSecondary, fontStyle: 'italic' },
+  settingCard: { backgroundColor: colors.paper, borderRadius: 12, padding: 16 },
+  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  settingRowDisabled: { opacity: 0.6 },
+  settingInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  settingLabel: { fontSize: 15, fontWeight: '500', color: colors.text },
+  settingLabelDisabled: { color: colors.textSecondary },
+  settingDesc: { fontSize: 12, color: colors.textSecondary },
+  divider: { height: 1, backgroundColor: colors.border, marginVertical: 16 },
+  phoneInput: { fontSize: 14, color: colors.text, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: colors.border, marginTop: 4 },
+  phoneInputPlaceholder: { color: colors.textSecondary },
+  phoneRowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  phoneInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  phoneHint: { fontSize: 11, color: colors.textSecondary, fontStyle: 'italic', marginTop: 6 },
+  phoneChangeHint: { fontSize: 12, color: colors.primary, fontStyle: 'italic', marginTop: 8, marginBottom: 8 },
+  verifiedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  verifiedText: { fontSize: 12, color: colors.green, fontWeight: '500' },
+  verifyPhoneBtn: { backgroundColor: colors.primaryLight, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6 },
+  verifyPhoneBtnText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+  cancelPhoneBtn: { marginLeft: 8, padding: 4 },
+  radiusSection: { marginBottom: 4 },
+  radiusHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  radiusInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  radiusLabel: { fontSize: 15, fontWeight: '500', color: colors.text },
+  radiusValue: { fontSize: 16, fontWeight: '700', color: colors.primary, backgroundColor: colors.primaryLight, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
+  sliderContainer: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  slider: { flex: 1, height: 40 },
+  sliderMinMax: { fontSize: 12, color: colors.textSecondary, fontWeight: '500', width: 30 },
+  radiusHint: { fontSize: 12, color: colors.textSecondary, marginTop: 8, fontStyle: 'italic' },
+  menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.paper, borderRadius: 12, padding: 16, marginBottom: 8, gap: 12 },
+  menuItemText: { flex: 1, fontSize: 16, color: colors.text },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, borderRadius: 12, padding: 16, marginTop: 20, gap: 8, borderWidth: 1, borderColor: colors.red },
+  logoutBtnText: { fontSize: 16, fontWeight: '600', color: colors.red },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { backgroundColor: colors.paper, borderRadius: 16, padding: 24, width: '100%', maxWidth: 400 },
+  modalKeyboard: { width: '100%', justifyContent: 'center', alignItems: 'center' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: colors.text, marginBottom: 16 },
+  modalInput: { backgroundColor: colors.background, borderRadius: 12, padding: 14, fontSize: 16, color: colors.text, marginBottom: 12, borderWidth: 1, borderColor: colors.border },
+  textArea: { height: 100, textAlignVertical: 'top' },
+  modalActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  modalCancelBtn: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: colors.background, alignItems: 'center' },
+  modalCancelText: { fontSize: 16, fontWeight: '600', color: colors.textSecondary },
+  modalConfirmBtn: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' },
+  modalConfirmBtnDisabled: { backgroundColor: colors.border },
+  modalConfirmText: { fontSize: 16, fontWeight: '600', color: colors.paper },
+  modalSaveBtn: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: colors.primary, alignItems: 'center' },
+  modalSaveBtnDisabled: { backgroundColor: colors.border },
+  modalSaveText: { fontSize: 16, fontWeight: '600', color: colors.paper },
+  inputLabel: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 6 },
+  portfolioImagesPicker: { marginBottom: 16 },
+  pickedImageContainer: { position: 'relative', marginRight: 10 },
+  pickedImage: { width: 80, height: 80, borderRadius: 8 },
+  removeImageBtn: { position: 'absolute', top: -8, right: -8, backgroundColor: colors.paper, borderRadius: 12 },
+  addImageBtn: { width: 80, height: 80, borderRadius: 8, borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
+  addImageText: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
+  licenseImagePicker: { width: '100%', height: 120, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.background, marginBottom: 16 },
+  licensePickedImage: { width: '100%', height: '100%' },
+  licenseImagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  tradeModalContent: { backgroundColor: colors.paper, borderRadius: 20, padding: 20, width: '90%', maxHeight: '80%' },
+  tradeModalSubtitle: { fontSize: 14, color: colors.textSecondary, marginBottom: 16 },
+  tradeList: { maxHeight: 400 },
+  tradeItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, marginBottom: 8, backgroundColor: colors.background },
+  tradeItemSelected: { backgroundColor: colors.primaryLight, borderWidth: 1, borderColor: colors.primary },
+  tradeItemDisabled: { opacity: 0.5 },
+  tradeItemLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  tradeEmoji: { fontSize: 24 },
+  tradeName: { fontSize: 16, fontWeight: '500', color: colors.text },
+  tradeNameDisabled: { color: colors.textSecondary },
+  tradeModalActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 16, gap: 12 },
+  tradeModalCancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 10, backgroundColor: colors.background, alignItems: 'center' },
+  tradeModalCancelText: { fontSize: 16, fontWeight: '600', color: colors.textSecondary },
+  tradeModalSaveBtn: { flex: 1, paddingVertical: 14, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center' },
+  tradeModalSaveText: { fontSize: 16, fontWeight: '600', color: colors.paper },
+  phoneVerifyModalContent: { backgroundColor: colors.paper, borderRadius: 20, padding: 24, width: '90%', alignSelf: 'center' },
+  phoneVerifyBody: { alignItems: 'center', paddingVertical: 20 },
+  phoneIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  phoneVerifyTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 8 },
+  phoneVerifySubtitle: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: 24 },
+  phoneVerifyNumber: { fontWeight: '600', color: colors.primary },
+  codeInput: { fontSize: 32, fontWeight: '700', textAlign: 'center', letterSpacing: 8, paddingVertical: 16, paddingHorizontal: 20, borderWidth: 2, borderColor: colors.border, borderRadius: 12, width: '80%', marginBottom: 20 },
+  verifyCodeBtn: { backgroundColor: colors.primary, paddingVertical: 14, paddingHorizontal: 24, borderRadius: 12, width: '100%', alignItems: 'center', marginBottom: 16 },
+  verifyCodeBtnText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  resendCodeBtn: { paddingVertical: 8 },
+  resendCodeText: { fontSize: 14, color: colors.primary, fontWeight: '500' },
+  btnDisabled: { opacity: 0.6 },
+  privacyScroll: { maxHeight: 400, marginBottom: 16 },
+  privacySection: { fontSize: 16, fontWeight: '700', color: colors.text, marginTop: 16, marginBottom: 8 },
+  privacyText: { fontSize: 14, color: colors.textSecondary, lineHeight: 22 },
+  privacyUpdated: { fontSize: 12, color: colors.textSecondary, fontStyle: 'italic', marginTop: 20, textAlign: 'center' },
+  privacyCloseBtn: { backgroundColor: colors.primary, borderRadius: 12, padding: 14, alignItems: 'center' },
+  privacyCloseBtnText: { fontSize: 16, fontWeight: '600', color: colors.paper },
+  workLocTitle: { fontSize: 14, fontWeight: '500', color: colors.text, marginBottom: 12 },
+  workLocItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8, flex: 1 },
+  workLocItemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  workLocActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  workLocEditBtn: { padding: 6, backgroundColor: colors.primaryLight, borderRadius: 8 },
+  workLocDeleteBtn: { padding: 6, backgroundColor: '#FEE2E2', borderRadius: 8 },
+  workLocText: { fontSize: 14, color: colors.textSecondary },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  addBtnText: { fontSize: 14, fontWeight: '500', color: colors.primary },
 });
