@@ -28,7 +28,11 @@
         "NSCameraUsageDescription": "Take photos of your completed work",
         "NSPhotoLibraryUsageDescription": "Upload photos to your portfolio",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["location", "remote-notification", "fetch"]
+        "UIBackgroundModes": [
+          "location",
+          "remote-notification",
+          "fetch"
+        ]
       }
     },
     "android": {
@@ -85,7 +89,8 @@
           "mode": "production",
           "sounds": []
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
