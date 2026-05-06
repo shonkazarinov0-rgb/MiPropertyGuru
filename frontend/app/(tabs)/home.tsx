@@ -35,39 +35,39 @@ const colors = {
 };
 
 const CATEGORY_DATA = [
-  { name: 'Aluminum Capping', icon: '🏢', color: '#90A4AE' },
-  { name: 'Appliance Repair', icon: '🔌', color: '#673AB7' },
-  { name: 'Blinds & Curtains', icon: '🪟', color: '#7E57C2' },
-  { name: 'Cabinet Maker', icon: '🪑', color: '#A1887F' },
-  { name: 'Carpenter', icon: '🪚', color: '#8D6E63' },
-  { name: 'Caulker', icon: '🔗', color: '#7E57C2' },
-  { name: 'Cleaning', icon: '🧹', color: '#26A69A' },
-  { name: 'Concrete', icon: '🪨', color: '#757575' },
-  { name: 'Deck Builder', icon: '🌲', color: '#33691E' },
-  { name: 'Demolition', icon: '💥', color: '#D32F2F' },
-  { name: 'Door Installer', icon: '🚪', color: '#5D4037' },
-  { name: 'Drywall', icon: '🏗️', color: '#9E9E9E' },
-  { name: 'Electrician', icon: '⚡', color: '#FFC107' },
-  { name: 'Fence', icon: '🚧', color: '#8BC34A' },
-  { name: 'Flooring', icon: '🪵', color: '#6D4C41' },
-  { name: 'Garage Door', icon: '🚗', color: '#546E7A' },
-  { name: 'General Contractor', icon: '👷', color: '#FF9800' },
-  { name: 'Glazier', icon: '🪟', color: '#81D4FA' },
-  { name: 'Handyman', icon: '🔨', color: '#795548' },
-  { name: 'HVAC Technician', icon: '❄️', color: '#00BCD4' },
-  { name: 'Insulation', icon: '🧤', color: '#E91E63' },
-  { name: 'Landscaper', icon: '🌳', color: '#4CAF50' },
-  { name: 'Locksmith', icon: '🔐', color: '#FFC107' },
-  { name: 'Mason', icon: '🧱', color: '#BF360C' },
-  { name: 'Moving', icon: '📦', color: '#FF7043' },
-  { name: 'Painter', icon: '🎨', color: '#9C27B0' },
-  { name: 'Plumber', icon: '🔧', color: '#2196F3' },
-  { name: 'Pool Service', icon: '🏊', color: '#00ACC1' },
-  { name: 'Roofer', icon: '🏠', color: '#607D8B' },
-  { name: 'Siding', icon: '🏘️', color: '#78909C' },
-  { name: 'Tiler', icon: '🔲', color: '#3F51B5' },
-  { name: 'Welder', icon: '🔥', color: '#FF5722' },
-  { name: 'Window Installer', icon: '🖼️', color: '#42A5F5' },
+  { name: 'Aluminum Capping', iconName: 'business-outline', color: '#90A4AE' },
+  { name: 'Appliance Repair', iconName: 'hardware-chip-outline', color: '#673AB7' },
+  { name: 'Blinds & Curtains', iconName: 'grid-outline', color: '#7E57C2' },
+  { name: 'Cabinet Maker', iconName: 'cube-outline', color: '#A1887F' },
+  { name: 'Carpenter', iconName: 'construct-outline', color: '#8D6E63' },
+  { name: 'Caulker', iconName: 'link-outline', color: '#7E57C2' },
+  { name: 'Cleaning', iconName: 'brush-outline', color: '#26A69A' },
+  { name: 'Concrete', iconName: 'layers-outline', color: '#757575' },
+  { name: 'Deck Builder', iconName: 'leaf-outline', color: '#33691E' },
+  { name: 'Demolition', iconName: 'flame-outline', color: '#D32F2F' },
+  { name: 'Door Installer', iconName: 'exit-outline', color: '#5D4037' },
+  { name: 'Drywall', iconName: 'hammer-outline', color: '#9E9E9E' },
+  { name: 'Electrician', iconName: 'flash-outline', color: '#FFC107' },
+  { name: 'Fence', iconName: 'warning-outline', color: '#8BC34A' },
+  { name: 'Flooring', iconName: 'home-outline', color: '#6D4C41' },
+  { name: 'Garage Door', iconName: 'car-outline', color: '#546E7A' },
+  { name: 'General Contractor', iconName: 'person-outline', color: '#FF9800' },
+  { name: 'Glazier', iconName: 'grid-outline', color: '#81D4FA' },
+  { name: 'Handyman', iconName: 'hammer-outline', color: '#795548' },
+  { name: 'HVAC Technician', iconName: 'snow-outline', color: '#00BCD4' },
+  { name: 'Insulation', iconName: 'shield-outline', color: '#E91E63' },
+  { name: 'Landscaper', iconName: 'leaf-outline', color: '#4CAF50' },
+  { name: 'Locksmith', iconName: 'lock-closed-outline', color: '#FFC107' },
+  { name: 'Mason', iconName: 'square-outline', color: '#BF360C' },
+  { name: 'Moving', iconName: 'cube-outline', color: '#FF7043' },
+  { name: 'Painter', iconName: 'color-palette-outline', color: '#9C27B0' },
+  { name: 'Plumber', iconName: 'settings-outline', color: '#2196F3' },
+  { name: 'Pool Service', iconName: 'water-outline', color: '#00ACC1' },
+  { name: 'Roofer', iconName: 'home-outline', color: '#607D8B' },
+  { name: 'Siding', iconName: 'business-outline', color: '#78909C' },
+  { name: 'Tiler', iconName: 'grid-outline', color: '#3F51B5' },
+  { name: 'Welder', iconName: 'flame-outline', color: '#FF5722' },
+  { name: 'Window Installer', iconName: 'image-outline', color: '#42A5F5' },
 ];
 
 const SEARCH_KEYWORDS: { [key: string]: string } = {
@@ -273,7 +273,7 @@ export default function ClientHomeScreen() {
   const [showAddMorePrompt, setShowAddMorePrompt] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [jobsToday, setJobsToday] = useState(0);
-  const [engagementStat, setEngagementStat] = useState({ count: 0, type: 'Plumber', icon: '🔧' });
+  const [engagementStat, setEngagementStat] = useState({ count: 0, type: 'Plumber', iconName: 'settings-outline' });
   const [showServiceMenu, setShowServiceMenu] = useState(false);
 
   const menuOpacity = useRef(new Animated.Value(0)).current;
@@ -422,7 +422,7 @@ export default function ClientHomeScreen() {
       setOnlineCount(sortedContractors.filter((c: any) => c.isonline).length);
 
       const topType = CATEGORY_DATA[Math.floor(Math.random() * CATEGORY_DATA.length)];
-      setEngagementStat({ count: Math.floor(Math.random() * 8) + 1, type: topType.name, icon: topType.icon });
+      setEngagementStat({ count: Math.floor(Math.random() * 8) + 1, type: topType.name, iconName: topType.iconName });
       setJobsToday(Math.floor(Math.random() * 15) + 5);
     } catch (err) {
       console.error('fetchContractors error:', err);
@@ -687,14 +687,14 @@ export default function ClientHomeScreen() {
               </View>
               <View style={styles.statCard}>
                 <View style={[styles.statIconBg, { backgroundColor: colors.primaryLight }]}>
-                  <Text style={{ fontSize: 16 }}>🔨</Text>
+                  <Ionicons name="star" size={16} color={colors.primary} />
                 </View>
                 <Text style={styles.statNumber}>{jobsToday}</Text>
                 <Text style={styles.statLabel}>Jobs completed today</Text>
               </View>
               <View style={styles.statCard}>
                 <View style={[styles.statIconBg, { backgroundColor: '#E8F5E9' }]}>
-                  <Text style={{ fontSize: 18 }}>{engagementStat.icon}</Text>
+                  <Ionicons name={engagementStat.iconName as any} size={18} color={colors.primary} />
                 </View>
                 <Text style={styles.statNumber}>{engagementStat.count}</Text>
                 <Text style={styles.statLabel} numberOfLines={2}>
@@ -733,7 +733,7 @@ export default function ClientHomeScreen() {
                       </View>
                   ) : (
                       <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyIcon}>🔍</Text>
+                        <Ionicons name="search-outline" size={36} color={colors.textDisabled} />
                         <Text style={styles.emptyTitle}>No contractors found</Text>
                         <Text style={styles.emptySubtitle}>Try adjusting your search radius or category filter</Text>
                       </View>
@@ -746,8 +746,7 @@ export default function ClientHomeScreen() {
                         <View style={styles.urgentMapSection}>
                           <View style={styles.urgentMapHeader}>
                             <View style={styles.urgentBadge}>
-                              <Text style={styles.urgentBadgeEmoji}>📍</Text>
-                              <Text style={styles.urgentBadgeText}>LIVE</Text>
+                              <Ionicons name="location-outline" size={16} color={colors.primary} />                              <Text style={styles.urgentBadgeText}>LIVE</Text>
                             </View>
                             <Text style={styles.urgentMapSubtitle}>Online contractors near you</Text>
                             <TouchableOpacity onPress={() => setShowFullMap(true)} style={styles.expandMapBtn}>
@@ -850,7 +849,7 @@ export default function ClientHomeScreen() {
                               style={[styles.categoryChip, selectedCategories.includes(cat.name) && styles.categoryChipActive]}
                               onPress={() => toggleCategory(cat.name)}
                           >
-                            <Text style={styles.categoryChipIcon}>{cat.icon}</Text>
+                            <Ionicons name={cat.iconName as any} size={14} color={cat.color} style={{ marginRight: 4 }} />
                             <Text style={[styles.categoryChipText, selectedCategories.includes(cat.name) && styles.categoryChipTextActive]}>
                               {cat.name}
                             </Text>
