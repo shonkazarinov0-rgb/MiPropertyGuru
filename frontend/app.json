@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "mipropertyguru",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "runtimeVersion": {
       "policy": "appVersion"
     },
