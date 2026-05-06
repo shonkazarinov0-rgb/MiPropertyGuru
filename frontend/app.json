@@ -7,10 +7,20 @@
     "icon": "./assets/images/icon.png",
     "scheme": "mipropertyguru",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 3000,
+      "url": "https://u.expo.dev/4a55a2dd-de98-4ae5-9afb-a1293b4ebc76"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mipropertyguru.app",
+      "entitlements": {
+        "aps-environment": "production"
+      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Find contractors near your location",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Share your location with clients to get more jobs",
@@ -18,7 +28,7 @@
         "NSCameraUsageDescription": "Take photos of your completed work",
         "NSPhotoLibraryUsageDescription": "Upload photos to your portfolio",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["location", "remote-notification"]
+        "UIBackgroundModes": ["location", "remote-notification", "fetch"]
       }
     },
     "android": {
@@ -72,6 +82,7 @@
           "icon": "./assets/images/notification-icon.png",
           "color": "#FF9500",
           "defaultChannel": "default",
+          "mode": "production",
           "sounds": []
         }
       ]
@@ -83,8 +94,7 @@
       "eas": {
         "projectId": "4a55a2dd-de98-4ae5-9afb-a1293b4ebc76"
       },
-      "backendUrl": "https://mipropertyguru-production.up.railway.app",
-      "router": {}
+      "backendUrl": "https://mipropertyguru-production.up.railway.app"
     },
     "owner": "shonkazarinov0"
   }

@@ -1,80 +1,103 @@
 import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../../src/auth-context';
 import { colors } from '../../src/theme';
-import { ActivityIndicator, View } from 'react-native';
+
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+interface TabConfig {
+    name: string;
+    title: string;
+    icon: IoniconsName;
+    show: boolean;
+}
 
 export default function TabLayout() {
-  const { user, loading, isClientMode, isContractorMode, isGuest } = useAuth();
+    const { user, loading, isClientMode, isContractorMode, isGuest } = useAuth();
 
-  if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={colors.primary} /></View>;
-  
-  // Allow guest users OR logged in users
-  if (!user && !isGuest) return <Redirect href="/" />;
-  
-  // Paywall: Contractors must have active subscription to access the app
-  if (user?.role === 'contractor' && user?.subscription_status !== 'active') {
-    return <Redirect href="/payment" />;
-  }
+    if (loading) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+        );
+    }
 
-  // Hide Dashboard tab when user is in client mode or is a guest
-  const showDashboard = user?.role === 'contractor' && isContractorMode;
-  
-  // Show Posted Jobs for clients or when contractor is in client mode
-  const showPostedJobs = user?.role === 'client' || (user?.role === 'contractor' && isClientMode);
-  
-  // Hide Messages and Profile for guests
-  const showMessagesAndProfile = !isGuest;
+    // Must be guest or authenticated
+    if (!user && !isGuest) return <Redirect href="/" />;
 
-  return (
-    <Tabs screenOptions={{
-      tabBarActiveTintColor: colors.primary,
-      tabBarInactiveTintColor: colors.textDisabled,
-      headerShown: false,
-      tabBarStyle: {
-        backgroundColor: colors.paper,
-        borderTopColor: colors.border,
-        paddingBottom: 4,
-        height: 56,
-      },
-      tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-    }}>
-      <Tabs.Screen name="home" options={{
-        title: 'Explore',
-        tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
-      }} />
-      <Tabs.Screen 
-        name="posted-jobs" 
-        options={{
-          title: 'My Jobs',
-          tabBarIcon: ({ color, size }) => <Ionicons name="briefcase" size={size} color={color} />,
-          href: showPostedJobs ? undefined : null, // Only show for clients/client mode
-        }} 
-      />
-      <Tabs.Screen 
-        name="dashboard" 
-        options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => <Ionicons name="grid" size={size} color={color} />,
-          href: showDashboard ? undefined : null, // Hide when not in contractor mode
-        }} 
-      />
-      <Tabs.Screen 
-        name="messages" 
-        options={{
-          title: 'Messages',
-          tabBarIcon: ({ color, size }) => <Ionicons name="chatbubbles" size={size} color={color} />,
-          href: showMessagesAndProfile ? undefined : null, // Hide for guests
-        }} 
-      />
-      <Tabs.Screen 
-        name="profile" 
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person" size={size} color={color} />,
-          href: showMessagesAndProfile ? undefined : null, // Hide for guests
-        }} 
-      />
-    </Tabs>
-  );
+    // Contractors without active subscription go to paywall
+    if (user?.role === 'contractor' && user?.subscription_status !== 'active') {
+        return <Redirect href="/payment" />;
+    }
+
+    const isContractor = user?.role === 'contractor';
+    const isClient = user?.role === 'client';
+
+    const tabs: TabConfig[] = [
+        {
+            name: 'home',
+            title: 'Explore',
+            icon: 'search',
+            show: true,
+        },
+        {
+            name: 'posted-jobs',
+            title: 'My Jobs',
+            icon: 'briefcase',
+            // Clients always see it; contractors only in client mode
+            show: isClient || (isContractor && isClientMode),
+        },
+        {
+            name: 'dashboard',
+            title: 'Dashboard',
+            icon: 'grid',
+            // Only contractors in contractor mode
+            show: isContractor && isContractorMode,
+        },
+        {
+            name: 'messages',
+            title: 'Messages',
+            icon: 'chatbubbles',
+            show: !isGuest,
+        },
+        {
+            name: 'profile',
+            title: 'Profile',
+            icon: 'person',
+            show: !isGuest,
+        },
+    ];
+
+    return (
+        <Tabs
+            screenOptions={{
+                tabBarActiveTintColor: colors.primary,
+                tabBarInactiveTintColor: colors.textDisabled,
+                headerShown: false,
+                tabBarStyle: {
+                    backgroundColor: colors.paper,
+                    borderTopColor: colors.border,
+                    paddingBottom: 4,
+                    height: 56,
+                },
+                tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+            }}
+        >
+            {tabs.map(({ name, title, icon, show }) => (
+                <Tabs.Screen
+                    key={name}
+                    name={name}
+                    options={{
+                        title,
+                        tabBarIcon: ({ color, size }) => (
+                            <Ionicons name={icon} size={size} color={color} />
+                        ),
+                        href: show ? undefined : null,
+                    }}
+                />
+            ))}
+        </Tabs>
+    );
 }

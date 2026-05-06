@@ -32,48 +32,75 @@ const colors = {
 
 export default function VerifyEmailScreen() {
   const router = useRouter();
-  const { email, phone } = useLocalSearchParams<{ email: string; phone?: string }>();
-  
+  const rawParams = useLocalSearchParams<{ email: string; phone?: string }>();
+
+  // Sanitize params — guard against literal "undefined" strings from router
+  const email = rawParams.email && rawParams.email !== 'undefined' ? rawParams.email.trim() : '';
+  const phone = rawParams.phone && rawParams.phone !== 'undefined' ? rawParams.phone.trim() : '';
+
   const { completeRegistration } = useAuth();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [currentStep, setCurrentStep] = useState('email');
-  const [phoneToVerify, setPhoneToVerify] = useState(phone || '');
+  const [currentStep, setCurrentStep] = useState<'email' | 'phone'>('email');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const isMounted = useRef(true);
 
   useEffect(() => {
     isMounted.current = true;
-    return () => {
-      isMounted.current = false;
-    };
+    return () => { isMounted.current = false; };
   }, []);
 
+  // Guard: if no email on mount, bounce user back immediately
   useEffect(() => {
-    if (phone && phone.length > 0) {
-      setPhoneToVerify(phone);
+    if (!email) {
+      setErrorMessage('Session expired. Please register again.');
+      const timeout = setTimeout(() => {
+        if (isMounted.current) router.replace('/');
+      }, 2000);
+      return () => clearTimeout(timeout);
     }
-  }, [phone]);
+  }, [email]);
 
-  const verifyTarget = currentStep === 'email' ? email : (phoneToVerify || '');
-
+  // Block hardware back on Android during verification
   useFocusEffect(
-    useCallback(() => {
-      const onBackPress = () => true;
-      BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
-    }, [])
+      useCallback(() => {
+        const onBackPress = () => true;
+        BackHandler.addEventListener('hardwareBackPress', onBackPress);
+        return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+      }, [])
   );
 
+  // Countdown timer for resend
   useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
+    if (countdown <= 0) return;
+    const timer = setTimeout(() => {
+      if (isMounted.current) setCountdown((c) => c - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
   }, [countdown]);
+
+  const verifyTarget = currentStep === 'email' ? email : phone;
+
+  const transitionToPhone = () => {
+    // All state resets happen together — no race condition
+    setTimeout(() => {
+      if (!isMounted.current) return;
+      setCode('');
+      setCountdown(0);
+      setErrorMessage('');
+      setSuccessMessage('');
+      setCurrentStep('phone');
+    }, 500);
+  };
+
+  const navigateHome = () => {
+    setTimeout(() => {
+      if (isMounted.current) router.replace('/(tabs)/home');
+    }, 100);
+  };
 
   const handleVerify = async () => {
     Keyboard.dismiss();
@@ -81,15 +108,13 @@ export default function VerifyEmailScreen() {
     setSuccessMessage('');
 
     if (code.length !== 6) {
-      setErrorMessage('Please enter the 6-digit verification code');
+      setErrorMessage('Please enter the 6-digit verification code.');
       return;
     }
 
     if (!verifyTarget) {
-      setErrorMessage('Email/Phone not found. Please register again.');
-      setTimeout(() => {
-        if (isMounted.current) router.replace('/');
-      }, 1500);
+      setErrorMessage('Missing contact info. Please register again.');
+      setTimeout(() => { if (isMounted.current) router.replace('/'); }, 1500);
       return;
     }
 
@@ -97,230 +122,192 @@ export default function VerifyEmailScreen() {
 
     try {
       if (currentStep === 'email') {
-        await api.post('/auth/verify-email-only', { email: verifyTarget, code });
+        await api.post('/auth/verify-email-only', { email, code });
 
-        if (phoneToVerify && phoneToVerify.trim().length > 0) {
+        // If phone exists, proceed to phone step
+        if (phone.length > 0) {
           try {
-            await api.post('/auth/send-registration-phone-code', {
-              phone: phoneToVerify,
-              email: email,
-            });
-
+            await api.post('/auth/send-registration-phone-code', { phone, email });
             if (!isMounted.current) return;
-
             setLoading(false);
-            setCode('');
-            setCountdown(0);
             setSuccessMessage('Email verified! Now verify your phone.');
-
-            setTimeout(() => {
-              if (isMounted.current) {
-                setCurrentStep('phone');
-                setSuccessMessage('');
-              }
-            }, 500);
-
-            return;
-          } catch (smsError) {
-            try {
-              await completeRegistration(email, code);
-              if (isMounted.current) {
-                setLoading(false);
-                router.replace('/(tabs)/home');
-              }
-            } catch (regError) {
-              if (isMounted.current) {
-                setLoading(false);
-                setErrorMessage('Registration failed');
-              }
-            }
-            return;
+            transitionToPhone();
+          } catch {
+            // SMS send failed — complete registration without phone
+            await finishRegistration();
           }
         } else {
-          try {
-            await completeRegistration(email, code);
-            if (isMounted.current) {
-              setLoading(false);
-              router.replace('/(tabs)/home');
-            }
-          } catch (regError) {
-            if (isMounted.current) {
-              setLoading(false);
-              setErrorMessage('Registration failed');
-            }
-          }
+          await finishRegistration();
         }
       } else {
-        // Phone verification step
-        try {
-          console.log('Verifying phone code...');
-          await api.post('/auth/verify-registration-phone', {
-            phone: phoneToVerify,
-            code,
-            email: email,
-          });
-          console.log('Phone verified, completing registration...');
-          
-          try {
-            await completeRegistration(email, 'phone-verified');
-            console.log('Registration complete, navigating...');
-          } catch (regError) {
-            console.error('completeRegistration error:', regError);
-            // Even if completeRegistration fails, try to navigate
-          }
-          
-          if (isMounted.current) {
-            setLoading(false);
-            // Use setTimeout to ensure state updates complete before navigation
-            setTimeout(() => {
-              if (isMounted.current) {
-                router.replace('/(tabs)/home');
-              }
-            }, 100);
-          }
-        } catch (phoneError) {
-          console.error('Phone verification error:', phoneError);
-          if (isMounted.current) {
-            setLoading(false);
-            setErrorMessage('Phone verification failed');
-          }
-        }
+        // Phone step
+        await api.post('/auth/verify-registration-phone', { phone, code, email });
+        await finishRegistration();
       }
-    } catch (e) {
+    } catch {
       if (isMounted.current) {
         setLoading(false);
-        setErrorMessage('Invalid or expired code');
+        setErrorMessage('Invalid or expired code. Please try again.');
+      }
+    }
+  };
+
+  const finishRegistration = async () => {
+    try {
+      await completeRegistration(
+          email,
+          currentStep === 'phone' ? 'phone-verified' : code
+      );
+    } catch {
+      // completeRegistration errored — still navigate, session may already exist
+    } finally {
+      if (isMounted.current) {
+        setLoading(false);
+        navigateHome();
       }
     }
   };
 
   const handleResend = async () => {
-    if (countdown > 0) return;
+    if (countdown > 0 || resending) return;
     setResending(true);
     setErrorMessage('');
+    setSuccessMessage('');
 
     try {
       if (currentStep === 'email') {
-        await api.post('/auth/resend-verification', { email: verifyTarget, type: 'email' });
+        await api.post('/auth/resend-verification', { email, type: 'email' });
       } else {
-        await api.post('/auth/send-registration-phone-code', { phone: phoneToVerify, email: email });
+        await api.post('/auth/send-registration-phone-code', { phone, email });
       }
-      setCountdown(60);
-      setSuccessMessage('Code sent!');
-      setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (e) {
-      setErrorMessage('Failed to resend code');
+      if (isMounted.current) {
+        setCountdown(60);
+        setSuccessMessage('Code sent!');
+        setTimeout(() => { if (isMounted.current) setSuccessMessage(''); }, 3000);
+      }
+    } catch {
+      if (isMounted.current) setErrorMessage('Failed to resend code. Try again.');
     } finally {
-      setResending(false);
+      if (isMounted.current) setResending(false);
     }
   };
 
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <View style={styles.header}>
-          <View style={styles.spacer} />
-          <Text style={styles.headerTitle}>
-            Verify {currentStep === 'phone' ? 'Phone' : 'Email'}
-          </Text>
-          <View style={styles.spacer} />
-        </View>
+  const isPhone = currentStep === 'phone';
 
-        <View style={styles.content}>
-          <View style={styles.iconContainer}>
-            <View style={styles.iconBg}>
-              <Ionicons
-                name={currentStep === 'phone' ? 'phone-portrait-outline' : 'mail-outline'}
-                size={48}
-                color={colors.primary}
+  return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <KeyboardAvoidingView
+            style={styles.flex}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.header}>
+            <View style={styles.spacer} />
+            <Text style={styles.headerTitle}>
+              Verify {isPhone ? 'Phone' : 'Email'}
+            </Text>
+            <View style={styles.spacer} />
+          </View>
+
+          <View style={styles.content}>
+            <View style={styles.iconContainer}>
+              <View style={styles.iconBg}>
+                <Ionicons
+                    name={isPhone ? 'phone-portrait-outline' : 'mail-outline'}
+                    size={48}
+                    color={colors.primary}
+                />
+              </View>
+            </View>
+
+            <Text style={styles.title}>
+              Verify Your {isPhone ? 'Phone' : 'Email'}
+            </Text>
+            <Text style={styles.subtitle}>
+              We sent a 6-digit code to{' '}
+              <Text style={styles.highlight}>{verifyTarget}</Text>
+            </Text>
+
+            {errorMessage ? (
+                <View style={styles.errorBox}>
+                  <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+            ) : null}
+
+            {successMessage ? (
+                <View style={styles.successBox}>
+                  <Text style={styles.successText}>{successMessage}</Text>
+                </View>
+            ) : null}
+
+            <View style={styles.codeContainer}>
+              <TextInput
+                  style={styles.codeInput}
+                  value={code}
+                  onChangeText={(text) =>
+                      setCode(text.replace(/[^0-9]/g, '').slice(0, 6))
+                  }
+                  placeholder="000000"
+                  placeholderTextColor={colors.border}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  autoFocus={false}
               />
             </View>
-          </View>
 
-          <Text style={styles.title}>
-            Verify Your {currentStep === 'phone' ? 'Phone' : 'Email'}
-          </Text>
-          <Text style={styles.subtitle}>
-            We sent a 6-digit verification code to{' '}
-            <Text style={styles.highlight}>{verifyTarget}</Text>
-          </Text>
-
-          {errorMessage ? (
-            <View style={styles.errorBox}>
-              <Text style={styles.errorText}>{errorMessage}</Text>
-            </View>
-          ) : null}
-
-          {successMessage ? (
-            <View style={styles.successBox}>
-              <Text style={styles.successText}>{successMessage}</Text>
-            </View>
-          ) : null}
-
-          <View style={styles.codeContainer}>
-            <TextInput
-              style={styles.codeInput}
-              value={code}
-              onChangeText={(text) => setCode(text.replace(/[^0-9]/g, '').slice(0, 6))}
-              placeholder="000000"
-              placeholderTextColor={colors.border}
-              keyboardType="number-pad"
-              maxLength={6}
-              autoFocus={false}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.verifyBtn, (loading || code.length !== 6) && styles.btnDisabled]}
-            onPress={handleVerify}
-            disabled={loading || code.length !== 6}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.paper} />
-            ) : (
-              <Text style={styles.verifyBtnText}>Verify</Text>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.resendContainer}>
-            <Text style={styles.resendText}>Didn't receive the code? </Text>
-            <TouchableOpacity onPress={handleResend} disabled={countdown > 0 || resending}>
-              <Text
+            <TouchableOpacity
                 style={[
-                  styles.resendLink,
-                  (countdown > 0 || resending) && styles.resendDisabled,
+                  styles.verifyBtn,
+                  (loading || code.length !== 6) && styles.btnDisabled,
                 ]}
-              >
-                {countdown > 0 ? `Resend in ${countdown}s` : 'Resend Code'}
-              </Text>
+                onPress={handleVerify}
+                disabled={loading || code.length !== 6}
+                activeOpacity={0.8}
+            >
+              {loading ? (
+                  <ActivityIndicator color={colors.paper} />
+              ) : (
+                  <Text style={styles.verifyBtnText}>Verify</Text>
+              )}
             </TouchableOpacity>
-          </View>
 
-          <View style={styles.infoBox}>
-            <Ionicons name="information-circle" size={20} color={colors.primary} />
-            <Text style={styles.infoText}>
-              {currentStep === 'email'
-                ? "Check your spam folder if you don't see the email. Code expires in 10 minutes."
-                : 'Enter the SMS code sent to your phone. Code expires in 10 minutes.'}
-            </Text>
+            <View style={styles.resendContainer}>
+              <Text style={styles.resendText}>Didn't receive the code? </Text>
+              <TouchableOpacity
+                  onPress={handleResend}
+                  disabled={countdown > 0 || resending}
+              >
+                <Text
+                    style={[
+                      styles.resendLink,
+                      (countdown > 0 || resending) && styles.resendDisabled,
+                    ]}
+                >
+                  {resending
+                      ? 'Sending...'
+                      : countdown > 0
+                          ? `Resend in ${countdown}s`
+                          : 'Resend Code'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.infoBox}>
+              <Ionicons name="information-circle" size={20} color={colors.primary} />
+              <Text style={styles.infoText}>
+                {isPhone
+                    ? 'Enter the SMS code sent to your phone. Code expires in 10 minutes.'
+                    : "Check your spam folder if you don't see the email. Code expires in 10 minutes."}
+              </Text>
+            </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  flex: {
-    flex: 1,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -331,23 +318,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  spacer: {
-    width: 40,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  content: {
-    flex: 1,
-    padding: 24,
-    alignItems: 'center',
-  },
-  iconContainer: {
-    marginTop: 20,
-    marginBottom: 24,
-  },
+  spacer: { width: 40 },
+  headerTitle: { fontSize: 16, fontWeight: '600', color: colors.text },
+  content: { flex: 1, padding: 24, alignItems: 'center' },
+  iconContainer: { marginTop: 20, marginBottom: 24 },
   iconBg: {
     width: 100,
     height: 100,
@@ -370,10 +344,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 16,
   },
-  highlight: {
-    fontWeight: '600',
-    color: colors.text,
-  },
+  highlight: { fontWeight: '600', color: colors.text },
   errorBox: {
     width: '100%',
     backgroundColor: '#FEE2E2',
@@ -381,11 +352,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
   },
-  errorText: {
-    color: colors.red,
-    fontSize: 14,
-    textAlign: 'center',
-  },
+  errorText: { color: colors.red, fontSize: 14, textAlign: 'center' },
   successBox: {
     width: '100%',
     backgroundColor: colors.greenLight,
@@ -399,10 +366,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
   },
-  codeContainer: {
-    width: '100%',
-    marginBottom: 24,
-  },
+  codeContainer: { width: '100%', marginBottom: 24 },
   codeInput: {
     backgroundColor: colors.paper,
     borderRadius: 16,
@@ -423,31 +387,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  verifyBtnText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: colors.paper,
-  },
-  btnDisabled: {
-    opacity: 0.6,
-  },
+  verifyBtnText: { fontSize: 17, fontWeight: '600', color: colors.paper },
+  btnDisabled: { opacity: 0.6 },
   resendContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 32,
   },
-  resendText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  resendLink: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  resendDisabled: {
-    color: colors.textSecondary,
-  },
+  resendText: { fontSize: 14, color: colors.textSecondary },
+  resendLink: { fontSize: 14, color: colors.primary, fontWeight: '600' },
+  resendDisabled: { color: colors.textSecondary },
   infoBox: {
     flexDirection: 'row',
     backgroundColor: colors.primaryLight,
@@ -455,10 +404,5 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
-  infoText: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.text,
-    lineHeight: 18,
-  },
+  infoText: { flex: 1, fontSize: 13, color: colors.text, lineHeight: 18 },
 });

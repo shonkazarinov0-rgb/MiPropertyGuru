@@ -1,16 +1,31 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 import { api } from './api';
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+export type NotificationListener = (notification: Notifications.Notification) => void;
+export type NotificationResponseListener = (response: Notifications.NotificationResponse) => void;
+
+// Called once from your root _layout.tsx, NOT at module level
+export function setupNotifications() {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+
+  if (Platform.OS === 'android') {
+    Notifications.setNotificationChannelAsync('default', {
+      name: 'Default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF8C00',
+    });
+  }
+}
 
 export async function registerForPushNotifications(): Promise<string | null> {
   if (!Device.isDevice) {
@@ -32,15 +47,22 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   try {
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: process.env.EXPO_PUBLIC_PROJECT_ID || undefined,
-    });
+    // Use projectId from app.json extra — reliable in both dev and production
+    const projectId =
+        Constants.expoConfig?.extra?.eas?.projectId ??
+        process.env.EXPO_PUBLIC_PROJECT_ID;
+
+    if (!projectId) {
+      console.error('Missing projectId — push tokens will not work in production');
+      return null;
+    }
+
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     const pushToken = tokenData.data;
     console.log('Push token:', pushToken);
 
     try {
       await api.post('/push-token', { push_token: pushToken });
-      console.log('Push token saved to server');
     } catch (e) {
       console.error('Failed to save push token:', e);
     }
@@ -55,25 +77,11 @@ export async function registerForPushNotifications(): Promise<string | null> {
 export async function removePushToken(): Promise<void> {
   try {
     await api.delete('/push-token');
-    console.log('Push token removed from server');
   } catch (e) {
     console.error('Failed to remove push token:', e);
   }
 }
 
-if (Platform.OS === 'android') {
-  Notifications.setNotificationChannelAsync('default', {
-    name: 'Default',
-    importance: Notifications.AndroidImportance.MAX,
-    vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#FF8C00',
-  });
-}
-
-export type NotificationListener = (notification: Notifications.Notification) => void;
-export type NotificationResponseListener = (response: Notifications.NotificationResponse) => void;
-
-// Add notification listeners
 export function addNotificationListeners(
     onNotification: NotificationListener,
     onResponse: NotificationResponseListener
@@ -83,6 +91,6 @@ export function addNotificationListeners(
 
   return () => {
     notificationListener.remove();
-    responseListener.remove();  
+    responseListener.remove();
   };
 }
