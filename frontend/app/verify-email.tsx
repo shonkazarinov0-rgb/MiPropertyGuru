@@ -34,7 +34,6 @@ export default function VerifyEmailScreen() {
   const router = useRouter();
   const rawParams = useLocalSearchParams<{ email: string; phone?: string }>();
 
-  // Sanitize params — guard against literal "undefined" strings from router
   const email = rawParams.email && rawParams.email !== 'undefined' ? rawParams.email.trim() : '';
   const phone = rawParams.phone && rawParams.phone !== 'undefined' ? rawParams.phone.trim() : '';
 
@@ -46,6 +45,7 @@ export default function VerifyEmailScreen() {
   const [currentStep, setCurrentStep] = useState<'email' | 'phone'>('email');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const sessionTokenRef = useRef<string | null>(null);
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -53,7 +53,6 @@ export default function VerifyEmailScreen() {
     return () => { isMounted.current = false; };
   }, []);
 
-  // Guard: if no email on mount, bounce user back immediately
   useEffect(() => {
     if (!email) {
       setErrorMessage('Session expired. Please register again.');
@@ -64,16 +63,13 @@ export default function VerifyEmailScreen() {
     }
   }, [email]);
 
-  // Block hardware back on Android during verification
   useFocusEffect(
       useCallback(() => {
-        const onBackPress = () => true;
-        BackHandler.addEventListener('hardwareBackPress', onBackPress);
-        return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+        const subscription = BackHandler.addEventListener('hardwareBackPress', () => true);
+        return () => subscription.remove();
       }, [])
   );
 
-  // Countdown timer for resend
   useEffect(() => {
     if (countdown <= 0) return;
     const timer = setTimeout(() => {
@@ -85,7 +81,6 @@ export default function VerifyEmailScreen() {
   const verifyTarget = currentStep === 'email' ? email : phone;
 
   const transitionToPhone = () => {
-    // All state resets happen together — no race condition
     setTimeout(() => {
       if (!isMounted.current) return;
       setCode('');
@@ -100,6 +95,22 @@ export default function VerifyEmailScreen() {
     setTimeout(() => {
       if (isMounted.current) router.replace('/(tabs)/home');
     }, 100);
+  };
+
+  // Finish registration using the token already obtained from verify call
+  const finishRegistration = async (token: string) => {
+    try {
+      await completeRegistration(email, token);
+      if (isMounted.current) {
+        setLoading(false);
+        navigateHome();
+      }
+    } catch (e: any) {
+      if (isMounted.current) {
+        setLoading(false);
+        setErrorMessage(e?.message || 'Registration failed. Please try again.');
+      }
+    }
   };
 
   const handleVerify = async () => {
@@ -122,9 +133,12 @@ export default function VerifyEmailScreen() {
 
     try {
       if (currentStep === 'email') {
+        // Verify email then immediately complete registration with same code
         await api.post('/auth/verify-email-only', { email, code });
+        await completeRegistration(email, code);
 
-        // If phone exists, proceed to phone step
+        if (!isMounted.current) return;
+
         if (phone.length > 0) {
           try {
             await api.post('/auth/send-registration-phone-code', { phone, email });
@@ -133,40 +147,30 @@ export default function VerifyEmailScreen() {
             setSuccessMessage('Email verified! Now verify your phone.');
             transitionToPhone();
           } catch {
-            // SMS send failed — complete registration without phone
-            await finishRegistration();
+            // SMS failed — already authenticated, just go home
+            if (isMounted.current) {
+              setLoading(false);
+              navigateHome();
+            }
           }
         } else {
-          await finishRegistration();
+          setLoading(false);
+          navigateHome();
         }
       } else {
-        // Phone step
+        // Phone step — just verify, user is already logged in
         await api.post('/auth/verify-registration-phone', { phone, code, email });
-        await finishRegistration();
+        if (isMounted.current) {
+          setLoading(false);
+          navigateHome();
+        }
       }
-    } catch {
+    } catch (e: any) {
       if (isMounted.current) {
         setLoading(false);
-        setErrorMessage('Invalid or expired code. Please try again.');
+        setErrorMessage(e?.message || 'Invalid or expired code. Please try again.');
       }
-    }
-  };
-
-  const finishRegistration = async () => {
-    try {
-      await completeRegistration(
-          email,
-          currentStep === 'phone' ? 'phone-verified' : code
-      );
-    } catch {
-      // completeRegistration errored — still navigate, session may already exist
-    } finally {
-      if (isMounted.current) {
-        setLoading(false);
-        navigateHome();
-      }
-    }
-  };
+    }};
 
   const handleResend = async () => {
     if (countdown > 0 || resending) return;

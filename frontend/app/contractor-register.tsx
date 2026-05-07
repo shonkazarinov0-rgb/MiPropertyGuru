@@ -779,7 +779,7 @@ export default function ContractorRegisterScreen() {
       </View>
 
       <View style={styles.locationVisibilityBox}>
-        <Ionicons name="eye" size={20} color={colors.success} />
+        <Ionicons name="eye" size={20} color={colors.greenLight} />
         <Text style={styles.locationVisibilityText}>
           Clients will see your real-time location on the map when you're online. You can turn this on/off anytime from your Dashboard.
         </Text>

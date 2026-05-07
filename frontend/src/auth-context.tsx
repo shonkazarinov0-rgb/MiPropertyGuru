@@ -6,9 +6,7 @@ import { api } from './api';
 import { registerForPushNotifications, removePushToken, addNotificationListeners } from './notifications';
 import { router } from 'expo-router';
 
-// ── User Type ──────────────────────────────────────────────────────────────────
 export interface User {
-  // Core
   id: string;
   name: string;
   email: string;
@@ -16,8 +14,6 @@ export interface User {
   role: 'client' | 'contractor';
   currentMode?: 'client' | 'contractor';
   bio?: string;
-
-  // Contractor profile
   contractor_type?: string;
   trades?: string[];
   languages?: string[];
@@ -29,20 +25,14 @@ export interface User {
   subscription_status?: string;
   subscription_fee?: number;
   work_photos?: string[];
-
-  // Location
   isonline?: boolean;
   live_location_enabled?: boolean;
   current_lat?: number;
   current_lng?: number;
   current_location?: { lat: number; lng: number } | null;
   work_locations?: Array<{ name: string; lat: number; lng: number }>;
-
-  // Phone
   phone_visible?: boolean;
   phone_verified?: boolean;
-
-  // License
   has_license?: boolean;
   license_number?: string;
   license_type?: string;
@@ -50,12 +40,11 @@ export interface User {
   license_image?: string;
 }
 
-// ── Auth Context Type ──────────────────────────────────────────────────────────
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string, keepLoggedIn?: boolean) => Promise<void>;
-  register: ( any) => Promise<any>;
+  register: (data: any) => Promise<any>;
   completeRegistration: (email: string, code: string) => Promise<any>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -67,8 +56,7 @@ interface AuthContextType {
   isGuest: boolean;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-const SESSION_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+const SESSION_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 function applyContractorMode(userData: User, savedMode: string | null): User {
   if (userData.role !== 'contractor') return userData;
@@ -82,7 +70,16 @@ async function getSavedMode(): Promise<string | null> {
   return AsyncStorage.getItem('user_mode');
 }
 
-// ── Context ────────────────────────────────────────────────────────────────────
+async function storeSession(token: string, keepLoggedIn = true, sessionId?: string) {
+  await Promise.all([
+    AsyncStorage.setItem('auth_token', token),
+    AsyncStorage.setItem('keep_logged_in', keepLoggedIn ? 'true' : 'false'),
+    AsyncStorage.setItem('last_session_time', Date.now().toString()),
+    AsyncStorage.removeItem('guest_mode'),
+    sessionId ? AsyncStorage.setItem('session_id', sessionId) : Promise.resolve(),
+  ]);
+}
+
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -91,19 +88,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [sessionExpired, setSessionExpired] = useState(false);
   const [isGuest, setIsGuest] = useState(false);
 
-  // ── Bootstrap ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    void checkAuth();
-  }, []);
+  useEffect(() => { void checkAuth(); }, []);
 
-  // ── Notification Listeners ─────────────────────────────────────────────────
   useEffect(() => {
     if (!user || Platform.OS === 'web') return;
-
     const cleanup = addNotificationListeners(
-        (notification) => {
-          console.log('Notification received:', notification);
-        },
+        (notification) => { console.log('Notification received:', notification); },
         (response) => {
           try {
             const data = response.notification.request.content.data;
@@ -115,11 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
     );
-
     return cleanup;
   }, [user]);
 
-  // ── Register Push (fire-and-forget) ───────────────────────────────────────
   const tryRegisterPush = () => {
     if (Platform.OS === 'web') return;
     void registerForPushNotifications().catch((e: any) => {
@@ -127,17 +115,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  // ── Check Auth on Launch ───────────────────────────────────────────────────
   const checkAuth = async () => {
     try {
       const guestMode = await AsyncStorage.getItem('guest_mode');
-      if (guestMode === 'true') {
-        setIsGuest(true);
-        return;
-      }
+      if (guestMode === 'true') { setIsGuest(true); return; }
 
       const token = await AsyncStorage.getItem('auth_token');
-      if (!token) return;
+      if (!token || token === 'undefined' || token === 'null') {
+        await AsyncStorage.removeItem('auth_token');
+        return;
+      }
 
       const keepLoggedIn = await AsyncStorage.getItem('keep_logged_in');
       if (keepLoggedIn !== 'true') {
@@ -149,7 +136,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const userData: User = await api.get('/auth/me');
-
       if ((userData as any).session_invalid) {
         setSessionExpired(true);
         await AsyncStorage.removeItem('auth_token');
@@ -157,8 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const savedMode = await getSavedMode();
-      const resolvedUser = applyContractorMode(userData, savedMode);
-      setUser(resolvedUser);
+      setUser(applyContractorMode(userData, savedMode));
       await AsyncStorage.setItem('last_session_time', Date.now().toString());
       tryRegisterPush();
     } catch (e: any) {
@@ -173,7 +158,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ── Login ──────────────────────────────────────────────────────────────────
   const login = async (email: string, password: string, keepLoggedIn = true) => {
     setIsGuest(false);
     await AsyncStorage.removeItem('guest_mode');
@@ -197,49 +181,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       device_info: Platform.OS,
     });
 
+    if (!res?.token) {
+      throw new Error(res?.message || 'Login failed. Please try again.');
+    }
+
     if (res.suspicious_activity) {
       console.warn('Suspicious activity detected:', res.suspicious_reasons);
     }
 
-    await Promise.all([
-      AsyncStorage.setItem('auth_token', res.token),
-      AsyncStorage.setItem('keep_logged_in', keepLoggedIn ? 'true' : 'false'),
-      AsyncStorage.setItem('last_session_time', Date.now().toString()),
-      res.session_id ? AsyncStorage.setItem('session_id', res.session_id) : Promise.resolve(),
-    ]);
-
-    const resolvedUser = applyContractorMode(res.user, await getSavedMode());
-    setUser(resolvedUser);
+    await storeSession(res.token, keepLoggedIn, res.session_id);
+    setUser(applyContractorMode(res.user, await getSavedMode()));
     setSessionExpired(false);
     tryRegisterPush();
   };
 
-  // ── Register ───────────────────────────────────────────────────────────────
-  const register = async ( any) => {
+  const register = async (data: any) => {
     setIsGuest(false);
     await AsyncStorage.removeItem('guest_mode');
     return api.post('/auth/register', data);
   };
 
-  // ── Complete Registration ──────────────────────────────────────────────────
+  // Exchanges the 6-digit code for a JWT via /auth/complete-registration
   const completeRegistration = async (email: string, code: string) => {
     const res = await api.post('/auth/complete-registration', { email, code });
 
-    await Promise.all([
-      AsyncStorage.setItem('auth_token', res.token),
-      AsyncStorage.setItem('keep_logged_in', 'true'),
-      AsyncStorage.removeItem('guest_mode'),
-    ]);
+    const token = res?.token ?? res?.data?.token;
+    if (!token) {
+      throw new Error('Registration failed. Please try again.');
+    }
 
+    await storeSession(token, true);
     setIsGuest(false);
-    const resolvedUser = applyContractorMode(res.user, await getSavedMode());
+    setSessionExpired(false);
+
+    const userData: User = await api.get('/auth/me');
+    const resolvedUser = applyContractorMode(userData, await getSavedMode());
     setUser(resolvedUser);
     tryRegisterPush();
 
-    return res;
+    return { token, user: resolvedUser };
   };
 
-  // ── Logout ─────────────────────────────────────────────────────────────────
   const logout = async () => {
     try {
       if (Platform.OS !== 'web') {
@@ -247,13 +229,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('removePushToken error:', e?.message);
         });
       }
-
       await AsyncStorage.multiRemove([
-        'auth_token',
-        'keep_logged_in',
-        'last_session_time',
-        'session_id',
-        'user_mode',
+        'auth_token', 'keep_logged_in', 'last_session_time', 'session_id', 'user_mode',
       ]);
     } catch (e: any) {
       console.error('logout error:', e?.message);
@@ -263,44 +240,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ── Refresh User ───────────────────────────────────────────────────────────
   const refreshUser = async () => {
     try {
       const userData: User = await api.get('/auth/me');
       const savedMode = user?.currentMode ?? (await getSavedMode());
-      const resolvedUser = applyContractorMode(userData, savedMode);
-      setUser(resolvedUser);
+      setUser(applyContractorMode(userData, savedMode));
     } catch (e: any) {
       console.error('refreshUser error:', e?.message);
     }
   };
 
-  // ── Switch Mode ────────────────────────────────────────────────────────────
   const switchMode = async (mode: 'client' | 'contractor') => {
     if (!user || user.role !== 'contractor' || user.currentMode === mode) return;
-
     try {
       await api.post('/switch-mode', { mode });
     } catch (e: any) {
       console.warn('switchMode API unavailable, switching locally:', e?.message);
     }
-
     try {
       await AsyncStorage.setItem('user_mode', mode);
     } catch (e: any) {
       console.error('switchMode storage error:', e?.message);
     }
-
     setUser((prev) => prev ? { ...prev, currentMode: mode } : prev);
   };
 
-  // ── Guest Mode ─────────────────────────────────────────────────────────────
   const setGuestMode = async () => {
     await AsyncStorage.setItem('guest_mode', 'true');
     setIsGuest(true);
   };
 
-  // ── Derived State ──────────────────────────────────────────────────────────
   const isClientMode =
       user?.role === 'client' ||
       (user?.role === 'contractor' && user?.currentMode === 'client');
@@ -309,23 +278,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user?.role === 'contractor' && user?.currentMode !== 'client';
 
   return (
-      <AuthContext.Provider
-          value={{
-            user,
-            loading,
-            login,
-            register,
-            completeRegistration,
-            logout,
-            refreshUser,
-            switchMode,
-            setGuestMode,
-            isClientMode,
-            isContractorMode,
-            sessionExpired,
-            isGuest,
-          }}
-      >
+      <AuthContext.Provider value={{
+        user, loading, login, register, completeRegistration,
+        logout, refreshUser, switchMode, setGuestMode,
+        isClientMode, isContractorMode, sessionExpired, isGuest,
+      }}>
         {children}
       </AuthContext.Provider>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import MapView, { Circle, Marker, PROVIDER_DEFAULT, Region } from 'react-native-maps';
+import MapView, { Circle, Marker, Region } from 'react-native-maps';
 import { StyleSheet, View } from 'react-native';
 
 interface Props {
@@ -31,7 +31,6 @@ export default function NativeMapView({
         <View style={[styles.container, { height }]}>
             <MapView
                 style={StyleSheet.absoluteFillObject}
-                provider={PROVIDER_DEFAULT}
                 region={region}
                 onLayout={(e) => setMapDims({
                     width: e.nativeEvent.layout.width,

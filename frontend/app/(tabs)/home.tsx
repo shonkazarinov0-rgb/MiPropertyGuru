@@ -746,8 +746,10 @@ export default function ClientHomeScreen() {
                         <View style={styles.urgentMapSection}>
                           <View style={styles.urgentMapHeader}>
                             <View style={styles.urgentBadge}>
-                              <Ionicons name="location-outline" size={16} color={colors.primary} />                              <Text style={styles.urgentBadgeText}>LIVE</Text>
+                              <Ionicons name="location" size={12} color={colors.primaryi} />
+                              <Text style={styles.urgentBadgeText}>LIVE</Text>
                             </View>
+
                             <Text style={styles.urgentMapSubtitle}>Online contractors near you</Text>
                             <TouchableOpacity onPress={() => setShowFullMap(true)} style={styles.expandMapBtn}>
                               <Ionicons name="expand-outline" size={18} color={colors.primary} />
