@@ -25,8 +25,9 @@
 		85CD95713CE486E4751CC875 /* Pods-MiPropertyGuru.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MiPropertyGuru.release.xcconfig"; path = "Target Support Files/Pods-MiPropertyGuru/Pods-MiPropertyGuru.release.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = MiPropertyGuru/SplashScreen.storyboard; sourceTree = "<group>"; };
 		AD49C957623EFB0E69D5600C /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-MiPropertyGuru/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		AE5691E62FAD082E00518262 /* main.jsbundle */ = {isa = PBXFileReference; lastKnownFileType = text; path = main.jsbundle; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		E010352D6A9093C7F7008E71 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = MiPropertyGuru/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		E010352D6A9093C7F7008E71 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = MiPropertyGuru/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = MiPropertyGuru/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* MiPropertyGuru-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "MiPropertyGuru-Bridging-Header.h"; path = "MiPropertyGuru/MiPropertyGuru-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -54,6 +55,7 @@
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
 				E010352D6A9093C7F7008E71 /* PrivacyInfo.xcprivacy */,
+				AE5691E62FAD082E00518262 /* main.jsbundle */,
 			);
 			name = MiPropertyGuru;
 			sourceTree = "<group>";
@@ -128,7 +130,6 @@
 				67B99A7CDD85AF91EFAAE362 /* Pods-MiPropertyGuru.debug.xcconfig */,
 				85CD95713CE486E4751CC875 /* Pods-MiPropertyGuru.release.xcconfig */,
 			);
-			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
@@ -351,6 +352,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = MiPropertyGuru/MiPropertyGuru.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = N23Z94V7G6;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -387,6 +389,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = MiPropertyGuru/MiPropertyGuru.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = N23Z94V7G6;
 				INFOPLIST_FILE = MiPropertyGuru/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (

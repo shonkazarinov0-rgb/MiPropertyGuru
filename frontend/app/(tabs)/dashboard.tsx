@@ -69,7 +69,7 @@ export default function ContractorDashboard() {
 
   useEffect(() => {
     if (user) {
-      setIsOnline(user.is_online || false);
+      setIsOnline(user.isonline || false);
       fetchData();
     }
   }, [user]);
