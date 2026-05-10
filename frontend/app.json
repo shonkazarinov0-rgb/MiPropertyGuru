@@ -12,22 +12,24 @@
       "policy": "appVersion"
     },
     "updates": {
-      "fallbackToCacheTimeout": 3000,
+      "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/4a55a2dd-de98-4ae5-9afb-a1293b4ebc76"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mipropertyguru.app",
       "buildNumber": "1",
+      "deploymentTarget": "15.1",
       "entitlements": {
         "aps-environment": "production"
       },
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Find contractors near your location",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Share your location with clients to get more jobs",
-        "NSLocationAlwaysUsageDescription": "Share your location with clients to get more jobs",
-        "NSCameraUsageDescription": "Take photos of your completed work",
-        "NSPhotoLibraryUsageDescription": "Upload photos to your portfolio",
+        "NSLocationWhenInUseUsageDescription": "MiPropertyGuru uses your location to find contractors near you.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "MiPropertyGuru uses your location in the background so clients can find you while you work.",
+        "NSLocationAlwaysUsageDescription": "MiPropertyGuru uses your location in the background so clients can find you while you work.",
+        "NSCameraUsageDescription": "MiPropertyGuru needs camera access to let you take photos of your completed work.",
+        "NSPhotoLibraryUsageDescription": "MiPropertyGuru needs photo library access to let you upload portfolio images.",
+        "NSPhotoLibraryAddUsageDescription": "MiPropertyGuru needs permission to save photos to your library.",
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
           "location",
@@ -50,11 +52,13 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "web": {
@@ -76,10 +80,12 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Find contractors near your location",
-          "locationAlwaysAndWhenInUsePermission": "Share your location with clients to get more jobs",
+          "locationWhenInUsePermission": "MiPropertyGuru uses your location to find contractors near you.",
+          "locationAlwaysAndWhenInUsePermission": "MiPropertyGuru uses your location in the background so clients can find you while you work.",
+          "locationAlwaysPermission": "MiPropertyGuru uses your location in the background so clients can find you while you work.",
           "isIosBackgroundLocationEnabled": true,
-          "isAndroidBackgroundLocationEnabled": true
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [
@@ -88,8 +94,14 @@
           "icon": "./assets/images/notification-icon.png",
           "color": "#FF9500",
           "defaultChannel": "default",
-          "mode": "production",
-          "sounds": []
+          "mode": "production"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MiPropertyGuru needs photo library access to let you upload portfolio images.",
+          "cameraPermission": "MiPropertyGuru needs camera access to let you take photos of your completed work."
         }
       ],
       "expo-web-browser"

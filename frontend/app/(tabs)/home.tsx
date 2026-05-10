@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,7 +16,6 @@ import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ModeToggle from '../../src/components/ModeToggle';
-import NativeMapView from '../../src/components/MapView';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,7 +27,6 @@ const colors = {
   paper: '#FFFFFF',
   text: '#1A1A1A',
   textSecondary: '#6B7280',
-  textDisabled: '#9CA3AF',
   green: '#22C55E',
   greenLight: '#DCFCE7',
   red: '#EF4444',
@@ -35,218 +34,116 @@ const colors = {
 };
 
 const CATEGORY_DATA = [
-  { name: 'Aluminum Capping', iconName: 'business-outline', color: '#90A4AE' },
-  { name: 'Appliance Repair', iconName: 'hardware-chip-outline', color: '#673AB7' },
-  { name: 'Blinds & Curtains', iconName: 'grid-outline', color: '#7E57C2' },
-  { name: 'Cabinet Maker', iconName: 'cube-outline', color: '#A1887F' },
-  { name: 'Carpenter', iconName: 'construct-outline', color: '#8D6E63' },
-  { name: 'Caulker', iconName: 'link-outline', color: '#7E57C2' },
-  { name: 'Cleaning', iconName: 'brush-outline', color: '#26A69A' },
-  { name: 'Concrete', iconName: 'layers-outline', color: '#757575' },
-  { name: 'Deck Builder', iconName: 'leaf-outline', color: '#33691E' },
-  { name: 'Demolition', iconName: 'flame-outline', color: '#D32F2F' },
-  { name: 'Door Installer', iconName: 'exit-outline', color: '#5D4037' },
-  { name: 'Drywall', iconName: 'hammer-outline', color: '#9E9E9E' },
-  { name: 'Electrician', iconName: 'flash-outline', color: '#FFC107' },
-  { name: 'Fence', iconName: 'warning-outline', color: '#8BC34A' },
-  { name: 'Flooring', iconName: 'home-outline', color: '#6D4C41' },
-  { name: 'Garage Door', iconName: 'car-outline', color: '#546E7A' },
-  { name: 'General Contractor', iconName: 'person-outline', color: '#FF9800' },
-  { name: 'Glazier', iconName: 'grid-outline', color: '#81D4FA' },
-  { name: 'Handyman', iconName: 'hammer-outline', color: '#795548' },
-  { name: 'HVAC Technician', iconName: 'snow-outline', color: '#00BCD4' },
-  { name: 'Insulation', iconName: 'shield-outline', color: '#E91E63' },
-  { name: 'Landscaper', iconName: 'leaf-outline', color: '#4CAF50' },
-  { name: 'Locksmith', iconName: 'lock-closed-outline', color: '#FFC107' },
-  { name: 'Mason', iconName: 'square-outline', color: '#BF360C' },
-  { name: 'Moving', iconName: 'cube-outline', color: '#FF7043' },
-  { name: 'Painter', iconName: 'color-palette-outline', color: '#9C27B0' },
-  { name: 'Plumber', iconName: 'settings-outline', color: '#2196F3' },
-  { name: 'Pool Service', iconName: 'water-outline', color: '#00ACC1' },
-  { name: 'Roofer', iconName: 'home-outline', color: '#607D8B' },
-  { name: 'Siding', iconName: 'business-outline', color: '#78909C' },
-  { name: 'Tiler', iconName: 'grid-outline', color: '#3F51B5' },
-  { name: 'Welder', iconName: 'flame-outline', color: '#FF5722' },
-  { name: 'Window Installer', iconName: 'image-outline', color: '#42A5F5' },
+  { name: 'Aluminum Capping', icon: '🏢', color: '#90A4AE' },
+  { name: 'Appliance Repair', icon: '🔌', color: '#673AB7' },
+  { name: 'Blinds & Curtains', icon: '🪟', color: '#7E57C2' },
+  { name: 'Cabinet Maker', icon: '🪑', color: '#A1887F' },
+  { name: 'Carpenter', icon: '🪚', color: '#8D6E63' },
+  { name: 'Caulker', icon: '🔗', color: '#7E57C2' },
+  { name: 'Cleaning', icon: '🧹', color: '#26A69A' },
+  { name: 'Concrete', icon: '🪨', color: '#757575' },
+  { name: 'Deck Builder', icon: '🌲', color: '#33691E' },
+  { name: 'Demolition', icon: '💥', color: '#D32F2F' },
+  { name: 'Door Installer', icon: '🚪', color: '#5D4037' },
+  { name: 'Drywall', icon: '🏗️', color: '#9E9E9E' },
+  { name: 'Electrician', icon: '⚡', color: '#FFC107' },
+  { name: 'Fence', icon: '🚧', color: '#8BC34A' },
+  { name: 'Flooring', icon: '🪵', color: '#6D4C41' },
+  { name: 'Garage Door', icon: '🚗', color: '#546E7A' },
+  { name: 'General Contractor', icon: '👷', color: '#FF9800' },
+  { name: 'Glazier', icon: '🪟', color: '#81D4FA' },
+  { name: 'Handyman', icon: '🔨', color: '#795548' },
+  { name: 'HVAC Technician', icon: '❄️', color: '#00BCD4' },
+  { name: 'Insulation', icon: '🧤', color: '#E91E63' },
+  { name: 'Landscaper', icon: '🌳', color: '#4CAF50' },
+  { name: 'Locksmith', icon: '🔐', color: '#FFC107' },
+  { name: 'Mason', icon: '🧱', color: '#BF360C' },
+  { name: 'Moving', icon: '📦', color: '#FF7043' },
+  { name: 'Painter', icon: '🎨', color: '#9C27B0' },
+  { name: 'Plumber', icon: '🔧', color: '#2196F3' },
+  { name: 'Pool Service', icon: '🏊', color: '#00ACC1' },
+  { name: 'Roofer', icon: '🏠', color: '#607D8B' },
+  { name: 'Siding', icon: '🏘️', color: '#78909C' },
+  { name: 'Tiler', icon: '🔲', color: '#3F51B5' },
+  { name: 'Welder', icon: '🔥', color: '#FF5722' },
+  { name: 'Window Installer', icon: '🖼️', color: '#42A5F5' },
 ];
 
+// Search keyword mapping for smart suggestions
 const SEARCH_KEYWORDS: { [key: string]: string } = {
+  // Electrician related
   'lamp': 'Electrician', 'light': 'Electrician', 'lighting': 'Electrician', 'wire': 'Electrician',
   'wiring': 'Electrician', 'outlet': 'Electrician', 'socket': 'Electrician', 'switch': 'Electrician',
   'electrical': 'Electrician', 'power': 'Electrician', 'circuit': 'Electrician', 'fuse': 'Electrician',
   'breaker': 'Electrician', 'fan': 'Electrician', 'ceiling fan': 'Electrician',
+  // Plumber related
   'pipe': 'Plumber', 'pipes': 'Plumber', 'drain': 'Plumber', 'toilet': 'Plumber', 'sink': 'Plumber',
   'faucet': 'Plumber', 'water': 'Plumber', 'leak': 'Plumber', 'leaking': 'Plumber', 'tap': 'Plumber',
   'bathroom': 'Plumber', 'shower': 'Plumber', 'bathtub': 'Plumber', 'sewer': 'Plumber',
+  // HVAC related
   'ac': 'HVAC Technician', 'air conditioning': 'HVAC Technician', 'heating': 'HVAC Technician',
   'furnace': 'HVAC Technician', 'heat': 'HVAC Technician', 'cooling': 'HVAC Technician',
   'ventilation': 'HVAC Technician', 'thermostat': 'HVAC Technician', 'duct': 'HVAC Technician',
+  // Carpenter related
   'wood': 'Carpenter', 'cabinet': 'Cabinet Maker', 'shelf': 'Carpenter', 'shelves': 'Carpenter',
   'furniture': 'Carpenter', 'closet': 'Carpenter', 'trim': 'Carpenter', 'molding': 'Carpenter',
+  // Painter related
   'paint': 'Painter', 'painting': 'Painter', 'wall': 'Painter', 'stain': 'Painter',
+  // Roofer related
   'roof': 'Roofer', 'roofing': 'Roofer', 'shingle': 'Roofer', 'gutter': 'Roofer', 'eaves': 'Roofer',
+  // Landscaper related
   'lawn': 'Landscaper', 'garden': 'Landscaper', 'tree': 'Landscaper', 'grass': 'Landscaper',
   'yard': 'Landscaper', 'hedge': 'Landscaper', 'bush': 'Landscaper', 'plant': 'Landscaper',
+  // Tiler related
   'tile': 'Tiler', 'tiles': 'Tiler', 'backsplash': 'Tiler', 'grout': 'Tiler',
+  // Flooring related
   'floor': 'Flooring', 'hardwood': 'Flooring', 'laminate': 'Flooring', 'vinyl': 'Flooring', 'carpet': 'Flooring',
+  // Door related
   'door': 'Door Installer', 'doors': 'Door Installer', 'entry': 'Door Installer', 'entrance': 'Door Installer',
+  // Window related
   'window': 'Window Installer', 'windows': 'Window Installer', 'glass': 'Glazier',
+  // Locksmith related
   'lock': 'Locksmith', 'key': 'Locksmith', 'deadbolt': 'Locksmith', 'security': 'Locksmith',
+  // Handyman related
   'fix': 'Handyman', 'repair': 'Handyman', 'install': 'Handyman', 'mount': 'Handyman', 'hang': 'Handyman',
+  // Drywall related
   'drywall': 'Drywall', 'sheetrock': 'Drywall', 'plaster': 'Drywall', 'hole': 'Drywall',
+  // Concrete related
   'concrete': 'Concrete', 'cement': 'Concrete', 'driveway': 'Concrete', 'sidewalk': 'Concrete', 'patio': 'Concrete',
+  // Fence related
   'fence': 'Fence', 'fencing': 'Fence', 'gate': 'Fence',
+  // Deck related
   'deck': 'Deck Builder', 'porch': 'Deck Builder', 'pergola': 'Deck Builder',
+  // Pool related
   'pool': 'Pool Service', 'spa': 'Pool Service', 'hot tub': 'Pool Service',
+  // Welder related
   'weld': 'Welder', 'welding': 'Welder', 'metal': 'Welder', 'iron': 'Welder', 'steel': 'Welder',
+  // Mason related
   'brick': 'Mason', 'stone': 'Mason', 'masonry': 'Mason', 'chimney': 'Mason', 'fireplace': 'Mason',
+  // Appliance related
   'appliance': 'Appliance Repair', 'washer': 'Appliance Repair', 'dryer': 'Appliance Repair',
   'refrigerator': 'Appliance Repair', 'fridge': 'Appliance Repair', 'dishwasher': 'Appliance Repair',
   'stove': 'Appliance Repair', 'oven': 'Appliance Repair', 'microwave': 'Appliance Repair',
+  // Caulker related
   'caulk': 'Caulker', 'seal': 'Caulker', 'sealing': 'Caulker', 'weatherproof': 'Caulker',
+  // Aluminum related
   'aluminum': 'Aluminum Capping', 'capping': 'Aluminum Capping', 'soffit': 'Aluminum Capping', 'fascia': 'Aluminum Capping',
+  // Siding related
   'siding': 'Siding', 'exterior': 'Siding',
+  // Garage related
   'garage': 'Garage Door', 'garage door': 'Garage Door',
+  // Insulation related
   'insulation': 'Insulation', 'insulate': 'Insulation', 'attic': 'Insulation',
+  // Demolition related
   'demolition': 'Demolition', 'demo': 'Demolition', 'tear down': 'Demolition', 'remove': 'Demolition',
 };
 
-const RATING_OPTIONS = [
-  { value: 0, label: '⭐ All Ratings' },
-  { value: 1, label: '⭐ 1 Stars' },
-  { value: 2, label: '⭐ 2 Stars' },
-  { value: 3, label: '⭐ 3 Stars' },
-  { value: 4, label: '⭐ 4 Stars' },
-  { value: 5, label: '⭐ 5 Stars' },
-];
-
-const LANGUAGE_OPTIONS = [
-  'Arabic', 'Bengali', 'Chinese Cantonese', 'Chinese Mandarin',
-  'English', 'French', 'German', 'Greek', 'Gujarati', 'Hindi',
-  'Italian', 'Japanese', 'Korean', 'Pashto', 'Persian Farsi',
-  'Polish', 'Portuguese', 'Punjabi', 'Russian', 'Spanish',
-  'Tagalog', 'Tamil', 'Turkish', 'Ukrainian', 'Urdu', 'Vietnamese',
-];
-
-// ─── Leaflet map HTML generator ─────────────────────────────────────────────
-function getMapHTML(
-    userLoc: { lat: number; lng: number },
-    radiusKm: number,
-    sortedContractors: any[]
-): string {
-  const onlineContractors = sortedContractors.filter(
-      (c) => c.isonline && c.currentlocation
-  );
-  const markers = onlineContractors.slice(0, 15).map((c) => ({
-    id: c.id,
-    name: c.name,
-    type: c.contractor_type,
-    lat: c.currentlocation.lat,
-    lng: c.currentlocation.lng,
-    online: true,
-  }));
-
-  const mJSON = JSON.stringify(markers);
-  const radiusMeters = radiusKm > 200 ? 200000 : radiusKm * 1000;
-
-  return `<!DOCTYPE html><html><head>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  #map { width: 100vw; height: 100vh; }
-  .leaflet-control-attribution { display: none !important; }
-</style>
-</head><body>
-<div id="map"></div>
-<script>
-  var map = L.map('map', { zoomControl: false })
-    .setView([${userLoc.lat}, ${userLoc.lng}], 13);
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-  // Radius circle — fits view automatically
-  var radiusCircle = L.circle([${userLoc.lat}, ${userLoc.lng}], {
-    radius: ${radiusMeters},
-    fillColor: '#FF6A00',
-    fillOpacity: 0.10,
-    color: '#FF6A00',
-    weight: 2,
-    opacity: 0.6
-  }).addTo(map);
-
-  // Fit map to circle bounds on load with padding
-  map.fitBounds(radiusCircle.getBounds(), { padding: [40, 40] });
-
-  // User marker — solid orange dot at center
-  L.circleMarker([${userLoc.lat}, ${userLoc.lng}], {
-    radius: 10,
-    fillColor: '#FF6A00',
-    color: '#fff',
-    weight: 3,
-    fillOpacity: 1
-  }).addTo(map).bindPopup('<b>You are here</b>');
-
-  // Contractor markers
-  var ms = ${mJSON};
-  ms.forEach(function(m) {
-    var icon = L.divIcon({
-      className: '',
-      html: '<div style="background:#22C55E;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)"></div>',
-      iconSize: [14, 14],
-      iconAnchor: [7, 7]
-    });
-    L.marker([m.lat, m.lng], { icon: icon })
-      .addTo(map)
-      .on('click', function() {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'tap', id: m.id }));
-      });
-  });
-
-  // Called from React Native via injectJavaScript — resizes circle AND re-fits view
-  window.updateRadius = function(newRadiusMeters) {
-    radiusCircle.setRadius(newRadiusMeters);
-    map.fitBounds(radiusCircle.getBounds(), { padding: [40, 40] });
-  };
-</script>
-</body></html>`;
-}
-
-// ─── Web fallback map (iframe-based for web platform) ───────────────────────
-function WebMapFallback({
-                          userLoc,
-                          radiusKm,
-                        }: {
-  userLoc: { lat: number; lng: number };
-  radiusKm: number;
-}) {
-  const delta = Math.max(0.01, (radiusKm / 111) * 1.5);
-  const bbox = `${userLoc.lng - delta},${userLoc.lat - delta},${userLoc.lng + delta},${userLoc.lat + delta}`;
-  const src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${userLoc.lat},${userLoc.lng}`;
-
-  return (
-      <View style={{ width: '100%', height: 200, borderRadius: 16, overflow: 'hidden' }}>
-        {/* @ts-ignore — iframe is valid on web */}
-        <iframe
-            title="map"
-            src={src}
-            width="100%"
-            height="200"
-            style={{ border: 'none', borderRadius: 16 }}
-        />
-      </View>
-  );
-}
-
 export default function ClientHomeScreen() {
   const router = useRouter();
-  const { user, switchMode, isClientMode, isContractorMode } = useAuth();
-  const authIsContractorMode = isContractorMode;
-
+  const { user, switchMode, isClientMode, isContractorMode: authIsContractorMode } = useAuth();
   const [contractors, setContractors] = useState<any[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [category, setCategory] = useState('All');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);  // Multi-select categories
+  const [category, setCategory] = useState('All');  // Keep for backwards compatibility
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
@@ -255,33 +152,193 @@ export default function ClientHomeScreen() {
   const [showFullMap, setShowFullMap] = useState(false);
   const [showFullMapServiceMenu, setShowFullMapServiceMenu] = useState(false);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState<boolean | null>(null);
+  
+  // Guest prompt modal state
   const [showGuestPrompt, setShowGuestPrompt] = useState(false);
+  
+  // "What do you need?" modal state - shows on app open for clients
   const [showNeedPrompt, setShowNeedPrompt] = useState(false);
+  
+  // Filter toggle states - removed for client simplicity, always show online only
+  // Contractors are always sorted by nearest distance
+  
+  // Distance radius filter (in km) - 0 means no limit
   const [radiusKm, setRadiusKm] = useState<number>(50);
+  
+  // Advanced Filters State
   const [showFilters, setShowFilters] = useState(false);
   const [filterLicenseOnly, setFilterLicenseOnly] = useState(false);
-  const [filterMinRating, setFilterMinRating] = useState(0);
-  const [filterLanguages, setFilterLanguages] = useState<string[]>([]);
-  const [filterLanguage, setFilterLanguage] = useState('All');
+  const [filterMinRating, setFilterMinRating] = useState(0); // 0 = no filter
+  const [filterLanguages, setFilterLanguages] = useState<string[]>([]); // Multi-select languages
+  const [filterLanguage, setFilterLanguage] = useState('All'); // Keep for backwards compatibility
   const [customLanguage, setCustomLanguage] = useState('');
   const [showCustomLanguageInput, setShowCustomLanguageInput] = useState(false);
+  
+  // Filter popup modals
   const [showRatingPopup, setShowRatingPopup] = useState(false);
   const [showLanguagePopup, setShowLanguagePopup] = useState(false);
+  
+  // Category Search State
   const [categorySearchText, setCategorySearchText] = useState('');
   const [showSmartSuggestion, setShowSmartSuggestion] = useState(false);
   const [suggestedCategory, setSuggestedCategory] = useState<string | null>(null);
   const [showAddMorePrompt, setShowAddMorePrompt] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [jobsToday, setJobsToday] = useState(0);
-  const [engagementStat, setEngagementStat] = useState({ count: 0, type: 'Plumber', iconName: 'settings-outline' });
+  
+  // Rating options
+  const RATING_OPTIONS = [
+    { value: 0, label: 'All Ratings' },
+    { value: 1, label: '1+ Stars' },
+    { value: 2, label: '2+ Stars' },
+    { value: 3, label: '3+ Stars' },
+    { value: 4, label: '4+ Stars' },
+    { value: 5, label: '5 Stars' },
+  ];
+  
+  // Language options (alphabetical)
+  const LANGUAGE_OPTIONS = [
+    'Arabic', 'Bengali', 'Chinese (Cantonese)', 'Chinese (Mandarin)', 
+    'English', 'French', 'German', 'Greek', 'Gujarati', 'Hindi', 
+    'Italian', 'Japanese', 'Korean', 'Pashto', 'Persian (Farsi)', 
+    'Polish', 'Portuguese', 'Punjabi', 'Russian', 'Spanish', 
+    'Tagalog', 'Tamil', 'Turkish', 'Ukrainian', 'Urdu', 'Vietnamese'
+  ].sort();
+  
+  // FAB Menu State - Click to open
   const [showServiceMenu, setShowServiceMenu] = useState(false);
-
   const menuOpacity = useRef(new Animated.Value(0)).current;
   const menuScale = useRef(new Animated.Value(0.8)).current;
-  const mapPreviewRef = useRef<any>(null);
-  const fullMapRef = useRef<any>(null);
+  
+  // WebView refs for dynamic radius updates
+  const mapPreviewRef = useRef<WebView>(null);
+  const fullMapRef = useRef<WebView>(null);
+  
+  // Notifications state
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  
+  // Check if contractor is in client mode (browsing as client)
+  const isContractorInClientMode = user?.role === 'contractor' && isClientMode;
+  
+  // Show "What do you need?" modal every time client OR guest visits Explore page
+  // Also show for contractors in CLIENT mode
+  useFocusEffect(
+    useCallback(() => {
+      // Show for:
+      // 1. Guests (!user)
+      // 2. Verified clients (user.role === 'client')
+      // 3. Contractors in client mode (user.role === 'contractor' && isClientMode)
+      const shouldShowPopup = !user || 
+        (user && user.email_verified && user.role === 'client') ||
+        (user && user.email_verified && user.role === 'contractor' && isClientMode);
+      
+      if (shouldShowPopup) {
+        setShowNeedPrompt(true);
+      }
+    }, [user, isClientMode])
+  );
 
-  // ─── Location ──────────────────────────────────────────────────────────────
+  // Helper function to show auth required popup for guests
+  const showAuthRequiredAlert = () => {
+    Alert.alert(
+      'Account Required',
+      'Please sign in or register to access this feature.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Register', onPress: () => router.push('/?mode=register') },
+        { text: 'Sign In', onPress: () => router.push('/?mode=login'), style: 'default' },
+      ]
+    );
+  };
+  
+  // Contractor types with emojis for dynamic stat
+  const CONTRACTOR_STATS = [
+    { type: 'Electricians', icon: '⚡' },
+    { type: 'Plumbers', icon: '🔧' },
+    { type: 'Handymen', icon: '🔨' },
+    { type: 'Painters', icon: '🎨' },
+    { type: 'Carpenters', icon: '🪚' },
+    { type: 'Roofers', icon: '🏠' },
+    { type: 'HVAC Techs', icon: '❄️' },
+    { type: 'Landscapers', icon: '🌳' },
+    { type: 'Masons', icon: '🧱' },
+    { type: 'Tilers', icon: '🔲' },
+  ];
+  
+  // Dynamic engagement stat - rotates every 30 seconds
+  const [engagementStat, setEngagementStat] = useState({ count: 7, type: 'Electricians', icon: '⚡' });
+
+  // Calculate Jobs Today based on time of day (resets at midnight, increases throughout day)
+  const getJobsToday = () => {
+    const now = new Date();
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+    
+    // Calculate total 30-minute intervals since midnight
+    const intervals = (hour * 2) + Math.floor(minute / 30);
+    
+    // Base calculation: starts at 0 at midnight
+    let jobs = 0;
+    
+    for (let i = 0; i < intervals; i++) {
+      const intervalHour = Math.floor(i / 2);
+      
+      // AM hours (0-11): slower growth
+      if (intervalHour < 6) {
+        // Very early morning (12am-6am): minimal activity
+        jobs += Math.floor(Math.random() * 3) + 1; // 1-3 per interval
+      } else if (intervalHour < 12) {
+        // Morning (6am-12pm): moderate activity
+        jobs += Math.floor(Math.random() * 5) + 6; // 6-10 per interval
+      } else if (intervalHour < 18) {
+        // Afternoon (12pm-6pm): peak activity
+        jobs += Math.floor(Math.random() * 5) + 9; // 9-13 per interval
+      } else {
+        // Evening (6pm-12am): declining activity
+        jobs += Math.floor(Math.random() * 4) + 4; // 4-7 per interval
+      }
+    }
+    
+    // Add some randomness based on day of week
+    const dayOfWeek = now.getDay();
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      // Weekends: slightly more activity
+      jobs = Math.floor(jobs * 1.1);
+    }
+    
+    return jobs;
+  };
+  
+  const [jobsToday, setJobsToday] = useState(getJobsToday());
+
+  // Update jobs count every 30 minutes
+  useEffect(() => {
+    const updateJobs = () => setJobsToday(getJobsToday());
+    updateJobs();
+    const interval = setInterval(updateJobs, 30 * 60 * 1000); // 30 minutes
+    return () => clearInterval(interval);
+  }, []);
+
+  // Rotate engagement stats every 30 seconds
+  useEffect(() => {
+    const updateEngagement = () => {
+      const stat = CONTRACTOR_STATS[Math.floor(Math.random() * CONTRACTOR_STATS.length)];
+      const now = new Date();
+      const hour = now.getHours();
+      
+      // Count based on time of day - more realistic numbers (20-49 range)
+      let baseCount;
+      if (hour < 6) baseCount = Math.floor(Math.random() * 10) + 20;      // 20-29 (early morning)
+      else if (hour < 12) baseCount = Math.floor(Math.random() * 15) + 28; // 28-42 (morning)
+      else if (hour < 18) baseCount = Math.floor(Math.random() * 15) + 35; // 35-49 (afternoon peak)
+      else baseCount = Math.floor(Math.random() * 12) + 25;                // 25-36 (evening)
+      
+      setEngagementStat({ count: baseCount, type: stat.type, icon: stat.icon });
+    };
+    
+    updateEngagement();
+    const interval = setInterval(updateEngagement, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
@@ -291,12 +348,12 @@ export default function ClientHomeScreen() {
           const loc = await Location.getCurrentPositionAsync({});
           setUserLoc({ lat: loc.coords.latitude, lng: loc.coords.longitude });
           try {
-            const address = await Location.reverseGeocodeAsync({
+            const [address] = await Location.reverseGeocodeAsync({
               latitude: loc.coords.latitude,
               longitude: loc.coords.longitude,
             });
             if (address) {
-              setLocationName(`${address[0]?.city || address[0]?.district || 'Your area'}`);
+              setLocationName(`${address.city || address.district || 'Your area'}`);
             }
           } catch {
             setLocationName('Your area');
@@ -315,26 +372,30 @@ export default function ClientHomeScreen() {
   }, []);
 
   useEffect(() => {
-    if (userLoc) fetchContractors();
+    if (userLoc) {
+      fetchContractors();
+    }
   }, [category, userLoc]);
 
+  // Check notification status on mount
   useEffect(() => {
     checkNotificationStatus();
   }, []);
 
-  // ─── Radius update → inject into both WebViews ───────────────────────────
+  // Dynamic radius update - inject JavaScript to update circle without remounting WebView
   useEffect(() => {
-    if (!userLoc || Platform.OS !== 'web') return;
-    const radiusMeters = Math.min(radiusKm, 200) * 1000;
-    const iframe = document.querySelector('iframe[title="map"]') as HTMLIFrameElement;
-    if (iframe?.contentWindow) {
-      iframe.contentWindow.postMessage(
-          JSON.stringify({ type: 'updateRadius', radius: radiusMeters }),
-          '*'
-      );
+    if (!userLoc) return;
+    const radiusMeters = radiusKm >= 200 ? 200000 : radiusKm * 1000;
+    const script = `if(window.updateRadius){window.updateRadius(${radiusMeters});}true;`;
+    
+    // Update both map preview and full map WebViews
+    if (mapPreviewRef.current) {
+      mapPreviewRef.current.injectJavaScript(script);
+    }
+    if (fullMapRef.current) {
+      fullMapRef.current.injectJavaScript(script);
     }
   }, [radiusKm, userLoc]);
-
 
   const checkNotificationStatus = async () => {
     try {
@@ -351,42 +412,67 @@ export default function ClientHomeScreen() {
   const handleNotificationToggle = async () => {
     try {
       if (notificationsEnabled) {
+        // Turn off notifications
         setNotificationsEnabled(false);
         await AsyncStorage.setItem('notificationsEnabled', 'false');
-        Alert.alert('Notifications Disabled', 'You will no longer receive notifications.');
+        Alert.alert(
+          'Notifications Disabled',
+          'You will no longer receive notifications for new jobs or messages.'
+        );
       } else {
+        // Request permission
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
+        
         if (existingStatus !== 'granted') {
           const { status } = await Notifications.requestPermissionsAsync();
           finalStatus = status;
         }
+        
         if (finalStatus === 'granted') {
           setNotificationsEnabled(true);
           await AsyncStorage.setItem('notificationsEnabled', 'true');
+          
+          // Get push token (for future backend integration)
+          const token = await Notifications.getExpoPushTokenAsync();
+          console.log('Push token:', token.data);
+          
+          // Save token to backend if user is logged in
           if (user) {
             try {
-              const token = await Notifications.getExpoPushTokenAsync();
               await api.post('/users/push-token', { token: token.data });
-            } catch {}
+            } catch (e) {
+              console.log('Could not save push token');
+            }
           }
-          Alert.alert('Notifications Enabled!', 'You will now receive job and message alerts.');
+          
+          Alert.alert(
+            'Notifications Enabled! 🔔',
+            'You will now receive notifications when:\n\n• New jobs are posted in your trade\n• Someone sends you a message',
+            [{ text: 'Great!' }]
+          );
         } else {
-          Alert.alert('Permission Required', 'Please enable notifications in your device settings.');
+          Alert.alert(
+            'Permission Required',
+            'Please enable notifications in your device settings to receive job alerts and messages.',
+            [{ text: 'OK' }]
+          );
         }
       }
     } catch (error) {
-      console.log('Error toggling notifications', error);
+      console.log('Error toggling notifications:', error);
       Alert.alert('Error', 'Could not update notification settings');
     }
   };
 
   const fetchContractors = async () => {
+    // Only fetch contractors if user is in client mode or is a client
     if (user?.role === 'contractor' && user?.currentMode !== 'client') {
       setContractors([]);
       setLoading(false);
       return;
     }
+    
     try {
       const params = new URLSearchParams();
       if (category !== 'All') params.append('category', category);
@@ -395,80 +481,310 @@ export default function ClientHomeScreen() {
         params.append('lng', String(userLoc.lng));
       }
       const res = await api.get(`/contractors?${params.toString()}`);
-      let filteredContractors = (res.contractors ?? []).filter(
-          (contractor: any) => contractor.id !== user?.id
+      // Filter out the current user so they don't see themselves
+      let filteredContractors = (res.contractors || []).filter(
+        (contractor: any) => contractor.id !== user?.id
       );
+      
+      // Apply client-side filters
       if (filterLicenseOnly) {
-        filteredContractors = filteredContractors.filter((c: any) => c.haslicense);
+        filteredContractors = filteredContractors.filter((c: any) => c.has_license);
       }
       if (filterMinRating > 0) {
         filteredContractors = filteredContractors.filter((c: any) => (c.rating || 0) >= filterMinRating);
       }
+      // Multi-language filter
       if (filterLanguages.length > 0) {
-        filteredContractors = filteredContractors.filter((c: any) =>
-            filterLanguages.some((lang) => c.languages?.includes(lang))
-        );
+        filteredContractors = filteredContractors.filter((c: any) => {
+          const contractorLangs = c.languages || ['English'];
+          return filterLanguages.some(filterLang => {
+            // Handle "Chinese" variants
+            if (filterLang.toLowerCase().includes('chinese')) {
+              return contractorLangs.some((l: string) => 
+                l.toLowerCase().includes('chinese') || l.toLowerCase().includes('mandarin') || l.toLowerCase().includes('cantonese')
+              );
+            }
+            return contractorLangs.some((l: string) => l.toLowerCase().includes(filterLang.toLowerCase()));
+          });
+        });
       }
-
-      const sortedContractors = filteredContractors.sort((a: any, b: any) => {
-        if (a.isonline && !b.isonline) return -1;
-        if (!a.isonline && b.isonline) return 1;
-        const distA = a.distance_km ?? a.distance ?? Infinity;
-        const distB = b.distance_km ?? b.distance ?? Infinity;
-        return distA - distB;
-      });
-
-      setContractors(sortedContractors);
-      setOnlineCount(sortedContractors.filter((c: any) => c.isonline).length);
-
-      const topType = CATEGORY_DATA[Math.floor(Math.random() * CATEGORY_DATA.length)];
-      setEngagementStat({ count: Math.floor(Math.random() * 8) + 1, type: topType.name, iconName: topType.iconName });
-      setJobsToday(Math.floor(Math.random() * 15) + 5);
-    } catch (err) {
-      console.error('fetchContractors error:', err);
+      
+      setContractors(filteredContractors);
+      if (res.online_count !== undefined) setOnlineCount(res.online_count);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const sortedContractors = [...contractors].sort((a, b) => {
-    if (radiusKm > 0) {
-      const distA = a.distance_km ?? a.distance ?? Infinity;
-      const distB = b.distance_km ?? b.distance ?? Infinity;
-      if (distA > radiusKm && distB <= radiusKm) return 1;
-      if (distA <= radiusKm && distB > radiusKm) return -1;
+  // Toggle category selection (multi-select)
+  const toggleCategory = (cat: string) => {
+    if (cat === 'All') {
+      setSelectedCategories([]);
+      setCategory('All');
+    } else {
+      setSelectedCategories(prev => {
+        if (prev.includes(cat)) {
+          // Remove category
+          const newCats = prev.filter(c => c !== cat);
+          setCategory(newCats.length === 0 ? 'All' : newCats[0]);
+          return newCats;
+        } else {
+          // Add category (max 5)
+          if (prev.length >= 5) return prev;
+          const newCats = [...prev, cat];
+          setCategory(newCats[0]);
+          return newCats;
+        }
+      });
     }
-    if (a.isonline && !b.isonline) return -1;
-    if (!a.isonline && b.isonline) return 1;
-    return (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity);
-  });
+  };
 
-  const onRefresh = () => {
+  // Search category by text - searches exact names and keyword mappings
+  const searchCategoryByText = (searchText: string): { exactMatch: typeof CATEGORY_DATA[0] | null; suggestion: string | null } => {
+    const searchLower = searchText.toLowerCase().trim();
+    if (!searchLower) return { exactMatch: null, suggestion: null };
+    
+    // First check for exact category name match
+    const exactMatch = CATEGORY_DATA.find(cat => 
+      cat.name.toLowerCase() === searchLower || 
+      cat.name.toLowerCase().includes(searchLower)
+    );
+    if (exactMatch) return { exactMatch, suggestion: null };
+    
+    // Check keyword mappings for smart suggestions
+    const suggestedCategoryName = SEARCH_KEYWORDS[searchLower];
+    if (suggestedCategoryName) {
+      return { exactMatch: null, suggestion: suggestedCategoryName };
+    }
+    
+    // Check for partial keyword matches (e.g., "lamp fixer" -> "lamp")
+    const words = searchLower.split(' ');
+    for (const word of words) {
+      if (SEARCH_KEYWORDS[word]) {
+        return { exactMatch: null, suggestion: SEARCH_KEYWORDS[word] };
+      }
+    }
+    
+    return { exactMatch: null, suggestion: null };
+  };
+
+  // Filter categories by search text for display in the list
+  const filteredCategoryData = React.useMemo(() => {
+    if (!categorySearchText.trim()) return CATEGORY_DATA;
+    const searchLower = categorySearchText.toLowerCase().trim();
+    return CATEGORY_DATA.filter(cat => 
+      cat.name.toLowerCase().includes(searchLower)
+    );
+  }, [categorySearchText]);
+
+  // Handle search submit
+  const handleCategorySearch = () => {
+    const { exactMatch, suggestion } = searchCategoryByText(categorySearchText);
+    
+    if (exactMatch) {
+      // Direct match found - select it
+      if (!selectedCategories.includes(exactMatch.name) && selectedCategories.length < 5) {
+        toggleCategory(exactMatch.name);
+      }
+      setCategorySearchText('');
+      // Ask if they want to add more
+      if (selectedCategories.length < 4) {
+        setShowAddMorePrompt(true);
+      }
+    } else if (suggestion) {
+      // Show smart suggestion prompt
+      setSuggestedCategory(suggestion);
+      setShowSmartSuggestion(true);
+    } else if (categorySearchText.trim()) {
+      // No match found - show alert
+      Alert.alert(
+        'Category Not Found',
+        `We couldn't find "${categorySearchText}" in our contractor categories. Try browsing the list below.`,
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  // Handle accepting smart suggestion
+  const handleAcceptSuggestion = () => {
+    if (suggestedCategory && !selectedCategories.includes(suggestedCategory)) {
+      if (selectedCategories.length < 5) {
+        toggleCategory(suggestedCategory);
+      }
+    }
+    setSuggestedCategory(null);
+    setShowSmartSuggestion(false);
+    setCategorySearchText('');
+    // Ask if they want to add more
+    if (selectedCategories.length < 4) {
+      setShowAddMorePrompt(true);
+    }
+  };
+
+  // Handle declining smart suggestion
+  const handleDeclineSuggestion = () => {
+    setSuggestedCategory(null);
+    setShowSmartSuggestion(false);
+    setCategorySearchText('');
+  };
+
+  // Handle "Add more" response
+  const handleAddMoreResponse = (addMore: boolean) => {
+    setShowAddMorePrompt(false);
+    if (!addMore) {
+      // Close the service menus if they said no
+      closeServiceMenu();
+      setShowFullMapServiceMenu(false);
+    }
+  };
+
+  // Sort and filter contractors - ALWAYS show only online contractors for clients
+  const sortedContractors = React.useMemo(() => {
+    // Always filter for online contractors only
+    let filtered = contractors.filter(c => c.is_online);
+    
+    // Filter by radius - only include contractors within the selected distance
+    filtered = filtered.filter(c => {
+      const distance = c.distance_km || c.distance;
+      if (!distance) return true;
+      if (radiusKm >= 200) return true;
+      return distance <= radiusKm;
+    });
+    
+    // Filter by selected categories (if any selected)
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(c => {
+        const contractorType = c.contractor_type?.toLowerCase() || '';
+        const trades = c.trades?.map((t: string) => t.toLowerCase()) || [];
+        return selectedCategories.some(cat => 
+          contractorType.includes(cat.toLowerCase()) || 
+          trades.some((t: string) => t.includes(cat.toLowerCase()))
+        );
+      });
+    }
+    
+    // Always sort by distance (nearest first)
+    filtered.sort((a, b) => (a.distance_km || 999) - (b.distance_km || 999));
+    
+    return filtered;
+  }, [contractors, radiusKm, selectedCategories]);
+
+  // Get counts per selected category
+  const getCategoryCountsText = React.useMemo(() => {
+    if (selectedCategories.length === 0) {
+      return `${sortedContractors.length} online contractor${sortedContractors.length !== 1 ? 's' : ''} nearby`;
+    }
+    
+    // Count contractors per category
+    const categoryCounts: { [key: string]: number } = {};
+    selectedCategories.forEach(cat => {
+      categoryCounts[cat] = contractors.filter(c => {
+        if (!c.is_online) return false;
+        // Check radius
+        const distance = c.distance_km || c.distance;
+        if (distance && radiusKm < 200 && distance > radiusKm) return false;
+        // Check category match
+        const contractorType = c.contractor_type?.toLowerCase() || '';
+        const trades = c.trades?.map((t: string) => t.toLowerCase()) || [];
+        return contractorType.includes(cat.toLowerCase()) || 
+          trades.some((t: string) => t.includes(cat.toLowerCase()));
+      }).length;
+    });
+    
+    // Build the display text
+    const parts = selectedCategories.map(cat => {
+      const count = categoryCounts[cat];
+      const catLower = cat.toLowerCase();
+      const plural = count !== 1 ? 's' : '';
+      return `${count} ${catLower}${plural}`;
+    });
+    
+    if (parts.length === 1) {
+      return `${parts[0]} online`;
+    } else if (parts.length === 2) {
+      return `${parts[0]} and ${parts[1]} online`;
+    } else {
+      const lastPart = parts.pop();
+      return `${parts.join(', ')}, and ${lastPart} online`;
+    }
+  }, [selectedCategories, contractors, radiusKm, sortedContractors]);
+
+  // Get empty state message
+  const getEmptyStateMessage = React.useMemo(() => {
+    if (selectedCategories.length === 0) {
+      return `No online contractors within ${radiusKm} km`;
+    }
+    
+    if (selectedCategories.length === 1) {
+      return `No online ${selectedCategories[0].toLowerCase()}s within ${radiusKm} km`;
+    }
+    
+    const catNames = selectedCategories.map(c => c.toLowerCase() + 's');
+    if (catNames.length === 2) {
+      return `No online ${catNames[0]} or ${catNames[1]} within ${radiusKm} km`;
+    }
+    
+    const lastCat = catNames.pop();
+    return `No online ${catNames.join(', ')}, or ${lastCat} within ${radiusKm} km`;
+  }, [selectedCategories, radiusKm]);
+
+  // Re-fetch when filters change
+  useEffect(() => {
+    if (userLoc) {
+      fetchContractors();
+    }
+  }, [filterLicenseOnly, filterMinRating, filterLanguages]);
+
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchContractors();
+  }, [category, userLoc]);
+
+  const handleCall = (phone: string, e?: any) => {
+    if (e) e.stopPropagation();
+    // Check if user is logged in
+    if (!user) {
+      setShowGuestPrompt(true);
+      return;
+    }
+    Linking.openURL(`tel:${phone}`);
   };
 
-  useFocusEffect(
-      useCallback(() => {
-        if (userLoc) fetchContractors();
-      }, [userLoc, category, filterLicenseOnly, filterMinRating, filterLanguages])
-  );
-
-  // ─── Category helpers ─────────────────────────────────────────────────────
-  const toggleCategory = (categoryName: string) => {
-    setSelectedCategories((prev) => {
-      if (prev.includes(categoryName)) return prev.filter((c) => c !== categoryName);
-      return [...prev, categoryName];
-    });
-    setCategory(categoryName);
-    fetchContractors();
+  const handleEmail = (email: string, e?: any) => {
+    if (e) e.stopPropagation();
+    // Check if user is logged in
+    if (!user) {
+      setShowGuestPrompt(true);
+      return;
+    }
+    Linking.openURL(`mailto:${email}`);
   };
 
-  // ─── Service Menu ─────────────────────────────────────────────────────────
+  const handleMessage = async (contractorId: string, e?: any) => {
+    if (e) e.stopPropagation();
+    if (!user) {
+      setShowGuestPrompt(true);
+      return;
+    }
+    try {
+      const conv = await api.post('/conversations', { participant_id: contractorId });
+      router.push(`/chat/${conv.id}`);
+    } catch (err) {
+      console.error('Error creating conversation:', err);
+      router.push(`/chat/${contractorId}`);
+    }
+  };
+
+  // Service Menu Functions
   const toggleServiceMenu = () => {
-    if (showServiceMenu) closeServiceMenu();
-    else openServiceMenu();
+    if (showServiceMenu) {
+      closeServiceMenu();
+    } else {
+      openServiceMenu();
+    }
   };
 
   const openServiceMenu = () => {
@@ -483,39 +799,61 @@ export default function ClientHomeScreen() {
     Animated.parallel([
       Animated.timing(menuOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
       Animated.timing(menuScale, { toValue: 0.8, duration: 200, useNativeDriver: true }),
-    ]).start(() => setShowServiceMenu(false));
+    ]).start(() => {
+      setShowServiceMenu(false);
+    });
   };
 
   const selectCategory = (categoryName: string) => {
+    // Use toggleCategory for multi-select support
     toggleCategory(categoryName);
+    // Don't close menu - let user select multiple
   };
 
-  // ─── Smart search ─────────────────────────────────────────────────────────
-  const handleCategorySearch = (text: string) => {
-    setCategorySearchText(text);
-    if (text.length < 2) {
-      setShowSmartSuggestion(false);
-      setSuggestedCategory(null);
-      return;
-    }
-    const lower = text.toLowerCase();
-    const match = SEARCH_KEYWORDS[lower];
-    if (match) {
-      setSuggestedCategory(match);
-      setShowSmartSuggestion(true);
-    } else {
-      const partial = Object.keys(SEARCH_KEYWORDS).find((k) => k.startsWith(lower));
-      if (partial) {
-        setSuggestedCategory(SEARCH_KEYWORDS[partial]);
-        setShowSmartSuggestion(true);
-      } else {
-        setShowSmartSuggestion(false);
-        setSuggestedCategory(null);
-      }
-    }
+  const getMapHTML = () => {
+    if (!userLoc) return '';
+
+    const onlineContractors = sortedContractors.filter(c => c.is_online && c.current_location);
+    const markers = onlineContractors.slice(0, 15).map(c => ({
+      id: c.id,
+      name: c.name,
+      type: c.contractor_type,
+      lat: c.current_location.lat,
+      lng: c.current_location.lng,
+      online: true
+    }));
+
+    const mJSON = JSON.stringify(markers);
+
+    const zoomLevel = Math.round(14 - Math.log2(radiusKm));
+
+
+    const radiusMeters = radiusKm >= 200 ? 200000 : radiusKm * 1000;
+
+    return `<!DOCTYPE html><html><head>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>*{margin:0;padding:0}#map{width:100vw;height:100vh}.leaflet-control-attribution{display:none!important}</style></head>
+<body><div id="map"></div><script>
+var map=L.map('map',{zoomControl:false}).setView([${userLoc.lat},${userLoc.lng}],${zoomLevel});
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:''}).addTo(map);
+var radiusCircle=L.circle([${userLoc.lat},${userLoc.lng}],{radius:${radiusMeters},fillColor:'#FF6A00',fillOpacity:0.10,color:'#FF6A00',weight:2,opacity:0.6}).addTo(map);
+L.circleMarker([${userLoc.lat},${userLoc.lng}],{radius:10,fillColor:'#007AFF',color:'#fff',weight:3,fillOpacity:1}).addTo(map).bindPopup('<b>You are here</b>');
+var ms=${mJSON};
+ms.forEach(function(m){
+var icon=L.divIcon({className:'',html:'<div style="background:#22C55E;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)"></div>',iconSize:[14,14],iconAnchor:[7,7]});
+L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'tap',id:m.id}))});
+});
+window.updateRadius=function(newRadiusMeters){
+  radiusCircle.setRadius(newRadiusMeters);
+  var km=newRadiusMeters/1000;
+  var z=km<=5?12:km<=25?10:km<=50?9:km<=100?8:km<=200?7:6;
+  map.setZoom(z);
+};
+</script></body></html>`;
   };
 
-  // ─── Map ──────────────────────────────────────────────────────────────────
   const handleMapMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
@@ -523,149 +861,202 @@ export default function ClientHomeScreen() {
     } catch {}
   };
 
-  const openConversation = async (contractorId: string) => {
-    if (!user) {
-      setShowGuestPrompt(true);
-      return;
-    }
-    try {
-      const conv = await api.post('/conversations', { participantid: contractorId });
-      router.push(`/chat/${conv.id}`);
-    } catch (err) {
-      router.push(`/chat/${contractorId}`);
-    }
-  };
-
-  // ─── Contractor card ──────────────────────────────────────────────────────
   const renderContractorCard = ({ item }: { item: any }) => {
     const initials = item.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2);
     const distanceKm = item.distance_km || item.distance;
-
+    
     const handleCardPress = () => {
-      if (!user && !useAuth()) {
-        setShowGuestPrompt(true);
-        return;
+      if (!user) {
+        showAuthRequiredAlert();
+      } else {
+        router.push(`/contractor/${item.id}`);
       }
-      router.push(`/contractor/${item.id}`);
     };
-
+    
     return (
-        <TouchableOpacity style={styles.contractorCard} onPress={() => router.push(`/contractor/${item.id}`)}>
-          <View style={styles.cardHeader}>
-            <View style={[styles.avatar, { backgroundColor: item.isonline ? colors.green : colors.border }]}>
-              {item.profile_image ? (
-                  <Image source={{ uri: item.profile_image }} style={styles.avatarImage} />
-              ) : (
-                  <Text style={styles.avatarText}>{initials}</Text>
+      <TouchableOpacity style={styles.contractorCard} onPress={handleCardPress}>
+        <View style={styles.cardHeader}>
+          {item.profile_photo ? (
+            <Image source={{ uri: item.profile_photo }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
+          )}
+          <View style={styles.cardInfo}>
+            <View style={styles.nameRow}>
+              <Text style={styles.contractorName} numberOfLines={1}>{item.name}</Text>
+              {item.is_online && (
+                <View style={styles.onlineBadge}>
+                  <View style={styles.pulseDot} />
+                  <Text style={styles.onlineText}>Available now</Text>
+                </View>
               )}
-              {item.isonline && <View style={styles.onlineDot} />}
             </View>
-            <View style={styles.cardInfo}>
-              <View style={styles.nameRow}>
-                <Text style={styles.contractorName} numberOfLines={1}>{item.name}</Text>
-                {item.haslicense && (
-                    <View style={styles.licensedBadge}>
-                      <Text style={styles.licensedBadgeText}>✓ Licensed</Text>
-                    </View>
-                )}
+            <Text style={styles.jobTitle}>{item.contractor_type}</Text>
+            {/* License Badge */}
+            {item.has_license && (
+              <View style={styles.licenseBadge}>
+                <Text style={styles.licenseBadgeText}>🪪 License on file</Text>
               </View>
-              <Text style={styles.contractorType} numberOfLines={1}>
-                {item.trades?.join(', ') || item.contractor_type || 'General Contractor'}
-              </Text>
-              <View style={styles.cardMeta}>
-                {item.rating > 0 && (
-                    <View style={styles.ratingBadge}>
-                      <Ionicons name="star" size={12} color="#F59E0B" />
-                      <Text style={styles.ratingText}>{item.rating?.toFixed(1)}</Text>
-                      {item.review_count > 0 && (
-                          <Text style={styles.reviewCountText}>({item.review_count})</Text>
-                      )}
-                    </View>
-                )}
-                {distanceKm != null && (
-                    <Text style={styles.distanceBadge}> {distanceKm < 1 ? `${Math.round(distanceKm * 1000)}m` : `${distanceKm.toFixed(1)}km`}
-                    </Text>
-                )}
-                {item.isonline && (
-                    <View style={styles.onlineBadge}>
-                      <View style={styles.onlineDotSmall} />
-                      <Text style={styles.onlineText}>Online</Text>
-                    </View>
-                )}
-              </View>
-            </View>
-          </View>
-
-          {item.bio && (
-              <Text style={styles.contractorBio} numberOfLines={2}>{item.bio}</Text>
-          )}
-
-          {item.languages && item.languages.length > 0 && (
-              <View style={styles.languageRow}>
-                <Ionicons name="earth" size={14} color={colors.textSecondary} />
-                <Text style={styles.languageText}>{item.languages.slice(0, 3).join(', ')}</Text>
-              </View>
-          )}
-
-          <View style={styles.cardActions}>
-            <TouchableOpacity style={styles.messageBtn} onPress={() => openConversation(item.id)}>
-              <Ionicons name="chatbubble-outline" size={16} color={colors.primary} />
-              <Text style={styles.messageBtnText}>Message</Text>
-            </TouchableOpacity>
-            {item.phone_visible && item.phone && (
-                <TouchableOpacity style={styles.callBtn} onPress={() => Linking.openURL(`tel:${item.phone}`)}>
-                  <Ionicons name="call-outline" size={16} color={colors.paper} />
-                  <Text style={styles.callBtnText}>Call</Text>
-                </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.viewBtn} onPress={() => router.push(`/contractor/${item.id}`)}>
-              <Text style={styles.viewBtnText}>View Profile</Text>
-              <Ionicons name="chevron-forward" size={14} color={colors.primary} />
-            </TouchableOpacity>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Ionicons name="star" size={14} color="#FFB800" />
+                <Text style={styles.statText}>{item.rating || 0}</Text>
+                <Text style={styles.statSubtext}>({item.review_count || 0})</Text>
+              </View>
+              {distanceKm && distanceKm < 999 && (
+                <View style={styles.statItem}>
+                  <Ionicons name="location" size={14} color={colors.textSecondary} />
+                  <Text style={styles.statText}>{distanceKm} km</Text>
+                </View>
+              )}
+              {item.avg_response_time && (
+                <View style={styles.statItem}>
+                  <Ionicons name="flash" size={14} color={colors.primary} />
+                  <Text style={styles.statText}>~{item.avg_response_time} min</Text>
+                </View>
+              )}
+            </View>
+            {/* Languages Badge */}
+            {item.languages && item.languages.length > 0 && (
+              <View style={styles.languagesBadge}>
+                <Ionicons name="globe-outline" size={12} color={colors.textSecondary} />
+                <Text style={styles.languagesBadgeText}>
+                  {item.languages.slice(0, 3).join(', ')}{item.languages.length > 3 ? '...' : ''}
+                </Text>
+              </View>
+            )}
           </View>
-        </TouchableOpacity>
+        </View>
+        
+        {item.bio && (
+          <Text style={styles.bio} numberOfLines={2}>{item.bio}</Text>
+        )}
+        
+        {/* Action Buttons - Styled like the reference image */}
+        <View style={styles.contactButtonsRow}>
+          {/* Only show Call button if phone_visible is true AND phone is verified AND phone exists */}
+          {item.phone_visible !== false && item.phone_verified && item.phone && (
+            <TouchableOpacity 
+              style={styles.contactActionBtn}
+              onPress={(e) => handleCall(item.phone, e)}
+            >
+              <View style={[styles.contactActionIcon, { backgroundColor: '#E8F9EE' }]}>
+                <Ionicons name="call" size={20} color="#22C55E" />
+              </View>
+              <Text style={styles.contactActionLabel}>Call</Text>
+            </TouchableOpacity>
+          )}
+          
+          <TouchableOpacity 
+            style={styles.contactActionBtn}
+            onPress={(e) => handleEmail(item.email, e)}
+          >
+            <View style={[styles.contactActionIcon, { backgroundColor: '#E8F0FF' }]}>
+              <Ionicons name="mail" size={20} color="#3B82F6" />
+            </View>
+            <Text style={styles.contactActionLabel}>Email</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.contactActionBtn}
+            onPress={(e) => handleMessage(item.id, e)}
+          >
+            <View style={[styles.contactActionIcon, { backgroundColor: '#FFF8EC' }]}>
+              <Ionicons name="chatbubble" size={20} color="#FF6A00" />
+            </View>
+            <Text style={styles.contactActionLabel}>Message</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
     );
   };
 
-  const isGuest = !user;
-  const isContractor = user?.role === 'contractor';
+  const renderCategoryItem = ({ item }: { item: typeof CATEGORY_DATA[0] }) => (
+    <TouchableOpacity 
+      style={[styles.categoryChip, category === item.name && styles.categoryChipActive]}
+      onPress={() => setCategory(category === item.name ? 'All' : item.name)}
+    >
+      <Text style={styles.categoryIcon}>{item.icon}</Text>
+      <Text style={[styles.categoryText, category === item.name && styles.categoryTextActive]}>
+        {item.name}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  // Check if user is contractor in contractor mode - use authIsContractorMode from context
+  const isContractorMode = authIsContractorMode;
+
+  const handleSwitchToContractorMode = async () => {
+    await switchMode('contractor');
+    // Stay on current page - no navigation
+  };
 
   return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        {/* ── Header ─────────────────────────────────────────────────────────── */}
-        <LinearGradient colors={[colors.primary, colors.primaryDark]} style={styles.header}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+      >
+        {/* Enhanced Header */}
+        <LinearGradient
+          colors={['#FF6A00', '#FF8C33', '#FFA559']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
           <View style={styles.headerTop}>
-            <View style={styles.headerLeft}>
-              <Text style={styles.headerTitle}>MiPropertyGuru</Text>
-              <Text style={styles.headerSubtitle}>Find trusted contractors near you</Text>
+            <View style={styles.logoContainer}>
+              <Image 
+                source={require('../../assets/images/icon.png')} 
+                style={styles.logoImage}
+              />
+              <View>
+                <Text style={styles.appName}>MiPropertyGuru</Text>
+                <Text style={styles.tagline}>Your home, our experts</Text>
+              </View>
             </View>
-            <View style={styles.headerRight}>
-              {user && (
-                  <TouchableOpacity
-                      style={[styles.notificationBtn, notificationsEnabled && styles.notificationBtnActive]}
-                      onPress={handleNotificationToggle}
+            {/* Mode Toggle and Bell/Auth buttons in same column on right */}
+            <View style={styles.headerRightColumn}>
+              <ModeToggle />
+              {user ? (
+                <TouchableOpacity 
+                  style={[
+                    styles.notificationBtn, 
+                    notificationsEnabled && styles.notificationBtnActive
+                  ]}
+                  onPress={handleNotificationToggle}
+                >
+                  <Ionicons 
+                    name={notificationsEnabled ? "notifications" : "notifications-outline"} 
+                    size={22} 
+                    color={notificationsEnabled ? '#FFD700' : colors.paper} 
+                  />
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.headerAuthButtons}>
+                  <TouchableOpacity 
+                    style={styles.headerSignInBtn}
+                    onPress={() => router.push('/?mode=login')}
                   >
-                    <Ionicons
-                        name={notificationsEnabled ? 'notifications' : 'notifications-outline'}
-                        size={22}
-                        color={notificationsEnabled ? '#FFD700' : colors.paper}
-                    />
+                    <Text style={styles.headerSignInBtnText}>Sign In</Text>
                   </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.headerRegisterBtn}
+                    onPress={() => router.push('/?mode=register')}
+                  >
+                    <Text style={styles.headerRegisterBtnText}>Register</Text>
+                  </TouchableOpacity>
+                </View>
               )}
-              {isGuest && (
-                  <View style={styles.headerAuthButtons}>
-                    <TouchableOpacity style={styles.headerSignInBtn} onPress={() => router.push('/?mode=login')}>
-                      <Text style={styles.headerSignInBtnText}>Sign In</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.headerRegisterBtn} onPress={() => router.push('/?mode=register')}>
-                      <Text style={styles.headerRegisterBtnText}>Register</Text>
-                    </TouchableOpacity>
-                  </View>
-              )}
-              {user && <ModeToggle />}
             </View>
           </View>
-
+          
           <View style={styles.headerContent}>
             <View style={styles.locationCard}>
               <View style={styles.locationIcon}>
@@ -676,7 +1067,7 @@ export default function ClientHomeScreen() {
                 <Text style={styles.locationValue}>{locationName}</Text>
               </View>
             </View>
-
+            
             <View style={styles.statsCards}>
               <View style={styles.statCard}>
                 <View style={[styles.statIconBg, { backgroundColor: colors.greenLight }]}>
@@ -687,469 +1078,3386 @@ export default function ClientHomeScreen() {
               </View>
               <View style={styles.statCard}>
                 <View style={[styles.statIconBg, { backgroundColor: colors.primaryLight }]}>
-                  <Ionicons name="star" size={16} color={colors.primary} />
+                  <Text style={{ fontSize: 16 }}>📋</Text>
                 </View>
                 <Text style={styles.statNumber}>{jobsToday}</Text>
                 <Text style={styles.statLabel}>Jobs completed today</Text>
               </View>
               <View style={styles.statCard}>
                 <View style={[styles.statIconBg, { backgroundColor: '#E8F5E9' }]}>
-                  <Ionicons name={engagementStat.iconName as any} size={18} color={colors.primary} />
+                  <Text style={{ fontSize: 18 }}>{engagementStat.icon}</Text>
                 </View>
                 <Text style={styles.statNumber}>{engagementStat.count}</Text>
-                <Text style={styles.statLabel} numberOfLines={2}>
-                  {engagementStat.type} hired in your area today
-                </Text>
+                <Text style={styles.statLabel} numberOfLines={2}>{engagementStat.type} hired in your area today</Text>
               </View>
             </View>
           </View>
-
-          {isContractor && isContractorMode && (
-              <View style={styles.switchModePrompt}>
-                <Ionicons name="information-circle-outline" size={24} color={colors.primary} />
-                <Text style={styles.switchModePromptText}>
-                  You&apos;re in Contractor Mode. To browse and hire contractors,{' '}
-                  <Text style={styles.switchModeLink} onPress={() => switchMode('client')}>
-                    switch to Client Mode
-                  </Text>
-                </Text>
-              </View>
-          )}
         </LinearGradient>
 
-        {/* ── Content: Client/Guest mode only ──────────────────────────────── */}
-        {(isClientMode || user?.role === 'client' || !user) && (
-            <FlatList
-                data={sortedContractors}
-                keyExtractor={(item) => item.id}
-                renderItem={renderContractorCard}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-                contentContainerStyle={styles.listContent}
-                ListEmptyComponent={
-                  loading ? (
-                      <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color={colors.primary} />
-                        <Text style={styles.loadingText}>Finding contractors near you...</Text>
-                      </View>
-                  ) : (
-                      <View style={styles.emptyContainer}>
-                        <Ionicons name="search-outline" size={36} color={colors.textDisabled} />
-                        <Text style={styles.emptyTitle}>No contractors found</Text>
-                        <Text style={styles.emptySubtitle}>Try adjusting your search radius or category filter</Text>
-                      </View>
-                  )
-                }
-                ListHeaderComponent={
-                  <View>
-                    {/* ── Mini Map ─────────────────────────────────────────────── */}
-                    {userLoc && sortedContractors.length > 0 && (
-                        <View style={styles.urgentMapSection}>
-                          <View style={styles.urgentMapHeader}>
-                            <View style={styles.urgentBadge}>
-                              <Ionicons name="location" size={12} color={colors.primaryi} />
-                              <Text style={styles.urgentBadgeText}>LIVE</Text>
-                            </View>
-
-                            <Text style={styles.urgentMapSubtitle}>Online contractors near you</Text>
-                            <TouchableOpacity onPress={() => setShowFullMap(true)} style={styles.expandMapBtn}>
-                              <Ionicons name="expand-outline" size={18} color={colors.primary} />
-                            </TouchableOpacity>
-                          </View>
-
-                          {/* Radius Slider */}
-                          <View style={styles.radiusSliderSection}>
-                            <View style={styles.radiusSliderHeader}>
-                              <Text style={styles.radiusSliderLabel}>Search Radius</Text>
-                              <Text style={styles.radiusSliderValue}>
-                                {radiusKm >= 200 ? '200+ km' : `${radiusKm} km`}
-                              </Text>
-                            </View>
-                            <Slider
-                                style={{ width: '100%', height: 36 }}
-                                minimumValue={5}
-                                maximumValue={200}
-                                step={5}
-                                value={radiusKm}
-                                onValueChange={setRadiusKm}
-                                onSlidingComplete={(val) => {
-                                  setRadiusKm(val);
-                                  fetchContractors();
-                                }}
-                                minimumTrackTintColor={colors.primary}
-                                maximumTrackTintColor={colors.border}
-                                thumbTintColor={colors.primary}
-                            />
-                          </View>
-
-                          {/* Map — native uses WebView, web uses iframe */}
-                          <NativeMapView
-                              userLoc={userLoc}
-                              radiusKm={radiusKm}
-                              contractors={sortedContractors}
-                              height={200}
-                              onMarkerPress={(id) => router.push(`/contractor/${id}`)}
-                          />
-                        </View>
-                    )}
-
-                    {/* ── Category search ───────────────────────────────────────── */}
-                    <View style={styles.searchSection}>
-                      <View style={styles.searchInputRow}>
-                        <Ionicons name="search" size={18} color={colors.textSecondary} />
-                        <TextInput
-                            style={styles.searchInput}
-                            placeholder="Search by service (e.g. 'pipe', 'roof')"
-                            placeholderTextColor={colors.textSecondary}
-                            value={categorySearchText}
-                            onChangeText={handleCategorySearch}
-                        />
-                        {categorySearchText.length > 0 && (
-                            <TouchableOpacity onPress={() => {
-                              setCategorySearchText('');
-                              setShowSmartSuggestion(false);
-                              setSuggestedCategory(null);
-                            }}>
-                              <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
-                            </TouchableOpacity>
-                        )}
-                      </View>
-                      {showSmartSuggestion && suggestedCategory && (
-                          <TouchableOpacity
-                              style={styles.suggestionBanner}
-                              onPress={() => {
-                                toggleCategory(suggestedCategory);
-                                setCategorySearchText('');
-                                setShowSmartSuggestion(false);
-                              }}
-                          >
-                            <Ionicons name="bulb-outline" size={16} color={colors.primary} />
-                            <Text style={styles.suggestionText}>
-                              Did you mean <Text style={styles.suggestionHighlight}>{suggestedCategory}</Text>?
-                            </Text>
-                          </TouchableOpacity>
-                      )}
-                    </View>
-
-                    {/* ── Category chips ─────────────────────────────────────────── */}
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.categoriesScroll}
-                        contentContainerStyle={styles.categoriesContent}
-                    >
-                      <TouchableOpacity
-                          style={[styles.categoryChip, selectedCategories.length === 0 && styles.categoryChipActive]}
-                          onPress={() => { setSelectedCategories([]); setCategory('All'); fetchContractors(); }}
-                      >
-                        <Text style={[styles.categoryChipText, selectedCategories.length === 0 && styles.categoryChipTextActive]}>
-                          All
-                        </Text>
-                      </TouchableOpacity>
-                      {CATEGORY_DATA.map((cat) => (
-                          <TouchableOpacity
-                              key={cat.name}
-                              style={[styles.categoryChip, selectedCategories.includes(cat.name) && styles.categoryChipActive]}
-                              onPress={() => toggleCategory(cat.name)}
-                          >
-                            <Ionicons name={cat.iconName as any} size={14} color={cat.color} style={{ marginRight: 4 }} />
-                            <Text style={[styles.categoryChipText, selectedCategories.includes(cat.name) && styles.categoryChipTextActive]}>
-                              {cat.name}
-                            </Text>
-                          </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-
-                    {/* ── Filter bar ─────────────────────────────────────────────── */}
-                    <View style={styles.filterBar}>
-                      <Text style={styles.resultsText}>
-                        {sortedContractors.length} contractor{sortedContractors.length !== 1 ? 's' : ''} found
-                      </Text>
-                      <TouchableOpacity style={styles.filterBtn} onPress={() => setShowFilters(true)}>
-                        <Ionicons name="options-outline" size={16} color={colors.primary} />
-                        <Text style={styles.filterBtnText}>Filters</Text>
-                        {(filterLicenseOnly || filterMinRating > 0 || filterLanguages.length > 0) && (
-                            <View style={styles.filterActiveDot} />
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                }
-            />
+        {/* Show switch prompt for contractors in contractor mode */}
+        {isContractorMode && (
+          <View style={styles.switchModePrompt}>
+            <Ionicons name="information-circle-outline" size={24} color={colors.primary} />
+            <Text style={styles.switchModePromptText}>
+              You&apos;re in Contractor Mode. To browse and hire contractors,{' '}
+              <Text style={styles.switchModeLink} onPress={() => switchMode('client')}>
+                switch to Client Mode
+              </Text>
+            </Text>
+          </View>
         )}
 
-        {/* ── Full Map Modal ─────────────────────────────────────────────────── */}
-        <Modal visible={showFullMap} animationType="slide" statusBarTranslucent>
-          <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }} edges={['top']}>
-            <View style={styles.fullMapHeader}>
-              <TouchableOpacity onPress={() => setShowFullMap(false)} style={styles.fullMapCloseBtn}>
-                <Ionicons name="close" size={24} color={colors.paper} />
-              </TouchableOpacity>
-              <Text style={styles.fullMapTitle}>Contractors Near You</Text>
-              <View style={{ width: 40 }} />
-            </View>
-
-            {userLoc ? (
-                <NativeMapView
-                    userLoc={userLoc}
-                    radiusKm={radiusKm}
-                    contractors={sortedContractors}
-                    height={height}
-                    onMarkerPress={(id) => { setShowFullMap(false); router.push(`/contractor/${id}`); }}
-                />
-            ) : (
-                <ActivityIndicator size="large" color={colors.primary} />
+        {/* Content area - only show when in client mode or for clients/guests */}
+        {(isClientMode || user?.role === 'client' || !user) && (
+          <>
+            {/* Mini Map with Urgent Label */}
+            {userLoc && contractors.length > 0 && Platform.OS !== 'web' && (
+              <View style={styles.urgentMapSection}>
+                <View style={styles.urgentMapHeader}>
+                  <View style={styles.urgentBadge}>
+                    <Text style={styles.urgentBadgeEmoji}>⚡</Text>
+                    <Text style={styles.urgentBadgeText}>URGENT</Text>
+                  </View>
+                  <Text style={styles.urgentMapSubtitle}>Online contractors near you</Text>
+                </View>
+                
+                {/* Distance Radius Slider */}
+                <View style={styles.radiusSliderSection}>
+                  <View style={styles.radiusSliderHeader}>
+                    <Ionicons name="locate" size={18} color={colors.primary} />
+                    <Text style={styles.radiusSliderLabel}>Search Radius</Text>
+                    <View style={styles.radiusValueBadge}>
+                      <Text style={styles.radiusValueText}>
+                        {radiusKm >= 200 ? '200+ km' : `${radiusKm} km`}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.sliderContainer}>
+                    <Text style={styles.sliderMinLabel}>0</Text>
+                    <Slider
+                      style={styles.slider}
+                      minimumValue={0}
+                      maximumValue={200}
+                      step={5}
+                      value={radiusKm > 200 ? 200 : radiusKm}
+                      onValueChange={(value) => setRadiusKm(Math.round(value))}
+                      minimumTrackTintColor={colors.primary}
+                      maximumTrackTintColor="#E5E7EB"
+                      thumbTintColor={colors.primary}
+                    />
+                    <Text style={styles.sliderMaxLabel}>200+</Text>
+                  </View>
+                  
+                  <Text style={styles.radiusHint}>
+                    {sortedContractors.length} online contractor{sortedContractors.length !== 1 ? 's' : ''} within {radiusKm >= 200 ? 'all distances' : `${radiusKm} km`}
+                  </Text>
+                </View>
+                
+                <TouchableOpacity style={styles.mapPreview} onPress={() => setShowFullMap(true)}>
+                  <WebView 
+                    ref={mapPreviewRef}
+                    source={{ html: getMapHTML() }} 
+                    style={styles.mapWebView}
+                    onMessage={handleMapMessage}
+                    scrollEnabled={false}
+                    pointerEvents="none"
+                  />
+                  <View style={styles.mapOverlay}>
+                    <Text style={styles.mapOverlayText}>Tap to expand map</Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+            {Platform.OS === 'web' && (
+              <View style={styles.urgentMapSection}>
+                <View style={styles.urgentMapHeader}>
+                  <View style={styles.urgentBadge}>
+                    <Text style={styles.urgentBadgeEmoji}>⚡</Text>
+                    <Text style={styles.urgentBadgeText}>URGENT</Text>
+                  </View>
+                  <Text style={styles.urgentMapSubtitle}>Online contractors near you</Text>
+                </View>
+                
+                {/* Distance Radius Slider */}
+                <View style={styles.radiusSliderSection}>
+                  <View style={styles.radiusSliderHeader}>
+                    <Ionicons name="locate" size={18} color={colors.primary} />
+                    <Text style={styles.radiusSliderLabel}>Search Radius</Text>
+                    <View style={styles.radiusValueBadge}>
+                      <Text style={styles.radiusValueText}>
+                        {radiusKm >= 200 ? '200+ km' : `${radiusKm} km`}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.sliderContainer}>
+                    <Text style={styles.sliderMinLabel}>0</Text>
+                    <Slider
+                      style={styles.slider}
+                      minimumValue={0}
+                      maximumValue={200}
+                      step={5}
+                      value={radiusKm > 200 ? 200 : radiusKm}
+                      onValueChange={(value) => setRadiusKm(Math.round(value))}
+                      minimumTrackTintColor={colors.primary}
+                      maximumTrackTintColor="#E5E7EB"
+                      thumbTintColor={colors.primary}
+                    />
+                    <Text style={styles.sliderMaxLabel}>200+</Text>
+                  </View>
+                  
+                  <Text style={styles.radiusHint}>
+                    {sortedContractors.length} online contractor{sortedContractors.length !== 1 ? 's' : ''} within {radiusKm >= 200 ? 'all distances' : `${radiusKm} km`}
+                  </Text>
+                </View>
+                
+                <View style={styles.mapPlaceholder}>
+                  <Ionicons name="map" size={32} color={colors.primary} />
+                  <Text style={styles.mapPlaceholderText}>Map view on mobile app</Text>
+                </View>
+              </View>
             )}
 
+            {/* Post a Job - PLANNED Section - Professional Box Design */}
+            <View style={styles.plannedSection}>
+              <View style={styles.plannedCard}>
+                <View style={styles.plannedCardHeader}>
+                  <View style={styles.plannedBadge}>
+                    <Text style={styles.plannedBadgeEmoji}>📋</Text>
+                    <Text style={styles.plannedBadgeText}>PLANNED</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.plannedCardContent}>
+                  <View style={styles.plannedIconContainer}>
+                    <Ionicons name="document-text-outline" size={32} color={colors.primary} />
+                  </View>
+                  <View style={styles.plannedTextContent}>
+                    <Text style={styles.plannedTitle}>Post a Job for Quotes</Text>
+                    <Text style={styles.plannedDescription}>
+                      Not urgent? Describe your project and receive quotes from multiple contractors.
+                    </Text>
+                  </View>
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.plannedActionBtn}
+                  onPress={() => {
+                    if (!user) {
+                      Alert.alert(
+                        'Sign In Required',
+                        'You need to sign in or create an account to post a job.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Register', onPress: () => router.push('/?mode=register') },
+                          { text: 'Sign In', onPress: () => router.push('/?mode=login'), style: 'default' },
+                        ]
+                      );
+                    } else {
+                      router.push('/post-job');
+                    }
+                  }}
+                >
+                  <Ionicons name="add-circle" size={20} color={colors.paper} />
+                  <Text style={styles.plannedActionBtnText}>Post a Job</Text>
+                </TouchableOpacity>
+                
+                {/* Sign in/Register prompt for guests */}
+                {!user && (
+                  <View style={styles.guestSignInPrompt}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                      <TouchableOpacity onPress={() => router.push('/?mode=login')}>
+                        <Text style={styles.guestSignInLink}>Sign in</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.guestSignInText}> or </Text>
+                      <TouchableOpacity onPress={() => router.push('/?mode=register')}>
+                        <Text style={styles.guestSignInLink}>Register</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.guestSignInText}> to post a job</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            </View>
 
-            <View style={styles.fullMapRadiusBar}>
-              <Text style={styles.fullMapRadiusLabel}>
-                Radius: {radiusKm >= 200 ? '200+ km' : `${radiusKm} km`}
-              </Text>
-              <Slider
-                  style={{ flex: 1, marginHorizontal: 12 }}
-                  minimumValue={5}
+          {/* Categories - Multi-select */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Browse Categories</Text>
+                {selectedCategories.length > 0 && (
+                  <TouchableOpacity onPress={() => {
+                    setSelectedCategories([]);
+                    setCategory('All');
+                  }}>
+                    <Text style={styles.clearCategoriesText}>Clear all</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              {/* Category Search Bar */}
+              <View style={styles.browseCategorySearchContainer}>
+                <View style={styles.browseCategorySearchWrapper}>
+                  <Ionicons name="search" size={18} color={colors.textSecondary} />
+                  <TextInput
+                    style={styles.browseCategorySearchInput}
+                    placeholder="Search (e.g., electrician)"
+                    placeholderTextColor={colors.textSecondary}
+                    value={categorySearchText}
+                    onChangeText={setCategorySearchText}
+                    onSubmitEditing={handleCategorySearch}
+                    returnKeyType="search"
+                  />
+                  {categorySearchText.length > 0 && (
+                    <TouchableOpacity onPress={() => setCategorySearchText('')}>
+                      <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {categorySearchText.length > 0 && (
+                  <TouchableOpacity style={styles.browseCategorySearchBtn} onPress={handleCategorySearch}>
+                    <Ionicons name="search" size={18} color={colors.paper} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              <FlatList
+                horizontal
+                data={[{ name: 'All', icon: '🔍', color: '#666' }, ...(categorySearchText.trim() ? filteredCategoryData : CATEGORY_DATA)]}
+                renderItem={({ item }) => {
+                  const isSelected = item.name === 'All' 
+                    ? selectedCategories.length === 0 
+                    : selectedCategories.includes(item.name);
+                  return (
+                    <TouchableOpacity 
+                      style={[
+                        item.name === 'All' ? styles.allCategoryChip : styles.categoryChip, 
+                        isSelected && styles.categoryChipActive
+                      ]}
+                      onPress={() => {
+                        if (item.name === 'All') {
+                          setSelectedCategories([]);
+                          setCategory('All');
+                        } else {
+                          toggleCategory(item.name);
+                        }
+                      }}
+                    >
+                      {item.name === 'All' ? (
+                        <Text style={[styles.allCategoryText, isSelected && styles.categoryTextActive]}>All</Text>
+                      ) : (
+                        <>
+                          <Text style={styles.categoryIcon}>{item.icon}</Text>
+                          <Text style={[styles.categoryText, isSelected && styles.categoryTextActive]}>
+                            {item.name}
+                          </Text>
+                          {isSelected && <Ionicons name="checkmark-circle" size={14} color={colors.green} style={{ marginLeft: 4 }} />}
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
+                keyExtractor={item => item.name}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoriesList}
+              />
+              {selectedCategories.length > 0 && (
+                <Text style={styles.selectedCategoriesCount}>{selectedCategories.length}/5 categories selected</Text>
+              )}
+            </View>
+
+            {/* Available Contractors */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  {selectedCategories.length === 0 
+                    ? 'Available Contractors' 
+                    : selectedCategories.length === 1 
+                      ? `${selectedCategories[0]}s` 
+                      : selectedCategories.length === 2
+                        ? `${selectedCategories[0]}s & ${selectedCategories[1]}s`
+                        : `${selectedCategories.slice(0, -1).map(c => c + 's').join(', ')} & ${selectedCategories[selectedCategories.length - 1]}s`}
+                </Text>
+                <TouchableOpacity 
+                  style={styles.filterBtn}
+                  onPress={() => setShowFilters(!showFilters)}
+                >
+                  <Ionicons name="options-outline" size={18} color={colors.primary} />
+                  <Text style={styles.filterBtnText}>Filters</Text>
+                  {(filterLicenseOnly || filterMinRating > 0 || filterLanguages.length > 0) && (
+                    <View style={styles.filterBadge}>
+                      <Text style={styles.filterBadgeText}>
+                        {[filterLicenseOnly, filterMinRating > 0, filterLanguages.length > 0].filter(Boolean).length}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+              
+              {/* Filter Panel */}
+              {showFilters && (
+                <View style={styles.filterPanel}>
+                  {/* License Filter */}
+                  <TouchableOpacity 
+                    style={styles.filterOption}
+                    onPress={() => setFilterLicenseOnly(!filterLicenseOnly)}
+                  >
+                    <View style={[styles.filterCheckbox, filterLicenseOnly && styles.filterCheckboxActive]}>
+                      {filterLicenseOnly && <Ionicons name="checkmark" size={14} color="#fff" />}
+                    </View>
+                    <Text style={styles.filterOptionText}>🪪 License on file only</Text>
+                  </TouchableOpacity>
+                  
+                  {/* Rating Filter - Button that opens popup */}
+                  <View style={styles.filterGroup}>
+                    <Text style={styles.filterLabel}>Minimum Rating</Text>
+                    <TouchableOpacity 
+                      style={styles.filterSelectBtn}
+                      onPress={() => setShowRatingPopup(true)}
+                    >
+                      <View style={styles.filterSelectContent}>
+                        {filterMinRating === 0 ? (
+                          <Text style={styles.filterSelectText}>All Ratings</Text>
+                        ) : (
+                          <View style={styles.filterSelectRow}>
+                            <Ionicons name="star" size={16} color="#FFB800" />
+                            <Text style={styles.filterSelectText}>{filterMinRating}+ Stars</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {/* Language Filter - Button that opens popup */}
+                  <View style={styles.filterGroup}>
+                    <Text style={styles.filterLabel}>Language</Text>
+                    <TouchableOpacity 
+                      style={styles.filterSelectBtn}
+                      onPress={() => setShowLanguagePopup(true)}
+                    >
+                      <View style={styles.filterSelectContent}>
+                        {filterLanguages.length === 0 ? (
+                          <Text style={styles.filterSelectText}>All Languages</Text>
+                        ) : filterLanguages.length === 1 ? (
+                          <Text style={styles.filterSelectText}>{filterLanguages[0]}</Text>
+                        ) : (
+                          <Text style={styles.filterSelectText}>{filterLanguages.length} Languages</Text>
+                        )}
+                      </View>
+                      <Ionicons name="chevron-down" size={20} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {/* Clear Filters */}
+                  {(filterLicenseOnly || filterMinRating > 0 || filterLanguages.length > 0) && (
+                    <TouchableOpacity 
+                      style={styles.clearFiltersBtn}
+                      onPress={() => {
+                        setFilterLicenseOnly(false);
+                        setFilterMinRating(0);
+                        setFilterLanguages([]);
+                        setCustomLanguage('');
+                        setSelectedCategories([]);
+                        setCategory('All');
+                      }}
+                    >
+                      <Text style={styles.clearFiltersBtnText}>Clear all filters</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+              
+              <Text style={styles.resultCount}>{getCategoryCountsText}</Text>
+              
+              {loading ? (
+                <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+              ) : sortedContractors.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="people-outline" size={48} color={colors.textSecondary} />
+                  <Text style={styles.emptyText}>{getEmptyStateMessage}</Text>
+                  <Text style={styles.emptySubtext}>Try adjusting your search radius or categories</Text>
+                </View>
+              ) : (
+                sortedContractors.slice(0, 10).map(contractor => (
+                  <View key={contractor.id}>
+                    {renderContractorCard({ item: contractor })}
+                  </View>
+                ))
+              )}
+            </View>
+          </>
+        )}
+      </ScrollView>
+
+      {/* Welcome Intent Modal - Professional design */}
+      <Modal
+        visible={showNeedPrompt}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNeedPrompt(false)}
+      >
+        <View style={styles.intentModalOverlay}>
+          <View style={styles.intentModalContainer}>
+            {/* Header with gradient accent */}
+            <View style={styles.intentModalHeaderAccent} />
+            
+            <View style={styles.intentModalContent}>
+              {/* Welcome Text */}
+              <View style={styles.intentWelcomeSection}>
+                <Text style={styles.intentWelcomeTitle}>Hi there! 👋</Text>
+                <Text style={styles.intentWelcomeSubtitle}>How can we help you today?</Text>
+              </View>
+              
+              {/* Close Button */}
+              <TouchableOpacity 
+                style={styles.intentCloseBtn}
+                onPress={() => setShowNeedPrompt(false)}
+              >
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+              
+              {/* Options */}
+              <View style={styles.intentOptionsNew}>
+                {/* Urgent Option - Green theme */}
+                <TouchableOpacity 
+                  style={styles.intentOptionCardNew}
+                  onPress={() => {
+                    setShowNeedPrompt(false);
+                    if (!user) {
+                      setShowGuestPrompt(true);
+                    } else {
+                      router.push('/(tabs)/home');
+                      setTimeout(() => setShowFullMap(true), 300);
+                    }
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#22C55E', '#16A34A']}
+                    style={styles.intentOptionIconNew}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Ionicons name="flash" size={26} color="#fff" />
+                  </LinearGradient>
+                  <View style={styles.intentOptionTextNew}>
+                    <Text style={styles.intentOptionTitleNew}>Need Help Now</Text>
+                    <Text style={styles.intentOptionDescNew}>Find available contractors nearby</Text>
+                  </View>
+                  <View style={styles.intentOptionArrow}>
+                    <Ionicons name="arrow-forward" size={18} color={colors.green} />
+                  </View>
+                </TouchableOpacity>
+                
+                {/* Planned Option - Orange theme */}
+                <TouchableOpacity 
+                  style={styles.intentOptionCardNew}
+                  onPress={() => {
+                    setShowNeedPrompt(false);
+                    if (!user) {
+                      setShowGuestPrompt(true);
+                    } else {
+                      router.push('/post-job');
+                    }
+                  }}
+                >
+                  <LinearGradient
+                    colors={['#FF6A00', '#FF8C33']}
+                    style={styles.intentOptionIconNew}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Ionicons name="calendar" size={26} color="#fff" />
+                  </LinearGradient>
+                  <View style={styles.intentOptionTextNew}>
+                    <Text style={styles.intentOptionTitleNew}>Plan a Project</Text>
+                    <Text style={styles.intentOptionDescNew}>Post a job and compare quotes</Text>
+                  </View>
+                  <View style={styles.intentOptionArrow}>
+                    <Ionicons name="arrow-forward" size={18} color={colors.primary} />
+                  </View>
+                </TouchableOpacity>
+              </View>
+              
+              {/* Browse Option */}
+              <TouchableOpacity 
+                style={styles.intentBrowseBtn}
+                onPress={() => setShowNeedPrompt(false)}
+              >
+                <Text style={styles.intentBrowseBtnText}>Just browsing</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Guest Prompt Modal - Professional Design */}
+      <Modal
+        visible={showGuestPrompt}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowGuestPrompt(false)}
+      >
+        <View style={styles.guestAuthModalOverlay}>
+          <View style={styles.guestAuthModalContainer}>
+            {/* Icon */}
+            <View style={styles.guestAuthIconWrapper}>
+              <LinearGradient
+                colors={[colors.primary, '#FF8C33']}
+                style={styles.guestAuthIconBg}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              >
+                <Ionicons name="person-circle-outline" size={40} color="#fff" />
+              </LinearGradient>
+            </View>
+            
+            {/* Content */}
+            <Text style={styles.guestAuthTitle}>Join MiPropertyGuru</Text>
+            <Text style={styles.guestAuthSubtitle}>
+              Create an account or sign in to connect with contractors and get quotes for your projects.
+            </Text>
+            
+            {/* Buttons */}
+            <View style={styles.guestAuthButtons}>
+              <TouchableOpacity 
+                style={styles.guestAuthBtnPrimary}
+                onPress={() => { setShowGuestPrompt(false); router.push('/?mode=register'); }}
+              >
+                <Ionicons name="person-add-outline" size={20} color="#fff" />
+                <Text style={styles.guestAuthBtnPrimaryText}>Create Account</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.guestAuthBtnSecondary}
+                onPress={() => { setShowGuestPrompt(false); router.push('/?mode=login'); }}
+              >
+                <Ionicons name="log-in-outline" size={20} color={colors.primary} />
+                <Text style={styles.guestAuthBtnSecondaryText}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Close */}
+            <TouchableOpacity 
+              style={styles.guestAuthClose}
+              onPress={() => setShowGuestPrompt(false)}
+            >
+              <Text style={styles.guestAuthCloseText}>Maybe later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Rating Popup Modal */}
+      <Modal
+        visible={showRatingPopup}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRatingPopup(false)}
+      >
+        <TouchableOpacity 
+          style={styles.filterPopupOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowRatingPopup(false)}
+        >
+          <View style={styles.filterPopupContainer}>
+            <View style={styles.filterPopupHeader}>
+              <Text style={styles.filterPopupTitle}>Minimum Rating</Text>
+              <TouchableOpacity onPress={() => setShowRatingPopup(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.filterPopupList}>
+              {RATING_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.filterPopupItem,
+                    filterMinRating === option.value && styles.filterPopupItemActive
+                  ]}
+                  onPress={() => {
+                    setFilterMinRating(option.value);
+                    setShowRatingPopup(false);
+                  }}
+                >
+                  <View style={styles.filterPopupItemRow}>
+                    {option.value > 0 && (
+                      <View style={styles.filterPopupStars}>
+                        {[...Array(option.value)].map((_, i) => (
+                          <Ionicons key={i} name="star" size={16} color="#FFB800" />
+                        ))}
+                      </View>
+                    )}
+                    <Text style={[
+                      styles.filterPopupItemText,
+                      filterMinRating === option.value && styles.filterPopupItemTextActive
+                    ]}>{option.label}</Text>
+                  </View>
+                  {filterMinRating === option.value && (
+                    <Ionicons name="checkmark-circle" size={22} color={colors.green} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Language Popup Modal - Multi-select */}
+      <Modal
+        visible={showLanguagePopup}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLanguagePopup(false)}
+      >
+        <TouchableOpacity 
+          style={styles.filterPopupOverlay} 
+          activeOpacity={1} 
+          onPress={() => setShowLanguagePopup(false)}
+        >
+          <View style={[styles.filterPopupContainer, { maxHeight: 450 }]}>
+            <View style={styles.filterPopupHeader}>
+              <Text style={styles.filterPopupTitle}>Languages</Text>
+              <View style={styles.filterPopupHeaderRight}>
+                {filterLanguages.length > 0 && (
+                  <TouchableOpacity onPress={() => setFilterLanguages([])}>
+                    <Text style={styles.filterPopupClearText}>Clear</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity onPress={() => setShowLanguagePopup(false)}>
+                  <Ionicons name="close" size={24} color={colors.text} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <ScrollView style={styles.filterPopupList} showsVerticalScrollIndicator={true}>
+              {LANGUAGE_OPTIONS.map((lang) => {
+                const isSelected = filterLanguages.includes(lang);
+                return (
+                  <TouchableOpacity
+                    key={lang}
+                    style={[
+                      styles.filterPopupItem,
+                      isSelected && styles.filterPopupItemActive
+                    ]}
+                    onPress={() => {
+                      if (isSelected) {
+                        setFilterLanguages(prev => prev.filter(l => l !== lang));
+                      } else {
+                        setFilterLanguages(prev => [...prev, lang]);
+                      }
+                    }}
+                  >
+                    <Text style={[
+                      styles.filterPopupItemText,
+                      isSelected && styles.filterPopupItemTextActive
+                    ]}>{lang}</Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={22} color={colors.green} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            {filterLanguages.length > 0 && (
+              <TouchableOpacity 
+                style={styles.filterPopupDoneBtn}
+                onPress={() => setShowLanguagePopup(false)}
+              >
+                <Text style={styles.filterPopupDoneBtnText}>Done ({filterLanguages.length} selected)</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Full-Screen Map Modal - Complete Map Experience */}
+      <Modal
+        visible={showFullMap}
+        animationType="slide"
+        onRequestClose={() => setShowFullMap(false)}
+      >
+        <SafeAreaView style={styles.fullMapContainer}>
+          {/* Header */}
+          <View style={styles.fullMapHeader}>
+            <TouchableOpacity 
+              style={styles.fullMapBackBtn}
+              onPress={() => setShowFullMap(false)}
+            >
+              <Ionicons name="arrow-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <View style={styles.fullMapHeaderRow}>
+              <View style={styles.urgentBadgeSmall}>
+                <Text style={styles.urgentBadgeEmoji}>⚡</Text>
+              </View>
+              <Text style={styles.fullMapTitle}>Online Contractors</Text>
+            </View>
+            <View style={{ width: 40 }} />
+          </View>
+          
+          {/* Full Map */}
+          <View style={styles.fullMapWebViewContainer}>
+            {userLoc ? (
+              <WebView 
+                ref={fullMapRef}
+                source={{ html: getMapHTML() }} 
+                style={styles.fullMapWebView}
+                onMessage={handleMapMessage}
+                scrollEnabled={true}
+              />
+            ) : (
+              <View style={styles.fullMapLoading}>
+                <ActivityIndicator size="large" color={colors.primary} />
+                <Text style={styles.fullMapLoadingText}>Getting your location...</Text>
+              </View>
+            )}
+            
+            {/* FAB - Show Select Service Menu */}
+            <TouchableOpacity 
+              style={styles.fullMapFab}
+              onPress={() => setShowFullMapServiceMenu(!showFullMapServiceMenu)}
+            >
+              <Ionicons name={showFullMapServiceMenu ? "close" : "people"} size={24} color={colors.paper} />
+            </TouchableOpacity>
+            
+            {/* Service Menu Popup - Multi-select with Search */}
+            {showFullMapServiceMenu && (
+              <View style={styles.fullMapServiceMenu}>
+                <View style={styles.fullMapServiceMenuHeader}>
+                  <Text style={styles.fullMapServiceMenuTitle}>Select Services</Text>
+                  <View style={styles.fullMapServiceMenuHeaderRight}>
+                    {selectedCategories.length > 0 && (
+                      <TouchableOpacity onPress={() => { setSelectedCategories([]); }}>
+                        <Text style={styles.fullMapServiceMenuClear}>Clear</Text>
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity onPress={() => setShowFullMapServiceMenu(false)}>
+                      <Ionicons name="close" size={20} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                
+                {/* Search Bar in Full Map Menu */}
+                <View style={styles.fullMapSearchContainer}>
+                  <View style={styles.fullMapSearchInputWrapper}>
+                    <Ionicons name="search" size={16} color={colors.textSecondary} />
+                    <TextInput
+                      style={styles.fullMapSearchInput}
+                      placeholder="Search (e.g., electrician)"
+                      placeholderTextColor={colors.textSecondary}
+                      value={categorySearchText}
+                      onChangeText={setCategorySearchText}
+                      onSubmitEditing={handleCategorySearch}
+                      returnKeyType="search"
+                    />
+                    {categorySearchText.length > 0 && (
+                      <TouchableOpacity onPress={() => setCategorySearchText('')}>
+                        <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+                
+                <ScrollView style={styles.fullMapServiceMenuScroll} showsVerticalScrollIndicator={false}>
+                  {(categorySearchText.trim() ? filteredCategoryData : CATEGORY_DATA).filter(c => c.name !== 'All').map((cat) => {
+                    const isSelected = selectedCategories.includes(cat.name);
+                    return (
+                      <TouchableOpacity
+                        key={cat.name}
+                        style={[styles.fullMapServiceMenuItem, isSelected && styles.fullMapServiceMenuItemActive]}
+                        onPress={() => toggleCategory(cat.name)}
+                      >
+                        <View style={styles.fullMapServiceMenuIconBg}>
+                          <Text style={styles.fullMapServiceMenuIcon}>{cat.icon}</Text>
+                        </View>
+                        <Text style={[styles.fullMapServiceMenuItemText, isSelected && styles.fullMapServiceMenuItemTextActive]}>{cat.name}</Text>
+                        {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.green} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {categorySearchText.trim() && filteredCategoryData.filter(c => c.name !== 'All').length === 0 && (
+                    <TouchableOpacity 
+                      style={styles.fullMapNoResultsBtn}
+                      onPress={handleCategorySearch}
+                    >
+                      <Text style={styles.fullMapNoResultsText}>No match - tap to search</Text>
+                    </TouchableOpacity>
+                  )}
+                </ScrollView>
+                {selectedCategories.length > 0 && (
+                  <TouchableOpacity 
+                    style={styles.fullMapServiceMenuDoneBtn}
+                    onPress={() => setShowFullMapServiceMenu(false)}
+                  >
+                    <Text style={styles.fullMapServiceMenuDoneBtnText}>Done ({selectedCategories.length} selected)</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+          
+          {/* Bottom Panel - Categories, Slider & Contractors */}
+          <View style={styles.fullMapBottomPanel}>
+            {/* Browse Categories - Multi-select up to 5 */}
+            <View style={styles.fullMapCategoriesSection}>
+              <View style={styles.fullMapCategoriesTitleRow}>
+                <Text style={styles.fullMapCategoriesTitle}>Browse Categories</Text>
+                {selectedCategories.length > 0 && (
+                  <TouchableOpacity onPress={() => setSelectedCategories([])}>
+                    <Text style={styles.fullMapCategoriesClear}>Clear all</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              {/* Search Bar in Full Map Bottom Panel */}
+              <View style={styles.fullMapBottomSearchContainer}>
+                <View style={styles.fullMapBottomSearchWrapper}>
+                  <Ionicons name="search" size={16} color={colors.textSecondary} />
+                  <TextInput
+                    style={styles.fullMapBottomSearchInput}
+                    placeholder="Search (e.g., electrician)"
+                    placeholderTextColor={colors.textSecondary}
+                    value={categorySearchText}
+                    onChangeText={setCategorySearchText}
+                    onSubmitEditing={handleCategorySearch}
+                    returnKeyType="search"
+                  />
+                  {categorySearchText.length > 0 && (
+                    <TouchableOpacity onPress={() => setCategorySearchText('')}>
+                      <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {categorySearchText.length > 0 && (
+                  <TouchableOpacity style={styles.fullMapBottomSearchBtn} onPress={handleCategorySearch}>
+                    <Ionicons name="search" size={16} color={colors.paper} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+              >
+                {(categorySearchText.trim() ? filteredCategoryData : CATEGORY_DATA).filter(c => c.name !== 'All').map((cat) => {
+                  const isSelected = selectedCategories.includes(cat.name);
+                  return (
+                    <TouchableOpacity
+                      key={cat.name}
+                      style={[
+                        styles.fullMapCategoryChip,
+                        isSelected && styles.fullMapCategoryChipActive
+                      ]}
+                      onPress={() => toggleCategory(cat.name)}
+                    >
+                      <Text style={styles.fullMapCategoryIcon}>{cat.icon}</Text>
+                      <Text style={[
+                        styles.fullMapCategoryText,
+                        isSelected && styles.fullMapCategoryTextActive
+                      ]}>{cat.name}</Text>
+                      {isSelected && <Ionicons name="checkmark-circle" size={16} color={colors.green} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              {selectedCategories.length > 0 && (
+                <Text style={styles.fullMapSelectedCount}>{selectedCategories.length}/5 selected</Text>
+              )}
+            </View>
+            
+            {/* Radius Slider */}
+            <View style={styles.fullMapSliderSection}>
+              <View style={styles.radiusSliderHeader}>
+                <Ionicons name="locate" size={18} color={colors.primary} />
+                <Text style={styles.radiusSliderLabel}>Search Radius</Text>
+                <View style={styles.radiusValueBadge}>
+                  <Text style={styles.radiusValueText}>
+                    {radiusKm >= 200 ? '200+ km' : `${radiusKm} km`}
+                  </Text>
+                </View>
+              </View>
+              
+              <View style={styles.sliderContainer}>
+                <Text style={styles.sliderMinLabel}>0</Text>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={0}
                   maximumValue={200}
                   step={5}
-                  value={radiusKm}
-                  onValueChange={setRadiusKm}
+                  value={radiusKm > 200 ? 200 : radiusKm}
+                  onValueChange={(value) => setRadiusKm(Math.round(value))}
                   minimumTrackTintColor={colors.primary}
-                  maximumTrackTintColor={colors.border}
+                  maximumTrackTintColor="#E5E7EB"
                   thumbTintColor={colors.primary}
-              />
-            </View>
-          </SafeAreaView>
-        </Modal>
-
-        {/* ── Filters Modal ─────────────────────────────────────────────────── */}
-        <Modal visible={showFilters} animationType="slide" transparent>
-          <View style={styles.modalOverlay}>
-            <View style={styles.filtersModal}>
-              <View style={styles.modalHandle} />
-              <Text style={styles.filtersTitle}>Filters</Text>
-
-              <TouchableOpacity
-                  style={[styles.filterToggle, filterLicenseOnly && styles.filterToggleActive]}
-                  onPress={() => setFilterLicenseOnly(!filterLicenseOnly)}
-              >
-                <Ionicons name="ribbon-outline" size={18} color={filterLicenseOnly ? colors.paper : colors.primary} />
-                <Text style={[styles.filterToggleText, filterLicenseOnly && styles.filterToggleTextActive]}>
-                  Licensed Only
-                </Text>
-              </TouchableOpacity>
-
-              <Text style={styles.filterSectionLabel}>Minimum Rating</Text>
-              <View style={styles.ratingOptions}>
-                {RATING_OPTIONS.map((opt) => (
-                    <TouchableOpacity
-                        key={opt.value}
-                        style={[styles.ratingOpt, filterMinRating === opt.value && styles.ratingOptActive]}
-                        onPress={() => setFilterMinRating(opt.value)}
-                    >
-                      <Text style={[styles.ratingOptText, filterMinRating === opt.value && styles.ratingOptTextActive]}>
-                        {opt.label}
-                      </Text>
-                    </TouchableOpacity>
-                ))}
+                />
+                <Text style={styles.sliderMaxLabel}>200+</Text>
               </View>
-
-              <Text style={styles.filterSectionLabel}>Language</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.languageScroll}>
-                {LANGUAGE_OPTIONS.map((lang) => (
-                    <TouchableOpacity
-                        key={lang}
-                        style={[styles.langChip, filterLanguages.includes(lang) && styles.langChipActive]}
-                        onPress={() => {
-                          setFilterLanguages((prev) =>
-                              prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]
-                          );
-                        }}
-                    >
-                      <Text style={[styles.langChipText, filterLanguages.includes(lang) && styles.langChipTextActive]}>
-                        {lang}
-                      </Text>
-                    </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <View style={styles.filterActions}>
-                <TouchableOpacity
-                    style={styles.clearFiltersBtn}
-                    onPress={() => {
-                      setFilterLicenseOnly(false);
-                      setFilterMinRating(0);
-                      setFilterLanguages([]);
-                    }}
-                >
-                  <Text style={styles.clearFiltersBtnText}>Clear All</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.applyFiltersBtn}
-                    onPress={() => { setShowFilters(false); fetchContractors(); }}
-                >
-                  <Text style={styles.applyFiltersBtnText}>Apply Filters</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* ── Guest Prompt Modal ─────────────────────────────────────────────── */}
-        <Modal visible={showGuestPrompt} animationType="fade" transparent>
-          <View style={styles.modalOverlay}>
-            <View style={styles.guestModal}>
-              <Text style={styles.guestModalTitle}>Sign In Required</Text>
-              <Text style={styles.guestModalText}>
-                Create an account or sign in to message contractors and manage jobs.
+              
+              <Text style={styles.fullMapContractorCount}>
+                {getCategoryCountsText}
               </Text>
-              <TouchableOpacity style={styles.guestSignInBtn} onPress={() => { setShowGuestPrompt(false); router.push('/?mode=login'); }}>
-                <Text style={styles.guestSignInBtnText}>Sign In</Text>
+            </View>
+            
+            {/* Contractor List */}
+            <ScrollView 
+              style={styles.fullMapContractorList}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={sortedContractors.length === 0 ? { flex: 1, justifyContent: 'center', alignItems: 'center' } : { paddingHorizontal: 16, gap: 12 }}
+            >
+              {sortedContractors.length === 0 ? (
+                <View style={styles.fullMapEmptyState}>
+                  <Ionicons name="people-outline" size={32} color={colors.textSecondary} />
+                  <Text style={styles.fullMapEmptyText}>{getEmptyStateMessage}</Text>
+                </View>
+              ) : (
+                sortedContractors.slice(0, 10).map((contractor) => {
+                  const initials = contractor.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2);
+                  return (
+                    <TouchableOpacity 
+                      key={contractor.id}
+                      style={styles.fullMapContractorCard}
+                      onPress={() => {
+                        setShowFullMap(false);
+                        router.push(`/contractor/${contractor.id}`);
+                      }}
+                    >
+                      {contractor.profile_photo ? (
+                        <Image source={{ uri: contractor.profile_photo }} style={styles.fullMapCardAvatar} />
+                      ) : (
+                        <View style={styles.fullMapCardAvatarPlaceholder}>
+                          <Text style={styles.fullMapCardAvatarText}>{initials}</Text>
+                        </View>
+                      )}
+                      <View style={styles.fullMapCardOnlineDot} />
+                      <Text style={styles.fullMapCardName} numberOfLines={1}>{contractor.name}</Text>
+                      <Text style={styles.fullMapCardType} numberOfLines={1}>{contractor.contractor_type}</Text>
+                      {contractor.distance_km && (
+                        <Text style={styles.fullMapCardDistance}>{contractor.distance_km.toFixed(1)} km</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Service Menu Modal */}
+      <Modal
+        visible={showServiceMenu}
+        transparent
+        animationType="none"
+        onRequestClose={closeServiceMenu}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={closeServiceMenu}
+        >
+          <Animated.View 
+            style={[
+              styles.serviceMenuContainer,
+              { 
+                opacity: menuOpacity,
+                transform: [{ scale: menuScale }]
+              }
+            ]}
+          >
+            <Pressable onPress={(e) => e.stopPropagation()}>
+              <View style={styles.serviceMenuHeader}>
+                <Text style={styles.serviceMenuTitle}>Select Services</Text>
+                <View style={styles.serviceMenuHeaderRight}>
+                  {selectedCategories.length > 0 && (
+                    <TouchableOpacity onPress={() => setSelectedCategories([])}>
+                      <Text style={styles.serviceMenuClearText}>Clear</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity onPress={closeServiceMenu}>
+                    <Ionicons name="close" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              
+              {/* Search Bar */}
+              <View style={styles.categorySearchContainer}>
+                <View style={styles.categorySearchInputWrapper}>
+                  <Ionicons name="search" size={18} color={colors.textSecondary} style={styles.categorySearchIcon} />
+                  <TextInput
+                    style={styles.categorySearchInput}
+                    placeholder="Search (e.g., electrician)"
+                    placeholderTextColor={colors.textSecondary}
+                    value={categorySearchText}
+                    onChangeText={setCategorySearchText}
+                    onSubmitEditing={handleCategorySearch}
+                    returnKeyType="search"
+                  />
+                  {categorySearchText.length > 0 && (
+                    <TouchableOpacity onPress={() => setCategorySearchText('')}>
+                      <Ionicons name="close-circle" size={18} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {categorySearchText.length > 0 && (
+                  <TouchableOpacity style={styles.categorySearchBtn} onPress={handleCategorySearch}>
+                    <Text style={styles.categorySearchBtnText}>Search</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              {/* Selected Count Badge */}
+              {selectedCategories.length > 0 && (
+                <View style={styles.selectedCountBadge}>
+                  <Text style={styles.selectedCountText}>{selectedCategories.length}/5 selected</Text>
+                </View>
+              )}
+            </Pressable>
+            
+            <ScrollView style={styles.serviceMenuList} showsVerticalScrollIndicator={false}>
+              {(categorySearchText.trim() ? filteredCategoryData : CATEGORY_DATA).filter(c => c.name !== 'All').map((cat) => {
+                const isSelected = selectedCategories.includes(cat.name);
+                return (
+                  <TouchableOpacity 
+                    key={cat.name}
+                    style={[
+                      styles.serviceMenuItem,
+                      isSelected && styles.serviceMenuItemSelected
+                    ]}
+                    onPress={() => selectCategory(cat.name)}
+                  >
+                    <Text style={styles.serviceMenuIcon}>{cat.icon}</Text>
+                    <Text style={[
+                      styles.serviceMenuText,
+                      isSelected && styles.serviceMenuTextSelected
+                    ]}>{cat.name}</Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={20} color={colors.green} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+              {categorySearchText.trim() && filteredCategoryData.filter(c => c.name !== 'All').length === 0 && (
+                <View style={styles.noSearchResultsContainer}>
+                  <Text style={styles.noSearchResultsText}>No exact match found</Text>
+                  <Text style={styles.noSearchResultsHint}>Press &quot;Search&quot; to check for similar contractors</Text>
+                </View>
+              )}
+            </ScrollView>
+            {selectedCategories.length > 0 && (
+              <TouchableOpacity 
+                style={styles.serviceMenuDoneBtn}
+                onPress={closeServiceMenu}
+              >
+                <Text style={styles.serviceMenuDoneBtnText}>Done ({selectedCategories.length} selected)</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.guestRegisterBtn} onPress={() => { setShowGuestPrompt(false); router.push('/?mode=register'); }}>
-                <Text style={styles.guestRegisterBtnText}>Create Account</Text>
+            )}
+          </Animated.View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Smart Suggestion Modal */}
+      <Modal
+        visible={showSmartSuggestion}
+        transparent
+        animationType="fade"
+        onRequestClose={handleDeclineSuggestion}
+      >
+        <View style={styles.smartSuggestionOverlay}>
+          <View style={styles.smartSuggestionContainer}>
+            <View style={styles.smartSuggestionIcon}>
+              <Ionicons name="bulb" size={32} color="#FFB800" />
+            </View>
+            <Text style={styles.smartSuggestionTitle}>Did you mean {suggestedCategory}?</Text>
+            <Text style={styles.smartSuggestionText}>
+              We found a match for your search &quot;{categorySearchText}&quot;
+            </Text>
+            <View style={styles.smartSuggestionButtons}>
+              <TouchableOpacity 
+                style={styles.smartSuggestionBtnNo}
+                onPress={handleDeclineSuggestion}
+              >
+                <Text style={styles.smartSuggestionBtnNoText}>No</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowGuestPrompt(false)}>
-                <Text style={styles.guestDismissText}>Continue browsing</Text>
+              <TouchableOpacity 
+                style={styles.smartSuggestionBtnYes}
+                onPress={handleAcceptSuggestion}
+              >
+                <Text style={styles.smartSuggestionBtnYesText}>Yes</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-      </SafeAreaView>
+        </View>
+      </Modal>
+
+      {/* Add More Contractors Popup Modal - Shows scrollable category list */}
+      <Modal
+        visible={showAddMorePrompt}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowAddMorePrompt(false)}
+      >
+        <View style={styles.smartSuggestionOverlay}>
+          <View style={styles.addMoreContainer}>
+            <View style={styles.addMoreHeader}>
+              <Text style={styles.addMoreTitle}>Add More Contractors</Text>
+              <TouchableOpacity onPress={() => setShowAddMorePrompt(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.addMoreSubtitle}>
+              Select up to {5 - selectedCategories.length} more ({selectedCategories.length}/5 selected)
+            </Text>
+            <ScrollView style={styles.addMoreScrollView} showsVerticalScrollIndicator={true}>
+              {CATEGORY_DATA.filter(c => c.name !== 'All' && !selectedCategories.includes(c.name)).map((cat) => (
+                <TouchableOpacity
+                  key={cat.name}
+                  style={styles.addMoreItem}
+                  onPress={() => {
+                    if (selectedCategories.length < 5) {
+                      toggleCategory(cat.name);
+                    }
+                  }}
+                >
+                  <View style={styles.addMoreItemIcon}>
+                    <Text style={styles.addMoreItemEmoji}>{cat.icon}</Text>
+                  </View>
+                  <Text style={styles.addMoreItemText}>{cat.name}</Text>
+                  <Ionicons name="add-circle-outline" size={22} color={colors.primary} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity 
+              style={styles.addMoreDoneBtn}
+              onPress={() => setShowAddMorePrompt(false)}
+            >
+              <Text style={styles.addMoreDoneBtnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Floating Action Button - Click to open */}
+      {!isContractorMode && (
+        <TouchableOpacity 
+          style={styles.fab}
+          onPress={toggleServiceMenu}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#FF6A00', '#FF8C33']}
+            style={styles.fabGradient}
+          >
+            <Ionicons name={showServiceMenu ? "close" : "people"} size={28} color={colors.paper} />
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 16, paddingBottom: 16 },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingTop: 8, marginBottom: 12 },
-  headerLeft: { flex: 1 },
-  headerTitle: { fontSize: 20, fontWeight: '800', color: colors.paper },
-  headerSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  notificationBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
-  notificationBtnActive: { backgroundColor: 'rgba(255,215,0,0.2)' },
-  headerAuthButtons: { flexDirection: 'row', gap: 8 },
-  headerSignInBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.6)' },
-  headerSignInBtnText: { color: colors.paper, fontSize: 13, fontWeight: '600' },
-  headerRegisterBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.paper },
-  headerRegisterBtnText: { color: colors.primary, fontSize: 13, fontWeight: '700' },
-  headerContent: { gap: 12 },
-  locationCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: 10, gap: 10 },
-  locationIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.paper, justifyContent: 'center', alignItems: 'center' },
-  locationInfo: {},
-  locationLabel: { fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: '500' },
-  locationValue: { fontSize: 14, color: colors.paper, fontWeight: '700' },
-  statsCards: { flexDirection: 'row', gap: 8 },
-  statCard: { flex: 1, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: 10, alignItems: 'center' },
-  statIconBg: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
-  pulsingDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.green },
-  statNumber: { fontSize: 18, fontWeight: '800', color: colors.paper },
-  statLabel: { fontSize: 10, color: 'rgba(255,255,255,0.8)', textAlign: 'center', marginTop: 2 },
-  switchModePrompt: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: 12, gap: 10, marginTop: 8 },
-  switchModePromptText: { flex: 1, fontSize: 13, color: colors.paper, lineHeight: 18 },
-  switchModeLink: { fontWeight: '700', textDecorationLine: 'underline' },
-  listContent: { paddingBottom: 32 },
-  urgentMapSection: { margin: 16, backgroundColor: colors.paper, borderRadius: 16, overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 },
-  urgentMapHeader: { flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8 },
-  urgentBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEE2E2', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, gap: 4 },
-  urgentBadgeEmoji: { fontSize: 12 },
-  urgentBadgeText: { fontSize: 11, fontWeight: '800', color: colors.red },
-  urgentMapSubtitle: { flex: 1, fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
-  expandMapBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  radiusSliderSection: { paddingHorizontal: 12, paddingBottom: 8 },
-  radiusSliderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  radiusSliderLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
-  radiusSliderValue: { fontSize: 13, color: colors.primary, fontWeight: '700' },
-  mapContainer: { width: '100%', height: 200, overflow: 'hidden' },
-  mapPreview: { width: '100%', height: 200 },
-  searchSection: { marginHorizontal: 16, marginBottom: 8 },
-  searchInputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.paper, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, gap: 8, borderWidth: 1, borderColor: colors.border },
-  searchInput: { flex: 1, fontSize: 14, color: colors.text },
-  suggestionBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primaryLight, borderRadius: 8, padding: 10, marginTop: 6, gap: 8 },
-  suggestionText: { flex: 1, fontSize: 13, color: colors.text },
-  suggestionHighlight: { fontWeight: '700', color: colors.primary },
-  categoriesScroll: { marginBottom: 8 },
-  categoriesContent: { paddingHorizontal: 16, gap: 8 },
-  categoryChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.paper, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, gap: 6, borderWidth: 1, borderColor: colors.border },
-  categoryChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  categoryChipIcon: { fontSize: 14 },
-  categoryChipText: { fontSize: 13, color: colors.text, fontWeight: '500' },
-  categoryChipTextActive: { color: colors.paper },
-  filterBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginBottom: 8 },
-  resultsText: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
-  filterBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.paper, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: colors.border },
-  filterBtnText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
-  filterActiveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.red },
-  contractorCard: { backgroundColor: colors.paper, marginHorizontal: 16, marginBottom: 12, borderRadius: 16, padding: 16, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
-  cardHeader: { flexDirection: 'row', gap: 12, marginBottom: 10 },
-  avatar: { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center', position: 'relative' },
-  avatarImage: { width: 52, height: 52, borderRadius: 26 },
-  avatarText: { fontSize: 18, fontWeight: '700', color: colors.paper },
-  onlineDot: { position: 'absolute', bottom: 2, right: 2, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.green, borderWidth: 2, borderColor: colors.paper },
-  cardInfo: { flex: 1 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  contractorName: { fontSize: 16, fontWeight: '700', color: colors.text, flex: 1 },
-  licensedBadge: { backgroundColor: '#DCFCE7', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  licensedBadgeText: { fontSize: 11, color: colors.green, fontWeight: '600' },
-  contractorType: { fontSize: 13, color: colors.textSecondary, marginBottom: 6 },
-  cardMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
-  ratingBadge: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  ratingText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  reviewCountText: { fontSize: 12, color: colors.textSecondary },
-  distanceBadge: { fontSize: 12, color: colors.textSecondary },
-  onlineBadge: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  onlineDotSmall: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.green },
-  onlineText: { fontSize: 12, color: colors.green, fontWeight: '600' },
-  contractorBio: { fontSize: 13, color: colors.textSecondary, lineHeight: 18, marginBottom: 8 },
-  languageRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  languageText: { fontSize: 12, color: colors.textSecondary },
-  cardActions: { flexDirection: 'row', gap: 8 },
-  messageBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: colors.primary, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
-  messageBtnText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
-  callBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.green, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
-  callBtnText: { fontSize: 13, color: colors.paper, fontWeight: '600' },
-  viewBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2 },
-  viewBtnText: { fontSize: 13, color: colors.primary, fontWeight: '600' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60, gap: 12 },
-  loadingText: { fontSize: 14, color: colors.textSecondary },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60, gap: 8 },
-  emptyIcon: { fontSize: 48 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
-  emptySubtitle: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 32 },
-  fullMapHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#1A1A1A', paddingHorizontal: 16, paddingVertical: 12 },
-  fullMapCloseBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' },
-  fullMapTitle: { fontSize: 16, fontWeight: '700', color: colors.paper },
-  fullMapRadiusBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1A1A1A', paddingHorizontal: 16, paddingVertical: 10 },
-  fullMapRadiusLabel: { fontSize: 13, color: colors.paper, fontWeight: '600', minWidth: 80 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  filtersModal: { backgroundColor: colors.paper, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
-  modalHandle: { width: 40, height: 4, backgroundColor: colors.border, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  filtersTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 16 },
-  filterToggle: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: colors.primary, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 16 },
-  filterToggleActive: { backgroundColor: colors.primary },
-  filterToggleText: { fontSize: 14, color: colors.primary, fontWeight: '600' },
-  filterToggleTextActive: { color: colors.paper },
-  filterSectionLabel: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 },
-  ratingOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-  ratingOpt: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  ratingOptActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  ratingOptText: { fontSize: 13, color: colors.text },
-  ratingOptTextActive: { color: colors.paper, fontWeight: '600' },
-  languageScroll: { marginBottom: 20 },
-  langChip: { borderWidth: 1, borderColor: colors.border, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8 },
-  langChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  langChipText: { fontSize: 13, color: colors.text },
-  langChipTextActive: { color: colors.paper, fontWeight: '600' },
-  filterActions: { flexDirection: 'row', gap: 12 },
-  clearFiltersBtn: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 12, padding: 14, alignItems: 'center' },
-  clearFiltersBtnText: { fontSize: 15, color: colors.textSecondary, fontWeight: '600' },
-  applyFiltersBtn: { flex: 2, backgroundColor: colors.primary, borderRadius: 12, padding: 14, alignItems: 'center' },
-  applyFiltersBtnText: { fontSize: 15, color: colors.paper, fontWeight: '700' },
-  guestModal: { backgroundColor: colors.paper, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 28, alignItems: 'center', gap: 12 },
-  guestModalTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
-  guestModalText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', lineHeight: 20 },
-  guestSignInBtn: { width: '100%', backgroundColor: colors.primary, borderRadius: 12, padding: 16, alignItems: 'center' },
-  guestSignInBtnText: { fontSize: 16, fontWeight: '700', color: colors.paper },
-  guestRegisterBtn: { width: '100%', borderWidth: 1, borderColor: colors.primary, borderRadius: 12, padding: 16, alignItems: 'center' },
-  guestRegisterBtnText: { fontSize: 16, fontWeight: '600', color: colors.primary },
-  guestDismissText: { fontSize: 14, color: colors.textSecondary, padding: 8 },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  headerRightColumn: {
+    alignItems: 'flex-end',
+    gap: 8,
+    marginTop: 16,
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.paper,
+  },
+  appName: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.paper,
+    letterSpacing: -0.5,
+  },
+  tagline: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    marginTop: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  modeToggleRow: {
+    alignItems: 'flex-end',
+    marginTop: -2,
+    marginBottom: 8,
+  },
+  notificationBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationBtnActive: {
+    backgroundColor: 'rgba(255,215,0,0.3)',
+  },
+  headerAuthButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerSignInBtn: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  headerSignInBtnText: {
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  headerRegisterBtn: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  headerRegisterBtnText: {
+    color: colors.paper,
+    fontWeight: '600',
+    fontSize: 13,
+  },
+  headerContent: {
+    gap: 12,
+  },
+  locationCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.paper,
+    padding: 12,
+    borderRadius: 14,
+    gap: 12,
+  },
+  locationIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  locationInfo: {
+    flex: 1,
+  },
+  locationLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  locationValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  statsCards: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.paper,
+    padding: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  statIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  pulsingDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: colors.green,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: '500',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  contractorModeMessage: {
+    margin: 20,
+    padding: 30,
+    backgroundColor: colors.paper,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  contractorModeTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 16,
+  },
+  contractorModeText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+  switchModeBtn: {
+    marginTop: 20,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  switchModeBtnText: {
+    color: colors.paper,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  mapPreview: {
+    height: 160,
+    marginHorizontal: 16,
+    marginTop: 20,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: colors.paper,
+  },
+  mapWebView: {
+    flex: 1,
+  },
+  mapOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  mapOverlayText: {
+    fontSize: 12,
+    color: colors.paper,
+    fontWeight: '500',
+  },
+  mapPlaceholder: {
+    height: 100,
+    marginHorizontal: 16,
+    marginTop: 20,
+    borderRadius: 14,
+    backgroundColor: colors.paper,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  mapPlaceholderText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 8,
+  },
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  seeAll: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  resultCount: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  categoriesList: {
+    gap: 10,
+  },
+  clearCategoriesText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  selectedCategoriesCount: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: -8,
+  },
+  allCategoryChip: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 50,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  allCategoryText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  categoryChipActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  categoryIcon: {
+    fontSize: 16,
+  },
+  categoryText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  categoryTextActive: {
+    color: colors.primary,
+  },
+  contractorCard: {
+    backgroundColor: colors.paper,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+  },
+  avatarPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  cardInfo: {
+    flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  contractorName: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+  },
+  onlineBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.greenLight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.green,
+  },
+  onlineText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.green,
+  },
+  jobTitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 16,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  statText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  statSubtext: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  bio: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 12,
+    lineHeight: 18,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    marginTop: 16,
+    gap: 12,
+  },
+  messageBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    gap: 6,
+  },
+  messageBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  callBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    gap: 6,
+  },
+  callBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  // New contact action button styles (matching the reference image)
+  contactButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 14,
+    marginTop: 14,
+  },
+  contactActionBtn: {
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  contactActionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contactActionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  // Guest prompt banner inside contractor card
+  guestPromptBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF8EC',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 10,
+  },
+  guestPromptLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  guestPromptText: {
+    fontSize: 12,
+    color: colors.text,
+    flex: 1,
+  },
+  guestPromptLink: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  guestAuthBanner: {
+    backgroundColor: colors.paper,
+    marginHorizontal: 16,
+    marginTop: -8,
+    marginBottom: 16,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  guestAuthContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  guestAuthText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  guestAuthButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  guestSignInBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 6,
+  },
+  guestSignInBtnText: {
+    color: colors.primary,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  guestRegisterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 6,
+  },
+  guestRegisterBtnText: {
+    color: colors.paper,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  loader: {
+    paddingVertical: 40,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 12,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  // Service Menu Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  serviceMenuContainer: {
+    backgroundColor: colors.paper,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: height * 0.55,
+    paddingBottom: 30,
+  },
+  serviceMenuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  serviceMenuHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  serviceMenuClearText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  serviceMenuTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  serviceMenuList: {
+    paddingHorizontal: 12,
+  },
+  serviceMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    marginTop: 6,
+    gap: 10,
+  },
+  serviceMenuItemSelected: {
+    backgroundColor: colors.primaryLight,
+  },
+  serviceMenuIcon: {
+    fontSize: 22,
+  },
+  serviceMenuText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  serviceMenuTextSelected: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  serviceMenuDoneBtn: {
+    backgroundColor: colors.primary,
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 10,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  serviceMenuDoneBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  // Category Search Bar Styles
+  categorySearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  categorySearchInputWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  categorySearchIcon: {
+    marginRight: 4,
+  },
+  categorySearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    padding: 0,
+  },
+  categorySearchBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  categorySearchBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  // Browse Categories Search Styles (on main page)
+  browseCategorySearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    gap: 8,
+  },
+  browseCategorySearchWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  browseCategorySearchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    padding: 0,
+  },
+  browseCategorySearchBtn: {
+    backgroundColor: colors.primary,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedCountBadge: {
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  selectedCountText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  noSearchResultsContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  noSearchResultsText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  noSearchResultsHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  // Smart Suggestion Modal Styles
+  smartSuggestionOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  smartSuggestionContainer: {
+    backgroundColor: colors.paper,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  smartSuggestionIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEF3C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  addMoreIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  // Add More Contractors Popup Styles
+  addMoreContainer: {
+    backgroundColor: colors.paper,
+    borderRadius: 20,
+    width: '100%',
+    maxWidth: 340,
+    maxHeight: '70%',
+    overflow: 'hidden',
+  },
+  addMoreHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  addMoreTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  addMoreSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  addMoreScrollView: {
+    maxHeight: 320,
+    paddingHorizontal: 12,
+  },
+  addMoreItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 4,
+    backgroundColor: '#F9FAFB',
+  },
+  addMoreItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: colors.paper,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  addMoreItemEmoji: {
+    fontSize: 20,
+  },
+  addMoreItemText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  addMoreDoneBtn: {
+    backgroundColor: colors.primary,
+    marginHorizontal: 20,
+    marginVertical: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  addMoreDoneBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  smartSuggestionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  smartSuggestionText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  smartSuggestionHighlight: {
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  smartSuggestionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  smartSuggestionBtnNo: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  smartSuggestionBtnNoText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  smartSuggestionBtnYes: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  smartSuggestionBtnYesText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.paper,
+    textAlign: 'center',
+  },
+  // Full Map Search Styles
+  fullMapSearchContainer: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  fullMapSearchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    gap: 4,
+  },
+  fullMapSearchInput: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.text,
+    padding: 0,
+  },
+  fullMapNoResultsBtn: {
+    padding: 14,
+    alignItems: 'center',
+  },
+  fullMapNoResultsText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  // Full Map Bottom Panel Search Styles
+  fullMapBottomSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    gap: 8,
+  },
+  fullMapBottomSearchWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  fullMapBottomSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.text,
+    padding: 0,
+  },
+  fullMapBottomSearchBtn: {
+    backgroundColor: colors.primary,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // FAB Styles
+  fab: {
+    position: 'absolute',
+    bottom: 30,
+    right: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  fabGradient: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // Filter Styles
+  filterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.primaryLight,
+    borderRadius: 20,
+  },
+  filterBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  filterBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 4,
+  },
+  filterBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  filterPanel: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  filterCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterCheckboxActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  filterGroup: {
+    marginTop: 12,
+  },
+  filterLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  ratingOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  ratingChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+  ratingChipActive: {
+    backgroundColor: colors.primary,
+  },
+  ratingChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  ratingChipTextActive: {
+    color: '#fff',
+  },
+  languageOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  langChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+  langChipActive: {
+    backgroundColor: colors.primary,
+  },
+  langChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  langChipTextActive: {
+    color: '#fff',
+  },
+  customLanguageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    backgroundColor: colors.paper,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+  },
+  customLanguageInput: {
+    flex: 1,
+    height: 44,
+    fontSize: 15,
+    color: colors.text,
+  },
+  clearCustomBtn: {
+    padding: 4,
+  },
+  clearFiltersBtn: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  clearFiltersBtnText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+  // License & Language badges for contractor cards
+  licenseBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  licenseBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#166534',
+  },
+  languagesBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  languagesBadgeText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  // Switch Mode Banner for contractors in client mode
+  switchModeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF8EC',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FFE4C4',
+  },
+  switchModeBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  switchModeBannerText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#C45500',
+  },
+  switchModeBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#C45500',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    gap: 3,
+  },
+  switchModeBannerBtnText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  // Post Job Button - Compact inline style
+  postJobBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.primaryLight,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  postJobContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  postJobTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  postJobSubtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  // Switch mode prompt for contractors
+  switchModePrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primaryLight,
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  switchModePromptText: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
+  },
+  switchModeLink: {
+    color: colors.primary,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  // Professional Intent Modal Styles
+  intentModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  intentModalContainer: {
+    backgroundColor: colors.paper,
+    borderRadius: 24,
+    width: '100%',
+    maxWidth: 360,
+    overflow: 'hidden',
+  },
+  intentModalHeaderAccent: {
+    height: 6,
+    backgroundColor: colors.primary,
+  },
+  intentModalContent: {
+    padding: 24,
+    paddingTop: 20,
+  },
+  intentWelcomeSection: {
+    marginBottom: 24,
+  },
+  intentWelcomeTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  intentWelcomeSubtitle: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  intentCloseBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  intentOptionsNew: {
+    gap: 14,
+    marginBottom: 20,
+  },
+  intentOptionCardNew: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FAFAFA',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  intentOptionIconNew: {
+    width: 54,
+    height: 54,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  intentOptionTextNew: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  intentOptionTitleNew: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  intentOptionDescNew: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  intentOptionArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  intentBrowseBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  intentBrowseBtnText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  // Guest Modal Styles
+  guestModalText: {
+    fontSize: 15,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  guestModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  guestModalBtnOutline: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    alignItems: 'center',
+  },
+  guestModalBtnOutlineText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  guestModalBtnPrimary: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  guestModalBtnPrimaryText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  // New Guest Auth Modal Styles
+  guestAuthModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  guestAuthModalContainer: {
+    backgroundColor: colors.paper,
+    borderRadius: 24,
+    padding: 32,
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  guestAuthIconWrapper: {
+    marginBottom: 20,
+  },
+  guestAuthIconBg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guestAuthTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  guestAuthSubtitle: {
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 28,
+    paddingHorizontal: 8,
+  },
+  guestAuthButtons: {
+    width: '100%',
+    gap: 12,
+  },
+  guestAuthBtnPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 16,
+    borderRadius: 14,
+    gap: 10,
+  },
+  guestAuthBtnPrimaryText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  guestAuthBtnSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryLight,
+    paddingVertical: 16,
+    borderRadius: 14,
+    gap: 10,
+  },
+  guestAuthBtnSecondaryText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  guestAuthClose: {
+    marginTop: 20,
+    paddingVertical: 8,
+  },
+  guestAuthCloseText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  // Urgent Map Section Styles
+  urgentMapSection: {
+    marginHorizontal: 16,
+    marginTop: 20,
+  },
+  urgentMapHeader: {
+    marginBottom: 12,
+  },
+  urgentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginBottom: 6,
+  },
+  urgentBadgeEmoji: {
+    fontSize: 14,
+  },
+  urgentBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#166534',
+    letterSpacing: 0.5,
+  },
+  urgentMapSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  // Sort Toggle Styles
+  sortToggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  sortChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    gap: 6,
+  },
+  sortChipActive: {
+    backgroundColor: colors.green,
+  },
+  sortChipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.green,
+  },
+  sortChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  sortChipTextActive: {
+    color: colors.paper,
+  },
+  // Map Legend Styles
+  mapLegend: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 6,
+  },
+  mapLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  mapLegendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: colors.paper,
+  },
+  mapLegendText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.paper,
+  },
+  // Post Job (Planned) Section Styles
+  postJobSection: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 4,
+  },
+  plannedBadgeRow: {
+    marginBottom: 8,
+  },
+  plannedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3EB',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+    gap: 6,
+  },
+  plannedBadgeEmoji: {
+    fontSize: 14,
+  },
+  plannedBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 0.5,
+  },
+  postJobHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 8,
+    marginLeft: 4,
+  },
+  // Distance Radius Filter Styles
+  radiusFilterSection: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  radiusLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  radiusLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+  },
+  radiusValueBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  radiusValueText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  radiusPresetsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  radiusPresetBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    minWidth: 48,
+    alignItems: 'center',
+  },
+  radiusPresetBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  radiusPresetText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  radiusPresetTextActive: {
+    color: colors.paper,
+  },
+  radiusHint: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 10,
+    textAlign: 'center',
+  },
+  // Radius Slider Styles
+  radiusSliderSection: {
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  radiusSliderHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  radiusSliderLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    flex: 1,
+  },
+  sliderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  slider: {
+    flex: 1,
+    height: 40,
+  },
+  sliderMinLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    width: 24,
+    textAlign: 'center',
+  },
+  sliderMaxLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    width: 36,
+    textAlign: 'center',
+  },
+  // Professional Planned Section Styles
+  plannedSection: {
+    marginHorizontal: 16,
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  plannedCard: {
+    backgroundColor: colors.paper,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 2,
+    borderColor: '#FFE4D6',
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  plannedCardHeader: {
+    marginBottom: 16,
+  },
+  plannedCardContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 16,
+    marginBottom: 16,
+  },
+  plannedIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: '#FFF3EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  plannedTextContent: {
+    flex: 1,
+  },
+  plannedTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 6,
+  },
+  plannedDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  plannedActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  plannedActionBtnText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  guestSignInPrompt: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  guestSignInText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  guestSignInLink: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  // Full-Screen Map Modal Styles
+  fullMapContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  fullMapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.paper,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  fullMapBackBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullMapHeaderCenter: {
+    alignItems: 'center',
+  },
+  fullMapTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 4,
+  },
+  fullMapWebViewContainer: {
+    flex: 1,
+  },
+  fullMapWebView: {
+    flex: 1,
+  },
+  fullMapLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  fullMapLoadingText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  fullMapBottomPanel: {
+    backgroundColor: colors.paper,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  fullMapSliderSection: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  fullMapContractorCount: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.green,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  fullMapContractorList: {
+    maxHeight: 140,
+  },
+  fullMapEmptyState: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  fullMapEmptyText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  fullMapContractorCard: {
+    width: 110,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  fullMapCardAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginBottom: 8,
+  },
+  fullMapCardAvatarPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  fullMapCardAvatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  fullMapCardOnlineDot: {
+    position: 'absolute',
+    top: 50,
+    right: 30,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.green,
+    borderWidth: 2,
+    borderColor: colors.paper,
+  },
+  fullMapCardName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  fullMapCardType: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  fullMapCardDistance: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  // Updated header styles for inline Urgent badge
+  fullMapHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  urgentBadgeSmall: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#DCFCE7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  // FAB Button styles
+  fullMapFab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+  },
+  // Categories section in full map
+  fullMapCategoriesSection: {
+    marginBottom: 12,
+  },
+  fullMapCategoriesTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  fullMapCategoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  fullMapCategoryChipActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  fullMapCategoryIcon: {
+    fontSize: 16,
+  },
+  fullMapCategoryText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  fullMapCategoryTextActive: {
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  // Service Menu in Full Map
+  fullMapServiceMenu: {
+    position: 'absolute',
+    top: 10,
+    right: 12,
+    backgroundColor: colors.paper,
+    borderRadius: 12,
+    width: 240,
+    maxHeight: 260,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 12,
+    overflow: 'hidden',
+  },
+  fullMapServiceMenuHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  fullMapServiceMenuTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  fullMapServiceMenuHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  fullMapServiceMenuScroll: {
+    maxHeight: 150,
+  },
+  fullMapServiceMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  fullMapServiceMenuItemActive: {
+    backgroundColor: colors.primaryLight,
+  },
+  fullMapServiceMenuIconBg: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullMapServiceMenuIcon: {
+    fontSize: 14,
+  },
+  fullMapServiceMenuItemText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  fullMapServiceMenuItemTextActive: {
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  // Additional multi-select styles
+  fullMapCategoriesTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 10,
+  },
+  fullMapCategoriesClear: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  fullMapSelectedCount: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  fullMapServiceMenuClear: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  fullMapServiceMenuDoneBtn: {
+    backgroundColor: colors.primary,
+    margin: 10,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  fullMapServiceMenuDoneBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  // Filter Popup Modal Styles
+  filterPopupOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  filterPopupContainer: {
+    backgroundColor: colors.paper,
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 320,
+    maxHeight: 380,
+    overflow: 'hidden',
+  },
+  filterPopupHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  filterPopupHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  filterPopupTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  filterPopupClearText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  filterPopupList: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  filterPopupItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginVertical: 2,
+  },
+  filterPopupItemActive: {
+    backgroundColor: colors.primaryLight,
+  },
+  filterPopupItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterPopupStars: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  filterPopupItemText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  filterPopupItemTextActive: {
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  filterPopupDoneBtn: {
+    backgroundColor: colors.primary,
+    margin: 12,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  filterPopupDoneBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.paper,
+  },
+  // Filter Select Button styles
+  filterSelectBtn: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterSelectContent: {
+    flex: 1,
+  },
+  filterSelectRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  filterSelectText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
+  },
 });
