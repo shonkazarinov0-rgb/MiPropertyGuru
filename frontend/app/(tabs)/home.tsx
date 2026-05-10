@@ -2032,8 +2032,8 @@ window.updateRadius=function(newRadiusMeters){
                       <View style={styles.fullMapCardOnlineDot} />
                       <Text style={styles.fullMapCardName} numberOfLines={1}>{contractor.name}</Text>
                       <Text style={styles.fullMapCardType} numberOfLines={1}>{contractor.contractor_type}</Text>
-                      {contractor.distance_km && (
-                        <Text style={styles.fullMapCardDistance}>{contractor.distance_km.toFixed(1)} km</Text>
+                      {contractor.distance_km != null && contractor.distance_km > 0 && (
+                          <Text style={styles.fullMapCardDistance}>{contractor.distance_km.toFixed(1)} km</Text>
                       )}
                     </TouchableOpacity>
                   );
