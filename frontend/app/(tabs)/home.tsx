@@ -3171,6 +3171,7 @@ const styles = StyleSheet.create({
   },
   // Full Map Search Styles
   fullMapSearchContainer: {
+    marginTop: 8,
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderBottomWidth: 1,
@@ -3238,6 +3239,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     bottom: 30,
+    top:40,
     right: 24,
     width: 64,
     height: 64,
