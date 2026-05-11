@@ -3912,11 +3912,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     textAlign: 'center',
   },
-  // Radius Slider Styles
   radiusSliderSection: {
     backgroundColor: colors.paper,
     borderRadius: 12,
-    padding: 16,
+    padding: 18,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.border,
