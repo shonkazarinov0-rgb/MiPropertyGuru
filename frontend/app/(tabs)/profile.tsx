@@ -377,7 +377,7 @@ export default function ProfileScreen() {
   };
 
   const pickPortfolioImage = async () => {
-    if (portfolioImages.length >= 4) { Alert.alert('Limit reached', 'You can add up to 4 photos per portfolio item'); return; }
+    if (portfolioImages.length >= 10) { Alert.alert('Limit reached', 'You can add up to 4 photos per portfolio item'); return; }
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -844,7 +844,7 @@ export default function ProfileScreen() {
                           </TouchableOpacity>
                         </View>
                     ))}
-                    {portfolioImages.length < 4 && (
+                    {portfolioImages.length < 10 && (
                         <TouchableOpacity style={s.addImageBtn} onPress={pickPortfolioImage}>
                           <Ionicons name="camera-outline" size={28} color={colors.textSecondary} />
                           <Text style={s.addImageText}>Add</Text>
