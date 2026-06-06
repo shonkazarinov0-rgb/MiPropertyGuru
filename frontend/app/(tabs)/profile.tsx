@@ -377,20 +377,28 @@ export default function ProfileScreen() {
   };
 
   const pickPortfolioImage = async () => {
-    if (portfolioImages.length >= 10) { Alert.alert('Limit reached', 'You can add up to 4 photos per portfolio item'); return; }
+    if (portfolioImages.length >= 4) {
+      Alert.alert('Limit Reached', 'You can add up to 4 photos per portfolio item');
+      return;
+    }
+    
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true, aspect: [4, 3], quality: 0.7, base64: true,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+        base64: true,
       });
+
       if (!result.canceled && result.assets[0].base64) {
-        setPortfolioImages([...portfolioImages, `image/jpeg;base64,${result.assets[0].base64}`]);
+        setPortfolioImages([...portfolioImages, result.assets[0].base64]);
       }
     } catch (error) {
       console.error('Error picking image:', error);
     }
   };
-
+  
   const removePortfolioImage = (index: number) => setPortfolioImages(portfolioImages.filter((_, i) => i !== index));
 
   const deletePortfolioItem = async (itemId: string) => {
@@ -834,7 +842,7 @@ export default function ProfileScreen() {
                       <Ionicons name="close" size={24} color={colors.textSecondary} />
                     </TouchableOpacity>
                   </View>
-                  <Text style={s.inputLabel}>Photos (up to 4)</Text>
+                  <Text style={s.inputLabel}>Photos (up to 10)</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.portfolioImagesPicker}>
                     {portfolioImages.map((img, idx) => (
                         <View key={idx} style={s.pickedImageContainer}>
