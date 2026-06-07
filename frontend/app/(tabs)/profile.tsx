@@ -377,8 +377,8 @@ export default function ProfileScreen() {
   };
 
   const pickPortfolioImage = async () => {
-    if (portfolioImages.length >= 4) {
-      Alert.alert('Limit Reached', 'You can add up to 4 photos per portfolio item');
+    if (portfolioImages.length >= 10) {
+      console.log('Limit reached: You can add up to 10 photos per portfolio item');
       return;
     }
     
@@ -387,12 +387,13 @@ export default function ProfileScreen() {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [4, 3],
-        quality: 0.7,
+        quality: 0.3,
         base64: true,
       });
 
       if (!result.canceled && result.assets[0].base64) {
-        setPortfolioImages([...portfolioImages, result.assets[0].base64]);
+        const photoUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
+        setPortfolioImages([...portfolioImages, photoUri]);
       }
     } catch (error) {
       console.error('Error picking image:', error);
