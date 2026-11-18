@@ -1,3 +1,4 @@
+import ContractorLanguages from '../../src/components/ContractorLanguages';
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet, Switch, TextInput,
@@ -540,11 +541,8 @@ export default function ProfileScreen() {
                 </View>
             )}
 
-            {isContractor && isContractorMode && user?.languages && user.languages.length > 0 && (
-                <View style={s.languagesRow}>
-                  <Ionicons name="earth" size={18} color="#4A90D9" />
-                  <Text style={s.languagesText}>{user.languages.join(', ')}</Text>
-                </View>
+            {isContractor && isContractorMode && (
+              <ContractorLanguages languages={user?.languages || []} onSaved={refreshUser} />
             )}
 
             {isContractor && isContractorMode && user?.has_license && (

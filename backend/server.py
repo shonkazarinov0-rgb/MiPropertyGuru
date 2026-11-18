@@ -1660,6 +1660,25 @@ async def update_phone_visibility(req: PhoneVisibilityReq, user=Depends(get_curr
     await db.users.update_one({"id": user["id"]}, {"$set": {"phone_visible": req.phone_visible}})
     return {"message": "Phone visibility updated", "phone_visible": req.phone_visible}
 
+class ContractorLanguagesUpdate(BaseModel):
+    languages: List[str]
+
+@api_router.put("/contractors/languages")
+async def update_contractor_languages(req: ContractorLanguagesUpdate, user=Depends(get_current_user)):
+    if user["role"] != "contractor":
+        raise HTTPException(403, "Contractors only")
+    languages = []
+    for value in req.languages:
+        language = value.strip()
+        if not language or len(language) > 60:
+            raise HTTPException(400, "Language names must contain 1 to 60 characters")
+        if language.casefold() not in {item.casefold() for item in languages}:
+            languages.append(language)
+    if len(languages) > 50:
+        raise HTTPException(400, "Too many languages")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"languages": languages}})
+    return {"languages": languages}
+
 @api_router.put("/contractors/profile")
 async def update_profile(req: ProfileUpdate, user=Depends(get_current_user)):
     update = {}
