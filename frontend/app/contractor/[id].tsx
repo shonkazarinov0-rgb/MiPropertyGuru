@@ -19,17 +19,28 @@ export default function ContractorDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [messaging, setMessaging] = useState(false);
 
-  useEffect(() => { fetchContractor(); }, [id]);
-
-  const fetchContractor = async () => {
-    try {
-      const res = await api.get(`/contractors/${id}`);
-      setContractor(res.contractor);
-      setReviews(res.reviews || []);
-      setPortfolio(res.portfolio || []);
-    } catch (e: any) { Alert.alert('Error', e.message); }
-    finally { setLoading(false); }
-  };
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setContractor(null);
+    setReviews([]);
+    setPortfolio([]);
+    const load = async () => {
+      try {
+        const res = await api.get(`/contractors/${id}`);
+        if (!active) return;
+        setContractor(res.contractor);
+        setReviews(res.reviews || []);
+        setPortfolio(res.portfolio || []);
+      } catch (e: any) {
+        if (active) Alert.alert('Error', e.message);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => { active = false; };
+  }, [id]);
 
   const handleMessage = async () => {
     // Check if user is logged in - redirect to registration if not

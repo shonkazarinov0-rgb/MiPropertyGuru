@@ -213,6 +213,38 @@ export default function ClientHomeScreen() {
   const mapPreviewRef = useRef<WebView>(null);
   const fullMapRef = useRef<WebView>(null);
   
+  const profileNavigationBusy = useRef(false);
+  const queuedProfile = useRef<string | null>(null);
+
+  useFocusEffect(useCallback(() => {
+    profileNavigationBusy.current = false;
+  }, []));
+
+  const finishProfileNavigation = () => {
+    const id = queuedProfile.current;
+    if (!id) return;
+    queuedProfile.current = null;
+    router.push(`/contractor/${id}`);
+  };
+
+  const openContractorProfile = (id: string) => {
+    if (profileNavigationBusy.current) return;
+    profileNavigationBusy.current = true;
+    if (showFullMap) {
+      queuedProfile.current = id;
+      setShowFullMap(false);
+    } else {
+      router.push(`/contractor/${id}`);
+    }
+  };
+
+  // iOS waits for Modal.onDismiss. Android does not expose that callback.
+  useEffect(() => {
+    if (Platform.OS === 'ios' || showFullMap || !queuedProfile.current) return;
+    const timer = setTimeout(finishProfileNavigation, 350);
+    return () => clearTimeout(timer);
+  }, [showFullMap]);
+
   // Notifications state
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   
@@ -227,6 +259,7 @@ export default function ClientHomeScreen() {
       // 1. Guests (!user)
       // 2. Verified clients (user.role === 'client')
       // 3. Contractors in client mode (user.role === 'contractor' && isClientMode)
+      if (profileNavigationBusy.current) return;
       const shouldShowPopup = !user || 
         (user && user.email_verified && user.role === 'client') ||
         (user && user.email_verified && user.role === 'contractor' && isClientMode);
@@ -859,8 +892,7 @@ window.updateRadius=function(newRadiusMeters){
     try {
       const data = JSON.parse(event.nativeEvent.data);
       if (data.type === 'profile' && sortedContractors.some(c => c.id === data.id)) {
-        setShowFullMap(false);
-        router.push(`/contractor/${data.id}`);
+        openContractorProfile(data.id);
       }
     } catch {}
   };
@@ -873,7 +905,7 @@ window.updateRadius=function(newRadiusMeters){
       if (!user) {
         showAuthRequiredAlert();
       } else {
-        router.push(`/contractor/${item.id}`);
+        openContractorProfile(item.id);
       }
     };
     
@@ -1777,6 +1809,7 @@ window.updateRadius=function(newRadiusMeters){
       {/* Full-Screen Map Modal - Complete Map Experience */}
       <Modal
         visible={showFullMap}
+        onDismiss={finishProfileNavigation}
         animationType="slide"
         onRequestClose={() => setShowFullMap(false)}
       >
@@ -2022,8 +2055,7 @@ window.updateRadius=function(newRadiusMeters){
                       key={contractor.id}
                       style={styles.fullMapContractorCard}
                       onPress={() => {
-                        setShowFullMap(false);
-                        router.push(`/contractor/${contractor.id}`);
+                        openContractorProfile(contractor.id);
                       }}
                     >
                       {contractor.profile_photo ? (
