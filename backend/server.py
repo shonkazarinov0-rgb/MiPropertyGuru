@@ -8,6 +8,7 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel
+from portfolio_models import PortfolioCreate, PortfolioVisibility, portfolio_query
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -86,6 +87,7 @@ CATEGORY_ICONS = {
 # ── Pydantic Models ──
 
 class RegisterReq(BaseModel):
+    portfolio_projects: List[PortfolioCreate] = []
     name: str
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -161,12 +163,6 @@ class ReviewCreate(BaseModel):
     comment: str
     job_id: Optional[str] = None
     conversation_id: Optional[str] = None
-
-class PortfolioCreate(BaseModel):
-    title: str
-    description: Optional[str] = ""
-    image_base64: Optional[str] = None
-    images: Optional[List[str]] = []  # Array of base64 images
 
 class ConversationCreate(BaseModel):
     participant_id: str
@@ -414,6 +410,7 @@ async def register(req: RegisterReq):
         "languages": req.languages or ["English"],
         "has_license": req.has_license or False,
         "license_confirmed": req.license_confirmed or False,
+        "portfolio_projects": [p.model_dump() for p in req.portfolio_projects] if req.role == "contractor" else [],
         "verification_code": code,
         "code_expires_at": expires_at.isoformat(),
         "created_at": datetime.now(timezone.utc).isoformat()
@@ -573,6 +570,9 @@ async def complete_registration(req: CompleteRegistrationReq):
     
     await db.users.insert_one(user.copy())
     
+    if user["role"] == "contractor":
+        await save_registration_projects(uid, pending.get("portfolio_projects", []))
+
     # Delete pending registration
     await db.pending_registrations.delete_one({"email": req.email.lower()})
     
@@ -793,6 +793,7 @@ async def verify_registration_phone(req: VerifyRegPhoneReq):
 
 # Upgrade client to contractor
 class UpgradeToContractorReq(BaseModel):
+    portfolio_projects: List[PortfolioCreate] = []
     name: str
     phone: str
     business_name: Optional[str] = None
@@ -853,6 +854,8 @@ async def upgrade_to_contractor(req: UpgradeToContractorReq, user=Depends(get_cu
     # Update user in database
     await db.users.update_one({"id": user["id"]}, {"$set": update_data})
     
+    await save_registration_projects(user["id"], [p.model_dump() for p in req.portfolio_projects])
+
     # Get updated user
     updated_user = await db.users.find_one({"id": user["id"]}, {"_id": 0, "password_hash": 0})
     
@@ -1599,7 +1602,7 @@ async def get_contractor(cid: str, user=Depends(get_optional_user)):
     await db.users.update_one({"id": cid}, {"$inc": {"profile_views": 1}})
     
     reviews = await db.reviews.find({"contractor_id": cid}, {"_id": 0}).sort("created_at", -1).to_list(50)
-    portfolio = await db.portfolio.find({"contractor_id": cid}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    portfolio = await db.portfolio.find(portfolio_query(cid, user), {"_id": 0}).sort("created_at", -1).to_list(50)
     return {"contractor": c, "reviews": reviews, "portfolio": portfolio}
 
 @api_router.put("/contractors/location")
@@ -2159,6 +2162,21 @@ async def mark_conversation_reviewed(cid: str, user=Depends(get_current_user)):
 
 # ── Portfolio ──
 
+async def save_registration_projects(uid, projects):
+    for index, project in enumerate(projects):
+        item = PortfolioCreate(**project).model_dump()
+        item.update({"id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"portfolio:{uid}:{index}")),
+                     "contractor_id": uid, "created_at": datetime.now(timezone.utc).isoformat()})
+        await db.portfolio.update_one({"id": item["id"]}, {"$setOnInsert": item}, upsert=True)
+
+@api_router.put("/portfolio/{item_id}/visibility")
+async def set_portfolio_visibility(item_id: str, req: PortfolioVisibility, user=Depends(get_current_user)):
+    result = await db.portfolio.update_one(
+        {"id": item_id, "contractor_id": user["id"]}, {"$set": {"visible": req.visible}})
+    if not result.matched_count:
+        raise HTTPException(404, "Portfolio project not found")
+    return {"visible": req.visible}
+
 @api_router.post("/portfolio")
 async def add_portfolio(req: PortfolioCreate, user=Depends(get_current_user)):
     if user["role"] != "contractor":
@@ -2169,7 +2187,8 @@ async def add_portfolio(req: PortfolioCreate, user=Depends(get_current_user)):
         "title": req.title, 
         "description": req.description or "",
         "image_base64": req.image_base64,
-        "images": req.images or [],  # Array of images
+        "images": req.images,
+        "visible": req.visible,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.portfolio.insert_one(item.copy())
@@ -2185,8 +2204,8 @@ async def delete_portfolio(item_id: str, user=Depends(get_current_user)):
     return {"message": "Deleted"}
 
 @api_router.get("/portfolio/{cid}")
-async def get_portfolio(cid: str):
-    return {"portfolio": await db.portfolio.find({"contractor_id": cid}, {"_id": 0}).sort("created_at", -1).to_list(50)}
+async def get_portfolio(cid: str, user=Depends(get_optional_user)):
+    return {"portfolio": await db.portfolio.find(portfolio_query(cid, user), {"_id": 0}).sort("created_at", -1).to_list(50)}
 
 # ── Conversations ──
 

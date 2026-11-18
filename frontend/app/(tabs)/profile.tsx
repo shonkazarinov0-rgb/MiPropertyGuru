@@ -1,3 +1,4 @@
+import PortfolioProjects from '../../src/components/PortfolioProjects';
 import { pickWorkPhoto as selectWorkPhoto } from '../../src/photos/pickWorkPhoto';
 import React, { useState, useEffect } from 'react';
 import {
@@ -608,40 +609,11 @@ export default function ProfileScreen() {
                   )}
                 </View>
 
-                {/* Portfolio */}
-                <View style={s.section}>
-                  <View style={s.sectionHeader}>
-                    <Text style={s.sectionTitle}>Portfolio</Text>
-                    <TouchableOpacity onPress={() => setShowAddPortfolio(true)}>
-                      <Ionicons name="add-circle" size={28} color={colors.primary} />
-                    </TouchableOpacity>
-                  </View>
-                  {portfolio.map(item => (
-                      <View key={item.id} style={s.portfolioItem}>
-                        {item.images && item.images.length > 0 && (
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.portfolioImagesScroll}>
-                              {item.images.map((img: string, idx: number) => (
-                                  <Image key={idx} source={{ uri: img }} style={s.portfolioImage} />
-                              ))}
-                            </ScrollView>
-                        )}
-                        <View style={s.portfolioInfo}>
-                          <Text style={s.portfolioTitle}>{item.title}</Text>
-                          {item.description && <Text style={s.portfolioDesc}>{item.description}</Text>}
-                        </View>
-                        <TouchableOpacity style={s.deletePortfolioBtn} onPress={() => deletePortfolioItem(item.id)}>
-                          <Ionicons name="trash-outline" size={18} color={colors.red} />
-                        </TouchableOpacity>
-                      </View>
-                  ))}
-                  {portfolio.length === 0 && (
-                      <View style={s.emptyPortfolio}>
-                        <Ionicons name="images-outline" size={48} color={colors.textSecondary} />
-                        <Text style={s.emptyText}>No portfolio items yet</Text>
-                        <Text style={s.emptySubtext}>Add photos of your work to showcase your skills</Text>
-                      </View>
-                  )}
-                </View>
+                <PortfolioProjects projects={portfolio} editable
+                  onAdd={async project => { await api.post('/portfolio', project); await fetchPortfolio(); }}
+                  onHide={async project => { await api.put(`/portfolio/${project.id}/visibility`, {visible:project.visible === false}); await fetchPortfolio(); }}
+                  onDelete={async project => { await api.delete(`/portfolio/${project.id}`); await fetchPortfolio(); }}
+                />
 
                 {/* Subscription */}
                 <View style={s.section}>
