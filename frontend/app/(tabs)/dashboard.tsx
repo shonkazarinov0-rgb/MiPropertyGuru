@@ -69,7 +69,7 @@ export default function ContractorDashboard() {
 
   useEffect(() => {
     if (user) {
-      setIsOnline(user.isonline || false);
+      setIsOnline(user.is_online || false);
       fetchData();
     }
   }, [user]);
@@ -87,7 +87,9 @@ export default function ContractorDashboard() {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
         const loc = await Location.getCurrentPositionAsync({});
-        setCurrentLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+        const coordinates = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+        setCurrentLocation(coordinates);
+        return coordinates;
       }
     } catch (e) {
       console.error(e);
@@ -117,28 +119,28 @@ export default function ContractorDashboard() {
     fetchData();
   }, []);
 
-  const toggleOnlineStatus = async () => {
+  const toggleOnlineStatus = async (nextOnline: boolean) => {
     if (togglingStatus) return;
     
     setTogglingStatus(true);
     try {
-      if (!isOnline) {
-        await updateLocation();
-      }
+      // Use the GPS result directly: React state updates are asynchronous.
+      const location = nextOnline ? await updateLocation() : null;
       
       const res = await api.put('/contractors/online-status', {
-        is_online: !isOnline,
-        current_lat: currentLocation?.lat,
-        current_lng: currentLocation?.lng,
+        is_online: nextOnline,
+        current_lat: location?.lat,
+        current_lng: location?.lng,
       });
       
-      setIsOnline(!isOnline);
-      if (refreshUser) refreshUser();
+      setIsOnline(res.is_online);
+      await refreshUser();
       
       // Removed Alert.alert to prevent iOS crash
-      console.log(!isOnline ? 'Now LIVE' : 'Now offline');
+      console.log(nextOnline ? 'Now LIVE' : 'Now offline');
     } catch (e: any) {
       console.error('Status toggle error:', e.message);
+      Alert.alert('Could not update status', 'Please check your connection and try again.');
     } finally {
       setTogglingStatus(false);
     }

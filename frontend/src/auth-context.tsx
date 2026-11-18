@@ -25,7 +25,7 @@ export interface User {
   subscription_status?: string;
   subscription_fee?: number;
   work_photos?: string[];
-  isonline?: boolean;
+  is_online?: boolean;
   live_location_enabled?: boolean;
   current_lat?: number;
   current_lng?: number;
