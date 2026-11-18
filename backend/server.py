@@ -1,6 +1,6 @@
 import socketio
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Header
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -21,6 +21,8 @@ import random
 import stripe
 import httpx
 import asyncio
+from urllib.parse import quote
+from billing import checkout_urls, verify_stripe_event, apply_checkout_session
 
 # Import email service
 from email_service import (
@@ -52,6 +54,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
 STRIPE_PRICE_ID = os.environ.get('STRIPE_PRICE_ID', '')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 ADMIN_SECRET = os.environ.get('ADMIN_SECRET', 'mipg-admin-2024')
 
 stripe.api_key = STRIPE_API_KEY
@@ -2560,8 +2563,7 @@ async def create_subscription(req: SubscriptionReq, request: Request, user=Depen
     if user["role"] != "contractor":
         raise HTTPException(403, "Only contractors need subscriptions")
     
-    success_url = f"{req.origin_url}/payment-success?session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"{req.origin_url}/payment"
+    success_url, cancel_url = checkout_urls(req.origin_url)
     
     try:
         session = stripe.checkout.Session.create(
@@ -2588,46 +2590,38 @@ async def create_subscription(req: SubscriptionReq, request: Request, user=Depen
         logger.error(f"Stripe error: {e}")
         raise HTTPException(500, f"Payment setup failed: {str(e)}")
 
+@api_router.get("/payments/return")
+async def payment_return(session_id: str):
+    # Stripe requires HTTPS return URLs; hand the result back to Expo Router.
+    return RedirectResponse(f"mipropertyguru://payment-success?session_id={quote(session_id, safe='')}")
+
+@api_router.get("/payments/cancel")
+async def payment_cancel():
+    return RedirectResponse("mipropertyguru://payment")
+
 @api_router.get("/payments/status/{session_id}")
 async def check_payment_status(session_id: str, user=Depends(get_current_user)):
+    # Check ownership before contacting Stripe or updating any records.
+    tx = await db.payment_transactions.find_one({"session_id": session_id, "user_id": user["id"]})
+    if not tx:
+        raise HTTPException(404, "Payment not found")
     try:
         session = stripe.checkout.Session.retrieve(session_id)
-        payment_status = session.payment_status
-        status = session.status
-        
-        await db.payment_transactions.update_one(
-            {"session_id": session_id},
-            {"$set": {"payment_status": payment_status, "status": status}}
-        )
-        
-        if payment_status == "paid" or status == "complete":
-            tx = await db.payment_transactions.find_one({"session_id": session_id})
-            if tx and tx.get("status") != "completed":
-                await db.payment_transactions.update_one({"session_id": session_id}, {"$set": {"status": "completed"}})
-                await db.users.update_one({"id": user["id"]}, {"$set": {"subscription_status": "active"}})
-        
-        return {"status": status, "payment_status": payment_status}
-    except stripe.StripeError as e:
-        raise HTTPException(500, f"Failed to check payment: {str(e)}")
+        await apply_checkout_session(db, session, expected_user_id=user["id"])
+        return {"status": session.status, "payment_status": session.payment_status}
+    except stripe.StripeError:
+        logger.exception("Stripe payment status lookup failed")
+        raise HTTPException(502, "Unable to check payment status")
 
 @api_router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
-    body = await request.body()
-    try:
-        event = stripe.Event.construct_from(
-            stripe.util.convert_to_stripe_object(await request.json()),
-            stripe.api_key
-        )
-        if event.type == "checkout.session.completed":
-            session = event.data.object
-            user_id = session.metadata.get("user_id")
-            if user_id:
-                await db.users.update_one({"id": user_id}, {"$set": {"subscription_status": "active"}})
-                logger.info(f"Activated subscription for {user_id}")
-        return {"status": "ok"}
-    except Exception as e:
-        logger.error(f"Webhook error: {e}")
-        return {"status": "error"}
+    event = verify_stripe_event(
+        await request.body(), request.headers.get("stripe-signature"), STRIPE_WEBHOOK_SECRET
+    )
+    if event.type in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
+        # Database failures propagate as non-2xx so Stripe can retry delivery.
+        await apply_checkout_session(db, event.data.object)
+    return {"status": "ok"}
 
 # ── Admin ──
 
