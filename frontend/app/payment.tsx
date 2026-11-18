@@ -75,7 +75,7 @@ export default function PaymentScreen() {
             <Feature icon="checkmark-circle" text="Appear on the map for clients" />
             <Feature icon="checkmark-circle" text="Receive messages from clients" />
             <Feature icon="checkmark-circle" text="Showcase your portfolio" />
-            <Feature icon="checkmark-circle" text="AI-powered contract generation" />
+            <Feature icon="checkmark-circle" text="Service agreement templates" />
             <Feature icon="checkmark-circle" text="Build your reputation with reviews" />
           </View>
         </View>

@@ -36,8 +36,7 @@ export default function PaymentSuccessScreen() {
           setStatus('pending');
         }
       } else {
-        await refreshUser();
-        setStatus('success');
+        setStatus('pending');
       }
     } catch {
       setStatus('pending');
