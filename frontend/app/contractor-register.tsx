@@ -1,3 +1,4 @@
+import { pickWorkPhoto as selectWorkPhoto } from '../src/photos/pickWorkPhoto';
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
@@ -81,6 +82,7 @@ const LANGUAGES = [
 export default function ContractorRegisterScreen() {
   const router = useRouter();
   const { login, user, refreshUser } = useAuth();
+  const [pickingPhoto, setPickingPhoto] = useState(false);
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   
@@ -461,26 +463,21 @@ export default function ContractorRegisterScreen() {
   };
 
   const pickWorkPhoto = async () => {
+    if (pickingPhoto) return;
     if (workPhotos.length >= 6) {
       Alert.alert('Limit reached', 'You can upload up to 6 photos');
       return;
     }
     
+    setPickingPhoto(true);
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.7,
-        base64: true,
-      });
-
-      if (!result.canceled && result.assets[0].base64) {
-        const photoUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
-        setWorkPhotos([...workPhotos, photoUri]);
-      }
+      const photoUri = await selectWorkPhoto();
+      if (photoUri) setWorkPhotos(previous => [...previous, photoUri].slice(0, 6));
     } catch (error) {
       console.error('Error picking image:', error);
+      Alert.alert('Could not add photo', error instanceof Error ? error.message : 'Please try selecting the photo again.');
+    } finally {
+      setPickingPhoto(false);
     }
   };
 
@@ -835,7 +832,7 @@ export default function ContractorRegisterScreen() {
         <View style={styles.photoGrid}>
           {workPhotos.map((photo, index) => (
             <View key={index} style={styles.photoItem}>
-              <Image source={{ uri: photo }} style={styles.workPhoto} />
+              <Image source={{ uri: photo }} style={styles.workPhoto} onError={() => Alert.alert('Photo preview unavailable', 'Remove this photo and try selecting a JPEG or PNG copy.')} />
               <TouchableOpacity 
                 style={styles.removePhotoBtn}
                 onPress={() => removeWorkPhoto(index)}
@@ -845,7 +842,7 @@ export default function ContractorRegisterScreen() {
             </View>
           ))}
           {workPhotos.length < 6 && (
-            <TouchableOpacity style={styles.addPhotoBtn} onPress={pickWorkPhoto}>
+            <TouchableOpacity style={styles.addPhotoBtn} onPress={pickWorkPhoto} disabled={pickingPhoto}>
               <Ionicons name="camera-outline" size={32} color={colors.textSecondary} />
               <Text style={styles.addPhotoText}>Add Photo</Text>
             </TouchableOpacity>
