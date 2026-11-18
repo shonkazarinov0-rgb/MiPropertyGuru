@@ -65,8 +65,8 @@ export default function ProfileScreen() {
   const [editLocationName, setEditLocationName] = useState('');
 
   useEffect(() => {
-    if (user?.isonline !== undefined) setLiveLocation(user.isonline);
-  }, [user?.isonline]);
+    if (user?.is_online !== undefined) setLiveLocation(user.is_online);
+  }, [user?.is_online]);
 
   useEffect(() => {
     if (user?.role === 'contractor') fetchPortfolio();
