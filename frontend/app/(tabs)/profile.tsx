@@ -1,3 +1,4 @@
+import { pickWorkPhoto as selectWorkPhoto } from '../../src/photos/pickWorkPhoto';
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet, Switch, TextInput,
@@ -31,6 +32,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, refreshUser, switchMode, isClientMode, isContractorMode } = useAuth();
 
+  const [pickingPhoto, setPickingPhoto] = useState(false);
   const [liveLocation, setLiveLocation] = useState(false);
   const [phoneVisible, setPhoneVisible] = useState(user?.phone_visible !== false);
   const [serviceRadius, setServiceRadius] = useState(user?.service_radius || 50);
@@ -377,26 +379,21 @@ export default function ProfileScreen() {
   };
 
   const pickPortfolioImage = async () => {
+    if (pickingPhoto) return;
     if (portfolioImages.length >= 10) {
       console.log('Limit reached: You can add up to 10 photos per portfolio item');
       return;
     }
     
+    setPickingPhoto(true);
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.3,
-        base64: true,
-      });
-
-      if (!result.canceled && result.assets[0].base64) {
-        const photoUri = `data:image/jpeg;base64,${result.assets[0].base64}`;
-        setPortfolioImages([...portfolioImages, photoUri]);
-      }
+      const photoUri = await selectWorkPhoto();
+      if (photoUri) setPortfolioImages(previous => [...previous, photoUri].slice(0, 10));
     } catch (error) {
       console.error('Error picking image:', error);
+      Alert.alert('Could not add photo', error instanceof Error ? error.message : 'Please try selecting the photo again.');
+    } finally {
+      setPickingPhoto(false);
     }
   };
   
@@ -427,7 +424,7 @@ export default function ProfileScreen() {
         allowsEditing: true, quality: 0.7, base64: true,
       });
       if (!result.canceled && result.assets[0].base64) {
-        setLicenseImage(`image/jpeg;base64,${result.assets[0].base64}`);
+        setLicenseImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
       }
     } catch (error) {
       console.error('Error picking license image:', error);
@@ -847,14 +844,14 @@ export default function ProfileScreen() {
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.portfolioImagesPicker}>
                     {portfolioImages.map((img, idx) => (
                         <View key={idx} style={s.pickedImageContainer}>
-                          <Image source={{ uri: img }} style={s.pickedImage} />
+                          <Image source={{ uri: img }} style={s.pickedImage} onError={() => Alert.alert('Photo preview unavailable', 'Remove this photo and try selecting a JPEG or PNG copy.')} />
                           <TouchableOpacity style={s.removeImageBtn} onPress={() => removePortfolioImage(idx)}>
                             <Ionicons name="close-circle" size={22} color={colors.red} />
                           </TouchableOpacity>
                         </View>
                     ))}
                     {portfolioImages.length < 10 && (
-                        <TouchableOpacity style={s.addImageBtn} onPress={pickPortfolioImage}>
+                        <TouchableOpacity style={s.addImageBtn} onPress={pickPortfolioImage} disabled={pickingPhoto}>
                           <Ionicons name="camera-outline" size={28} color={colors.textSecondary} />
                           <Text style={s.addImageText}>Add</Text>
                         </TouchableOpacity>
