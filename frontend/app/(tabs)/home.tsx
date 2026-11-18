@@ -16,6 +16,7 @@ import { api } from '../../src/api';
 import { useAuth } from '../../src/auth-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ModeToggle from '../../src/components/ModeToggle';
+import { contractorPopupScript } from '../../src/maps/contractorPopups';
 
 const { width, height } = Dimensions.get('window');
 
@@ -814,16 +815,19 @@ export default function ClientHomeScreen() {
     if (!userLoc) return '';
 
     const onlineContractors = sortedContractors.filter(c => c.is_online && c.current_location);
-    const markers = onlineContractors.slice(0, 15).map(c => ({
+    const markers = onlineContractors.map(c => ({
       id: c.id,
       name: c.name,
       type: c.contractor_type,
+      photo: c.profile_photo,
+      rating: c.rating,
+      distance: c.distance_km ?? c.distance,
       lat: c.current_location.lat,
       lng: c.current_location.lng,
       online: true
     }));
 
-    const mJSON = JSON.stringify(markers);
+    const mJSON = JSON.stringify(markers).replace(/</g, '\\u003c');
 
     const zoomLevel = Math.round(14 - Math.log2(radiusKm));
 
@@ -834,17 +838,14 @@ export default function ClientHomeScreen() {
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<style>*{margin:0;padding:0}#map{width:100vw;height:100vh}.leaflet-control-attribution{display:none!important}</style></head>
+<style>*{margin:0;padding:0}#map{width:100vw;height:100vh}.leaflet-control-attribution{display:none!important}.contractor-dot{box-sizing:border-box;background:#22C55E;width:20px;height:20px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px #0005}.contractor-dot.grouped{width:28px;height:28px;color:#fff;font:bold 13px/22px sans-serif;text-align:center}.contractor-popup .leaflet-popup-content{margin:28px 12px 12px;max-width:260px}.contractor-popup .leaflet-popup-close-button{font-size:24px!important;width:32px!important;height:32px!important}.contractor-list{max-height:230px;overflow-y:auto}.contractor-preview{display:flex;align-items:center;gap:10px;width:100%;padding:10px 0;text-align:left;border:0;border-bottom:1px solid #eee;background:#fff;color:#222;cursor:pointer;font:14px sans-serif}.preview-avatar{position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0;width:44px;height:44px;border-radius:50%;background:#fff3eb;color:#e65a00;font-weight:bold;overflow:hidden}.preview-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.preview-name,.preview-trade,.preview-facts{display:block;overflow-wrap:anywhere}.preview-trade{color:#666;margin-top:3px}.preview-facts{font-size:12px;color:#777;margin-top:5px}.preview-group{font:600 13px sans-serif}</style></head>
 <body><div id="map"></div><script>
 var map=L.map('map',{zoomControl:false}).setView([${userLoc.lat},${userLoc.lng}],${zoomLevel});
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:''}).addTo(map);
 var radiusCircle=L.circle([${userLoc.lat},${userLoc.lng}],{radius:${radiusMeters},fillColor:'#FF6A00',fillOpacity:0.10,color:'#FF6A00',weight:2,opacity:0.6}).addTo(map);
 L.circleMarker([${userLoc.lat},${userLoc.lng}],{radius:10,fillColor:'#007AFF',color:'#fff',weight:3,fillOpacity:1}).addTo(map).bindPopup('<b>You are here</b>');
 var ms=${mJSON};
-ms.forEach(function(m){
-var icon=L.divIcon({className:'',html:'<div style="background:#22C55E;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)"></div>',iconSize:[14,14],iconAnchor:[7,7]});
-L.marker([m.lat,m.lng],{icon:icon}).addTo(map).on('click',function(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'tap',id:m.id}))});
-});
+${contractorPopupScript}
 window.updateRadius=function(newRadiusMeters){
   radiusCircle.setRadius(newRadiusMeters);
   var km=newRadiusMeters/1000;
@@ -857,7 +858,10 @@ window.updateRadius=function(newRadiusMeters){
   const handleMapMessage = (event: any) => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'tap' && data.id) router.push(`/contractor/${data.id}`);
+      if (data.type === 'profile' && sortedContractors.some(c => c.id === data.id)) {
+        setShowFullMap(false);
+        router.push(`/contractor/${data.id}`);
+      }
     } catch {}
   };
 
