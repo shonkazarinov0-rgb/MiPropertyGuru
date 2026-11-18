@@ -1,3 +1,4 @@
+import PortfolioProjects, { PortfolioProject } from '../src/components/PortfolioProjects';
 import { pickWorkPhoto as selectWorkPhoto } from '../src/photos/pickWorkPhoto';
 import React, { useState, useEffect } from 'react';
 import {
@@ -112,6 +113,7 @@ export default function ContractorRegisterScreen() {
   // Step 5: Profile
   const [bio, setBio] = useState('');
   const [experienceYears, setExperienceYears] = useState('');
+  const [portfolioProjects, setPortfolioProjects] = useState<PortfolioProject[]>([]);
   const [workPhotos, setWorkPhotos] = useState<string[]>([]);
 
   // Step 6: License (optional)
@@ -387,6 +389,7 @@ export default function ContractorRegisterScreen() {
           trades: selectedTrades,
           languages: finalLanguages,
           service_radius: serviceRadius,
+          portfolio_projects: portfolioProjects,
           bio: bio.trim(),
           experience_years: parseInt(experienceYears) || 0,
           has_license: !!licenseFile,
@@ -404,6 +407,7 @@ export default function ContractorRegisterScreen() {
           role: 'contractor',
           trades: selectedTrades,
           contractor_type: selectedTrades[0],
+          portfolio_projects: portfolioProjects,
           bio: bio.trim(),
           experience_years: parseInt(experienceYears) || 0,
           service_radius: serviceRadius,
@@ -825,30 +829,11 @@ export default function ContractorRegisterScreen() {
         <Text style={styles.charCount}>{bio.length}/500</Text>
       </View>
 
-      <View style={styles.inputGroup}>
-        <Text style={styles.inputLabel}>Photos of Your Work (Optional)</Text>
-        <Text style={styles.inputHint}>Show off your best projects - up to 6 photos</Text>
-        
-        <View style={styles.photoGrid}>
-          {workPhotos.map((photo, index) => (
-            <View key={index} style={styles.photoItem}>
-              <Image source={{ uri: photo }} style={styles.workPhoto} onError={() => Alert.alert('Photo preview unavailable', 'Remove this photo and try selecting a JPEG or PNG copy.')} />
-              <TouchableOpacity 
-                style={styles.removePhotoBtn}
-                onPress={() => removeWorkPhoto(index)}
-              >
-                <Ionicons name="close-circle" size={24} color={colors.red} />
-              </TouchableOpacity>
-            </View>
-          ))}
-          {workPhotos.length < 6 && (
-            <TouchableOpacity style={styles.addPhotoBtn} onPress={pickWorkPhoto} disabled={pickingPhoto}>
-              <Ionicons name="camera-outline" size={32} color={colors.textSecondary} />
-              <Text style={styles.addPhotoText}>Add Photo</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+      <PortfolioProjects projects={portfolioProjects} editable optional
+        onAdd={project => setPortfolioProjects(previous => [...previous, project])}
+        onHide={project => setPortfolioProjects(previous => previous.map(p => p === project ? {...p,visible:p.visible === false} : p))}
+        onDelete={project => setPortfolioProjects(previous => previous.filter(p => p !== project))}
+      />
     </View>
   );
 
