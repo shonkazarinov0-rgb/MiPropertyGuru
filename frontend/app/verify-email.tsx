@@ -133,9 +133,8 @@ export default function VerifyEmailScreen() {
 
     try {
       if (currentStep === 'email') {
-        // Verify email then immediately complete registration with same code
+        // Keep registration pending until phone verification completes.
         await api.post('/auth/verify-email-only', { email, code });
-        await completeRegistration(email, code);
 
         if (!isMounted.current) return;
 
@@ -146,20 +145,23 @@ export default function VerifyEmailScreen() {
             setLoading(false);
             setSuccessMessage('Email verified! Now verify your phone.');
             transitionToPhone();
-          } catch {
-            // SMS failed — already authenticated, just go home
+          } catch (smsError: any) {
             if (isMounted.current) {
               setLoading(false);
-              navigateHome();
+              setErrorMessage(smsError?.message || 'Could not send SMS code. Please try again.');
             }
           }
         } else {
-          setLoading(false);
-          navigateHome();
+          await completeRegistration(email, code);
+          if (isMounted.current) {
+            setLoading(false);
+            navigateHome();
+          }
         }
       } else {
-        // Phone step — just verify, user is already logged in
+        // Verify phone while registration is still pending, then create the account.
         await api.post('/auth/verify-registration-phone', { phone, code, email });
+        await completeRegistration(email, 'phone-verified');
         if (isMounted.current) {
           setLoading(false);
           navigateHome();
