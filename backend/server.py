@@ -85,6 +85,12 @@ CATEGORY_ICONS = {
 
 # ── Pydantic Models ──
 
+class PortfolioCreate(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    image_base64: Optional[str] = None
+    images: Optional[List[str]] = []  # Array of base64 images
+
 class RegisterReq(BaseModel):
     portfolio_projects: List[PortfolioCreate] = []
     name: str
@@ -162,12 +168,6 @@ class ReviewCreate(BaseModel):
     comment: str
     job_id: Optional[str] = None
     conversation_id: Optional[str] = None
-
-class PortfolioCreate(BaseModel):
-    title: str
-    description: Optional[str] = ""
-    image_base64: Optional[str] = None
-    images: Optional[List[str]] = []  # Array of base64 images
 
 class ConversationCreate(BaseModel):
     participant_id: str
