@@ -1624,6 +1624,25 @@ async def get_contractor(cid: str, user=Depends(get_optional_user)):
     portfolio = await db.portfolio.find({"contractor_id": cid}, {"_id": 0}).sort("created_at", -1).to_list(50)
     return {"contractor": c, "reviews": reviews, "portfolio": portfolio}
 
+class ContractorLanguagesUpdate(BaseModel):
+    languages: List[str]
+
+@api_router.put("/contractors/languages")
+async def update_contractor_languages(req: ContractorLanguagesUpdate, user=Depends(get_current_user)):
+    if user["role"] != "contractor":
+        raise HTTPException(403, "Contractors only")
+    languages = []
+    for value in req.languages:
+        language = value.strip()
+        if not language or len(language) > 60:
+            raise HTTPException(400, "Language names must contain 1 to 60 characters")
+        if language.casefold() not in {item.casefold() for item in languages}:
+            languages.append(language)
+    if len(languages) > 50:
+        raise HTTPException(400, "Too many languages")
+    await db.users.update_one({"id": user["id"]}, {"$set": {"languages": languages}})
+    return {"languages": languages}
+
 @api_router.put("/contractors/location")
 async def update_location(req: LocationUpdate, user=Depends(get_current_user)):
     if user["role"] != "contractor":
