@@ -86,6 +86,7 @@ CATEGORY_ICONS = {
 # ── Pydantic Models ──
 
 class RegisterReq(BaseModel):
+    portfolio_projects: List[PortfolioCreate] = []
     name: str
     email: Optional[str] = None
     phone: Optional[str] = None
@@ -414,6 +415,7 @@ async def register(req: RegisterReq):
         "languages": req.languages or ["English"],
         "has_license": req.has_license or False,
         "license_confirmed": req.license_confirmed or False,
+        "portfolio_projects": [p.model_dump() for p in req.portfolio_projects] if req.role == "contractor" else [],
         "verification_code": code,
         "code_expires_at": expires_at.isoformat(),
         "created_at": datetime.now(timezone.utc).isoformat()
@@ -572,6 +574,9 @@ async def complete_registration(req: CompleteRegistrationReq):
     }
     
     await db.users.insert_one(user.copy())
+
+    if user["role"] == "contractor":
+        await save_registration_projects(uid, pending.get("portfolio_projects", []))
     
     # Delete pending registration
     await db.pending_registrations.delete_one({"email": req.email.lower()})
@@ -2199,6 +2204,15 @@ async def mark_conversation_reviewed(cid: str, user=Depends(get_current_user)):
 
 
 # ── Portfolio ──
+
+async def save_registration_projects(uid, projects):
+    """Persist contractor signup projects once the account has been created."""
+    for index, project in enumerate(projects):
+        item = PortfolioCreate(**project).model_dump()
+        item.update({"id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"portfolio:{uid}:{index}")),
+                     "contractor_id": uid, "created_at": datetime.now(timezone.utc).isoformat()})
+        await db.portfolio.update_one({"id": item["id"]}, {"$setOnInsert": item}, upsert=True)
+
 
 @api_router.post("/portfolio")
 async def add_portfolio(req: PortfolioCreate, user=Depends(get_current_user)):
