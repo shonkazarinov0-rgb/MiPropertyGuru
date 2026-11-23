@@ -716,15 +716,7 @@ export default function ProfileScreen() {
                                 keyboardType="phone-pad"
                                 maxLength={14}
                             />
-                            {editPhone && !user?.phone_verified && editPhone === user?.phone && (
-                                <TouchableOpacity style={s.verifyPhoneBtn} onPress={savePhoneNumber} disabled={sendingPhoneCode}>
-                                  {sendingPhoneCode
-                                      ? <ActivityIndicator size="small" color={colors.primary} />
-                                      : <Text style={s.verifyPhoneBtnText}>Verify</Text>
-                                  }
-                                </TouchableOpacity>
-                            )}
-                            {editPhone && editPhone !== user?.phone && (
+                            {!!editPhone.trim() && (!user?.phone_verified || editPhone !== user?.phone) && (
                                 <TouchableOpacity style={s.verifyPhoneBtn} onPress={savePhoneNumber} disabled={sendingPhoneCode}>
                                   {sendingPhoneCode
                                       ? <ActivityIndicator size="small" color={colors.primary} />
