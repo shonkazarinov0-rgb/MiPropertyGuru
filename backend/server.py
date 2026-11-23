@@ -1128,18 +1128,49 @@ async def verify_email_or_phone(req: VerifyCodeReq):
 
 @api_router.post("/auth/resend-verification")
 async def resend_verification(req: ResendVerificationReq):
-    """Resend verification code"""
-    user = await db.users.find_one({"email": req.email.lower()})
+    """Resend verification code for pending registrations or existing users."""
+    email = req.email.strip().lower()
+
+    if req.type == "email":
+        pending = await db.pending_registrations.find_one({"email": email})
+
+        if pending:
+            code = generate_verification_code()
+            expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+
+            sent = send_verification_code(
+                email, pending.get("name", "User"), code
+            )
+            if sent is False:
+                raise HTTPException(502, "Unable to send verification email")
+
+            await db.pending_registrations.update_one(
+                {"_id": pending["_id"]},
+                {"$set": {
+                    "verification_code": code,
+                    "code_expires_at": expires_at.isoformat()
+                }}
+            )
+
+            logger.info("Registration verification email resent")
+            return {"message": "Verification code sent to your email"}
+
+    user = await db.users.find_one({"email": email})
     if not user:
         raise HTTPException(404, "User not found")
-    
+
     code = generate_verification_code()
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
-    
+
+    if req.type == "email":
+        sent = send_verification_code(email, user.get("name", "User"), code)
+        if sent is False:
+            raise HTTPException(502, "Unable to send verification email")
+
     await db.verification_codes.update_one(
-        {"email": req.email.lower(), "type": req.type},
+        {"email": email, "type": req.type},
         {"$set": {
-            "email": req.email.lower(),
+            "email": email,
             "type": req.type,
             "code": code,
             "expires_at": expires_at.isoformat(),
@@ -1147,17 +1178,8 @@ async def resend_verification(req: ResendVerificationReq):
         }},
         upsert=True
     )
-    
-    # Send verification code email
-    try:
-        send_verification_code(req.email.lower(), user.get("name", "User"), code)
-        logger.info(f"Verification email sent to {req.email}")
-    except Exception as e:
-        logger.error(f"Failed to send verification email: {e}")
-    
-    return {
-        "message": f"Verification code sent to your {req.type}"
-    }
+
+    return {"message": f"Verification code sent to your {req.type}"}
 
 # ── Support Contact Endpoint ──
 
